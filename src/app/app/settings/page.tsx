@@ -1,0 +1,73 @@
+import { updateProfile } from "@/actions/profile";
+import { getCurrentProfile } from "@/lib/auth";
+import { USER_STORAGE_QUOTA_BYTES } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+export default async function SettingsPage() {
+  const profile = await getCurrentProfile();
+  const usedMb = (profile!.storage_used_bytes / 1024 / 1024).toFixed(2);
+  const quotaMb = USER_STORAGE_QUOTA_BYTES / 1024 / 1024;
+  const pct = Math.min(
+    100,
+    Math.round((profile!.storage_used_bytes / USER_STORAGE_QUOTA_BYTES) * 100),
+  );
+
+  return (
+    <div className="max-w-lg space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <p className="text-muted-foreground">Profile and storage usage</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form action={updateProfile} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Display name</Label>
+              <Input
+                id="displayName"
+                name="displayName"
+                defaultValue={profile!.display_name}
+                required
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Role: {profile!.role}</p>
+            <Button type="submit">Save</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Storage</CardTitle>
+          <CardDescription>
+            Free tier: {quotaMb} MB per user, 1 GB total project storage
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="h-2 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {usedMb} MB / {quotaMb} MB used ({pct}%)
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

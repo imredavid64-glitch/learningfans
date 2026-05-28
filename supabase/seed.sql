@@ -1,0 +1,2 @@
+-- Optional demo seed (run after first user signs up and replace USER_ID)
+-- Example: update profiles set role = 'admin' where id = 'YOUR-USER-UUID';
