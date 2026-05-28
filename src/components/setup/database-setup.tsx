@@ -43,11 +43,15 @@ export function DatabaseSetup() {
             <li>Click Run, then refresh this page</li>
           </ol>
           <p className="text-muted-foreground">
-            Also add{" "}
+            If you see <strong>type already exists</strong> in SQL Editor, the schema is
+            already applied — run <code className="rounded bg-muted px-1">supabase/verify_schema.sql</code>{" "}
+            instead of the full migration again.
+          </p>
+          <p className="text-muted-foreground">
+            Auth redirect URLs:{" "}
             <code className="rounded bg-muted px-1">
-              http://localhost:3000/auth/callback
-            </code>{" "}
-            under Authentication → URL Configuration → Redirect URLs.
+              https://learningfans.vercel.app/auth/callback
+            </code>
           </p>
           <div className="flex flex-wrap gap-2 pt-2">
             <a

@@ -1,74 +1,70 @@
 # Supabase setup for LearningFans
 
-Project URL: `https://xhximqrchwwwwwsysgdo.supabase.co`
+- **Project URL:** `https://xhximqrchwwwwwsysgdo.supabase.co`
+- **Production app:** `https://learningfans.vercel.app`
 
-## 1. Environment (done locally)
+## 1. Environment
 
-`.env.local` is configured with your keys. **Do not commit** `.env.local`.
+**Local** — `.env.local` (not committed):
 
-The Supabase URL must be the project root only — **not** `/rest/v1/`:
-
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://xhximqrchwwwwwsysgdo.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-publishable-key
+SUPABASE_SERVICE_ROLE_KEY=your-secret-key
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
-https://xhximqrchwwwwwsysgdo.supabase.co
+
+**Vercel** — same keys, but:
+
+```env
+NEXT_PUBLIC_APP_URL=https://learningfans.vercel.app
 ```
 
-## 2. Apply database schema (required once)
+## 2. Database schema
 
-The API returned 404 for `profiles`, so migrations are not applied yet.
+### First time only
 
-**Option A — SQL Editor (fastest)**
+Paste [`supabase/migrations/20260520100000_initial_schema.sql`](../supabase/migrations/20260520100000_initial_schema.sql) in the [SQL Editor](https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new) and run once.
 
-1. Open [SQL Editor](https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new)
-2. Paste the full contents of [`supabase/migrations/20260520100000_initial_schema.sql`](../supabase/migrations/20260520100000_initial_schema.sql)
-3. Run
+### Error: `type "profile_role" already exists`
 
-**Option B — CLI**
+**You already applied the schema.** Do not run the full migration again.
 
-```bash
-supabase login
-supabase link --project-ref xhximqrchwwwwwsysgdo
-supabase db push
+1. Run [`supabase/verify_schema.sql`](../supabase/verify_schema.sql)
+2. If `profiles`, `spaces`, `study_materials`, `schedule_events` all show `true`, you are done
+3. Optionally run [`supabase/migrations/20260528100000_profile_insert_policy_only.sql`](../supabase/migrations/20260528100000_profile_insert_policy_only.sql)
+
+### Fresh reset (destructive — deletes all app data)
+
+Only if you want to start over:
+
+```sql
+drop schema public cascade;
+create schema public;
+grant all on schema public to postgres, anon, authenticated, service_role;
 ```
+
+Then run `initial_schema.sql` once.
 
 ## 3. Auth redirect URLs
 
-In [Auth → URL Configuration](https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/auth/url-configuration):
+[Auth → URL Configuration](https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/auth/url-configuration)
 
 | Type | URL |
 |------|-----|
-| Site URL | `http://localhost:3000` (dev) |
-| Redirect URLs | `http://localhost:3000/auth/callback` |
-| | `https://YOUR-VERCEL-DOMAIN.vercel.app/auth/callback` (after deploy) |
-
-Enable **Email** provider under Authentication → Providers.
+| Site URL | `https://learningfans.vercel.app` |
+| Redirect URLs | `https://learningfans.vercel.app/auth/callback` |
+| | `http://localhost:3000/auth/callback` |
 
 ## 4. First admin
-
-After you sign up in the app:
 
 ```sql
 update public.profiles set role = 'admin' where id = 'YOUR-USER-UUID';
 ```
 
-Find your UUID in Authentication → Users.
-
-## 5. Run the app
+## 5. Run locally
 
 ```bash
+npm install
 npm run dev
 ```
-
-Visit http://localhost:3000
-
-## 6. Vercel (production)
-
-Add the same env vars in Vercel → Settings → Environment Variables:
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (publishable key)
-- `SUPABASE_SERVICE_ROLE_KEY` (secret key — **Production only**, never `NEXT_PUBLIC_`)
-- `NEXT_PUBLIC_APP_URL` = your Vercel URL
-
-## Security note
-
-If these keys were shared in chat or committed to git, rotate them in Supabase → Settings → API.
