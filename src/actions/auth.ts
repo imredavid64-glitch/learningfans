@@ -1,20 +1,30 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAppUrl } from "@/lib/app-url";
 
-export async function signUp(formData: FormData) {
+export type AuthState = {
+  error?: string;
+  message?: string;
+};
+
+export async function signUp(
+  _prevState: AuthState | null,
+  formData: FormData,
+): Promise<AuthState> {
   const supabase = await createClient();
-  const email = String(formData.get("email") ?? "");
+  const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const displayName = String(formData.get("displayName") ?? "");
+  const displayName = String(formData.get("displayName") ?? "").trim();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { display_name: displayName },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      emailRedirectTo: `${getAppUrl()}/auth/callback`,
     },
   });
 
@@ -22,12 +32,24 @@ export async function signUp(formData: FormData) {
     return { error: error.message };
   }
 
+  // Email confirmation enabled: no session until user clicks the link
+  if (data.user && !data.session) {
+    return {
+      message:
+        "Check your email for a confirmation link, then sign in here.",
+    };
+  }
+
+  revalidatePath("/", "layout");
   redirect("/app");
 }
 
-export async function signIn(formData: FormData) {
+export async function signIn(
+  _prevState: AuthState | null,
+  formData: FormData,
+): Promise<AuthState> {
   const supabase = await createClient();
-  const email = String(formData.get("email") ?? "");
+  const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -36,11 +58,13 @@ export async function signIn(formData: FormData) {
     return { error: error.message };
   }
 
+  revalidatePath("/", "layout");
   redirect("/app");
 }
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  revalidatePath("/", "layout");
   redirect("/");
 }

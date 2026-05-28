@@ -1,32 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { signIn, signUp } from "@/actions/auth";
+import { useActionState } from "react";
+import { signIn, signUp, type AuthState } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-export function AuthForm({ mode }: { mode: "login" | "signup" }) {
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+const initialState: AuthState | null = null;
 
-  async function handleSubmit(formData: FormData) {
-    setPending(true);
-    setError(null);
-    const result =
-      mode === "login" ? await signIn(formData) : await signUp(formData);
-    if (result?.error) {
-      setError(result.error);
-      setPending(false);
-    }
-  }
+export function AuthForm({ mode }: { mode: "login" | "signup" }) {
+  const action = mode === "login" ? signIn : signUp;
+  const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
-    <form action={handleSubmit} className="space-y-4">
-      {error && (
+    <form action={formAction} className="space-y-4">
+      {state?.error && (
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      )}
+      {state?.message && (
+        <Alert>
+          <AlertDescription>{state.message}</AlertDescription>
         </Alert>
       )}
       {mode === "signup" && (
@@ -37,11 +33,18 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       )}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" required />
+        <Input id="email" name="email" type="email" autoComplete="email" required />
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
-        <Input id="password" name="password" type="password" minLength={6} required />
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete={mode === "login" ? "current-password" : "new-password"}
+          minLength={6}
+          required
+        />
       </div>
       <Button type="submit" className="w-full" disabled={pending}>
         {pending ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}

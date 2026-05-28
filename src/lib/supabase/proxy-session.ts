@@ -43,9 +43,6 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     const isAppRoute = request.nextUrl.pathname.startsWith("/app");
-    const isAuthRoute =
-      request.nextUrl.pathname.startsWith("/login") ||
-      request.nextUrl.pathname.startsWith("/signup");
 
     if (!user && isAppRoute) {
       const url = request.nextUrl.clone();
@@ -54,11 +51,8 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    if (user && isAuthRoute) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/app";
-      return NextResponse.redirect(url);
-    }
+    // Only redirect away from login when hitting /login or /signup directly;
+    // do not block failed sign-in attempts (session is set via server action).
   } catch (error) {
     console.error("[LearningFans] Auth session refresh failed:", error);
   }
