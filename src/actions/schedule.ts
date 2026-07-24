@@ -1,83 +1,151 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile, isModerator } from "@/lib/auth";
-import type { EventVisibility } from "@/lib/constants";
+import { requireProfile } from "@/lib/auth";
+import { eventSchema, validateOrThrow } from "@/lib/validation";
 
-export async function createScheduleEvent(formData: FormData): Promise<void> {
-  const profile = await requireProfile();
-  const supabase = await createClient();
-
-  const title = String(formData.get("title") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
-  const startsAt = String(formData.get("startsAt") ?? "");
-  const endsAt = String(formData.get("endsAt") ?? "");
-  const allDay = formData.get("allDay") === "on";
-  const visibility = String(formData.get("visibility") ?? "private") as EventVisibility;
-  const spaceId = String(formData.get("spaceId") ?? "") || null;
-  const linkedMaterialId = String(formData.get("linkedMaterialId") ?? "") || null;
-  const reminder = formData.get("reminder")
-    ? Number(formData.get("reminder"))
-    : null;
-
-  if (visibility === "space" && spaceId && !isModerator(profile.role)) {
-    const { data: membership } = await supabase
-      .from("space_members")
-      .select("role")
-      .eq("space_id", spaceId)
-      .eq("user_id", profile.id)
-      .single();
-
-    if (membership?.role !== "moderator") {
-      return;
-    }
-  }
-
-  const { error } = await supabase.from("schedule_events").insert({
-    title,
-    description: description || null,
-    starts_at: startsAt,
-    ends_at: endsAt,
-    all_day: allDay,
-    owner_id: profile.id,
-    space_id: visibility === "space" ? spaceId : null,
-    visibility,
-    linked_material_id: linkedMaterialId,
-    reminder_minutes_before: reminder,
-  });
-
-  if (error) return;
-  revalidatePath("/app/schedule");
-}
-
-export async function deleteScheduleEvent(eventId: string): Promise<void> {
-  const profile = await requireProfile();
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("schedule_events")
-    .delete()
-    .eq("id", eventId)
-    .eq("owner_id", profile.id);
-
-  if (error) return;
-  revalidatePath("/app/schedule");
-}
-
-export async function setEventAttendance(
-  eventId: string,
-  status: "going" | "maybe",
+export async function createEvent(
+  formData: FormData
 ): Promise<void> {
   const profile = await requireProfile();
   const supabase = await createClient();
 
-  const { error } = await supabase.from("event_attendees").upsert({
-    event_id: eventId,
-    user_id: profile.id,
-    status,
-  });
+  let title: string;
+  let description: string;
+  let startsAt: string;
+  let endsAt: string;
+  let allDay: boolean;
 
-  if (error) return;
+  try {
+    ({ title, description, startsAt, endsAt, allDay } = validateOrThrow(eventSchema, {
+      title: String(formData.get("title") ?? "").trim(),
+      description: String(formData.get("description") ?? "").trim(),
+      startsAt: String(formData.get("startsAt") ?? ""),
+      endsAt: String(formData.get("endsAt") ?? ""),
+      allDay: formData.get("allDay") === "on",
+    }));
+  } catch (err) {
+    redirect(`/app/schedule/new?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}`);
+  }
+
+  const spaceId = String(formData.get("spaceId") ?? "").trim();
+  if (!spaceId) {
+    redirect(`/app/schedule/new?error=Space%20is%20required`);
+  }
+
+  const room = String(formData.get("room") ?? "").trim().slice(0, 100);
+  const visibility = formData.get("visibility") as string;
+  const validVisibility = visibility === "private" ? "private" : "space";
+
+  const { data: membership } = await supabase
+    .from("space_members")
+    .select("role")
+    .eq("space_id", spaceId)
+    .eq("user_id", profile.id)
+    .single();
+
+  if (!membership || (membership.role !== "moderator" && membership.role !== "admin")) {
+    redirect(`/app/schedule?error=Unauthorized%20-%20instructor%20only`);
+  }
+
+  const { error } = await supabase
+    .from("schedule_events")
+    .insert({
+      space_id: spaceId,
+      owner_id: profile.id,
+      title: title.slice(0, 200),
+      description: description.slice(0, 2000) || null,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      all_day: allDay,
+      timezone: "UTC",
+      visibility: validVisibility,
+      room: room || null,
+    });
+
+  if (error) {
+    redirect(`/app/schedule/new?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/app/classes/${spaceId}/schedule`);
+  revalidatePath("/app/schedule");
+  redirect(`/app/schedule`);
+}
+
+export async function rsvpToEvent(
+  eventId: string,
+  status: "going" | "maybe"
+): Promise<void> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  if (!eventId || typeof eventId !== "string") {
+    redirect(`/app/schedule?error=Invalid%20event`);
+  }
+
+  if (status !== "going" && status !== "maybe") {
+    redirect(`/app/schedule?error=Invalid%20status`);
+  }
+
+  const { error } = await supabase
+    .from("event_attendees")
+    .upsert({
+      event_id: eventId,
+      user_id: profile.id,
+      status,
+    }, { onConflict: "event_id,user_id" });
+
+  if (error) {
+    redirect(`/app/schedule?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/app/classes/*/schedule`);
+  revalidatePath("/app/schedule");
+}
+
+export async function deleteEvent(eventId: string): Promise<void> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  if (!eventId || typeof eventId !== "string") {
+    redirect(`/app/schedule?error=Invalid%20event`);
+  }
+
+  const { data: event } = await supabase
+    .from("schedule_events")
+    .select("owner_id, space_id")
+    .eq("id", eventId)
+    .single();
+
+  if (!event) {
+    redirect(`/app/schedule?error=Event%20not%20found`);
+  }
+
+  const { data: membership } = await supabase
+    .from("space_members")
+    .select("role")
+    .eq("space_id", event.space_id)
+    .eq("user_id", profile.id)
+    .single();
+
+  const isOwner = event.owner_id === profile.id;
+  const isModerator = membership?.role === "moderator" || membership?.role === "admin";
+
+  if (!isOwner && !isModerator) {
+    redirect(`/app/schedule?error=Unauthorized`);
+  }
+
+  const { error } = await supabase
+    .from("schedule_events")
+    .delete()
+    .eq("id", eventId);
+
+  if (error) {
+    redirect(`/app/schedule?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/app/classes/*/schedule`);
   revalidatePath("/app/schedule");
 }

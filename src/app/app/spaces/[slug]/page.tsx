@@ -114,14 +114,14 @@ export default async function SpacePage({
                   {isMod && (
                     <>
                       <form
-                        action={toggleThreadPin.bind(null, t.id, slug, !t.is_pinned)}
+                        action={toggleThreadPin.bind(null, t.id, !t.is_pinned)}
                       >
                         <Button type="submit" variant="ghost" size="sm">
                           {t.is_pinned ? "Unpin" : "Pin"}
                         </Button>
                       </form>
                       <form
-                        action={toggleThreadLock.bind(null, t.id, slug, !t.is_locked)}
+                        action={toggleThreadLock.bind(null, t.id, !t.is_locked)}
                       >
                         <Button type="submit" variant="ghost" size="sm">
                           {t.is_locked ? "Unlock" : "Lock"}

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TimeLimitSetting } from "@/components/layout/time-limit-setting";
 
 export default async function SettingsPage() {
   const profile = await getCurrentProfile();
@@ -68,6 +69,8 @@ export default async function SettingsPage() {
           </p>
         </CardContent>
       </Card>
+
+      <TimeLimitSetting />
     </div>
   );
 }

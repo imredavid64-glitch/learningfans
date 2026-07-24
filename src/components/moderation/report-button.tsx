@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createReport } from "@/actions/moderation";
+import { submitReportFromForm } from "@/actions/moderation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,7 +26,7 @@ export function ReportButton({
   async function handleSubmit(formData: FormData) {
     formData.set("targetType", targetType);
     formData.set("targetId", targetId);
-    await createReport(formData);
+    await submitReportFromForm(formData);
     setDone(true);
     setOpen(false);
   }

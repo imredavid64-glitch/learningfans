@@ -18,10 +18,17 @@ create table public.profiles (
   avatar_url text,
   role public.profile_role not null default 'student',
   storage_used_bytes bigint not null default 0,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Student-specific fields
+  major text,
+  bio text,
+  interests text[],
+  current_class_id uuid references public.spaces (id) on delete set null,
+  gpa numeric(3,2) default 0.00,
+  credits_completed integer default 0
 );
 
--- Spaces
+-- Spaces (class communities)
 create table public.spaces (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -29,7 +36,15 @@ create table public.spaces (
   slug text not null unique,
   is_public boolean not null default false,
   created_by uuid not null references public.profiles (id) on delete cascade,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Class-specific fields
+  class_code text,
+  semester text,
+  quarter text,
+  instructor text,
+  department text,
+  room text,
+  meeting_schedule text
 );
 
 create table public.space_members (
@@ -37,7 +52,19 @@ create table public.space_members (
   user_id uuid not null references public.profiles (id) on delete cascade,
   role public.space_member_role not null default 'member',
   joined_at timestamptz not null default now(),
-  primary key (space_id, user_id)
+  primary key (space_id, user_id),
+  -- Class enrollment tracking
+  status text not null default 'active' -- 'active'|'completed'|'dropped'
+);
+
+-- Class enrollments (student per class)
+create table public.class_enrollments (
+  id uuid primary key default gen_random_uuid(),
+  class_id uuid not null references public.spaces (id) on delete cascade,
+  student_id uuid not null references public.profiles (id) on delete cascade,
+  status text not null default 'active', -- 'active'|'completed'|'dropped'
+  enrolled_at timestamptz not null default now(),
+  unique (class_id, student_id)
 );
 
 -- Discussion
@@ -182,6 +209,22 @@ create table public.storage_objects (
   material_id uuid references public.study_materials (id) on delete set null,
   created_at timestamptz not null default now(),
   unique (bucket, path)
+);
+
+-- Grades table
+create table public.grades (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid not null references public.profiles (id) on delete cascade,
+  assignment_id uuid not null references public.study_materials (id) on delete cascade,
+  score numeric(5,2) not null,
+  letter_grade varchar(2),
+  submitted_at timestamptz not null default now(),
+  graded_at timestamptz,
+  graded_by uuid references public.profiles (id) on delete set null,
+  feedback text,
+  unique (student_id, assignment_id),
+  -- Performance tracking
+  calculated_grade varchar(10) -- 'A','B+','C-','D','F','I'|'W'
 );
 
 -- Indexes

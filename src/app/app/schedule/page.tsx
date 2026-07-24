@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { createScheduleEvent, deleteScheduleEvent, setEventAttendance } from "@/actions/schedule";
+import { createEvent, deleteEvent, rsvpToEvent } from "@/actions/schedule";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,7 @@ export default async function SchedulePage({
           <CardTitle>New event</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createScheduleEvent} className="grid gap-4 sm:grid-cols-2">
+          <form action={createEvent} className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="title">Title</Label>
               <Input id="title" name="title" required />
@@ -99,6 +99,23 @@ export default async function SchedulePage({
                 <option value="space">Shared (space)</option>
               </select>
             </div>
+            {spaceIds.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="spaceId">Class/Space</Label>
+                <select
+                  id="spaceId"
+                  name="spaceId"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                  required
+                >
+                  {memberships?.map((m) => (
+                    <option key={m.space_id} value={m.space_id}>
+                      {(m.spaces as any)?.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="spaceId">Space (for shared)</Label>
               <select
@@ -219,7 +236,7 @@ function EventCard({
         </p>
         <div className="flex gap-2">
           {showDelete && (
-            <form action={deleteScheduleEvent.bind(null, event.id)}>
+            <form action={deleteEvent.bind(null, event.id)}>
               <Button type="submit" variant="destructive" size="sm">
                 Delete
               </Button>
@@ -227,12 +244,12 @@ function EventCard({
           )}
           {showAttendance && (
             <>
-              <form action={setEventAttendance.bind(null, event.id, "going")}>
+              <form action={rsvpToEvent.bind(null, event.id, "going")}>
                 <Button type="submit" size="sm" variant="secondary">
                   Going
                 </Button>
               </form>
-              <form action={setEventAttendance.bind(null, event.id, "maybe")}>
+              <form action={rsvpToEvent.bind(null, event.id, "maybe")}>
                 <Button type="submit" size="sm" variant="outline">
                   Maybe
                 </Button>

@@ -1,115 +1,309 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile, isModerator } from "@/lib/auth";
+import { requireProfile } from "@/lib/auth";
+import { checkContentWithAI, checkAndArchive } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/audit";
+import { threadSchema, postSchema, validateOrThrow } from "@/lib/validation";
 
-export async function createThread(spaceSlug: string, formData: FormData): Promise<void> {
-  const profile = await requireProfile();
-  const supabase = await createClient();
-
-  const title = String(formData.get("title") ?? "").trim();
-  const body = String(formData.get("body") ?? "").trim();
-
-  const { data: space } = await supabase
-    .from("spaces")
-    .select("id")
-    .eq("slug", spaceSlug)
-    .single();
-
-  if (!space) return;
-
-  const { data, error } = await supabase
-    .from("threads")
-    .insert({
-      space_id: space.id,
-      author_id: profile.id,
-      title,
-      body,
-    })
-    .select("id")
-    .single();
-
-  if (error) return;
-
-  redirect(`/app/spaces/${spaceSlug}/threads/${data.id}`);
+function checkBot(formData: FormData): boolean {
+  const honeypot = formData.get("website") as string;
+  const timestamp = formData.get("timestamp") as string;
+  if (honeypot) return true;
+  if (timestamp && Date.now() - Number(timestamp) < 2000) return true;
+  return false;
 }
 
 export async function createPost(
   threadId: string,
-  spaceSlug: string,
-  formData: FormData,
+  formData: FormData
 ): Promise<void> {
+  if (checkBot(formData)) {
+    redirect(`/app/classes/*/threads/${threadId}`);
+  }
+
   const profile = await requireProfile();
   const supabase = await createClient();
-  const body = String(formData.get("body") ?? "").trim();
 
-  const { error } = await supabase.from("posts").insert({
-    thread_id: threadId,
-    author_id: profile.id,
-    body,
-  });
+  let body: string;
+  try {
+    ({ body } = validateOrThrow(postSchema, {
+      body: String(formData.get("body") ?? "").trim(),
+    }));
+  } catch (err) {
+    redirect(`/app/classes/*/threads/${threadId}?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}`);
+  }
 
-  if (error) return;
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("space_id, is_locked")
+    .eq("id", threadId)
+    .single();
 
-  revalidatePath(`/app/spaces/${spaceSlug}/threads/${threadId}`);
+  if (!thread) {
+    redirect(`/app/classes/*/threads/${threadId}?error=Thread%20not%20found`);
+  }
+
+  if (thread.is_locked) {
+    redirect(`/app/classes/*/threads/${threadId}?error=This%20thread%20is%20locked`);
+  }
+
+  const { data: membership } = await supabase
+    .from("space_members")
+    .select("role")
+    .eq("space_id", thread.space_id)
+    .eq("user_id", profile.id)
+    .single();
+
+  if (!membership) {
+    redirect(`/app/classes/*/threads/${threadId}?error=You%20must%20be%20a%20member%20to%20reply`);
+  }
+
+  const moderation = await checkContentWithAI(body, "class discussion reply");
+  
+  if (!moderation.is_clean && moderation.risk_level === "high") {
+    await supabase.from("user_sanctions").insert({
+      user_id: profile.id,
+      type: "suspend",
+      reason: `AI moderation: ${moderation.violations.join(", ")}`,
+    });
+    redirect(`/app/classes/*/threads/${threadId}?error=Content%20violates%20community%20guidelines.%20Your%20account%20has%20been%20suspended.`);
+  }
+
+  const { data: post, error } = await supabase
+    .from("posts")
+    .insert({
+      thread_id: threadId,
+      author_id: profile.id,
+      body,
+      is_hidden: !moderation.is_clean,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    redirect(`/app/classes/*/threads/${threadId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  await supabase
+    .from("threads")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("id", threadId);
+
+  if (!moderation.is_clean) {
+    await supabase.from("moderation_actions").insert({
+      actor_id: profile.id,
+      action: "auto_flag",
+      target_type: "post",
+      target_id: post.id,
+      note: `AI moderation flagged: ${moderation.violations.join(", ")}`,
+    });
+  }
+
+  await logAudit("post_create", profile.id, { threadId, postId: post.id });
+
+  checkAndArchive();
+
+  revalidatePath(`/app/classes/*/threads/${threadId}`);
+  redirect(`/app/classes/*/threads/${threadId}`);
+}
+
+export async function createThread(
+  spaceId: string,
+  formData: FormData
+): Promise<void> {
+  if (checkBot(formData)) {
+    redirect(`/app/classes/${spaceId}`);
+  }
+
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  let title: string;
+  let body: string;
+  try {
+    ({ title, body } = validateOrThrow(threadSchema, {
+      title: String(formData.get("title") ?? "").trim(),
+      body: String(formData.get("body") ?? "").trim(),
+    }));
+  } catch (err) {
+    redirect(`/app/classes/${spaceId}?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}`);
+  }
+
+  const { data: membership } = await supabase
+    .from("space_members")
+    .select("role")
+    .eq("space_id", spaceId)
+    .eq("user_id", profile.id)
+    .single();
+
+  if (!membership) {
+    redirect(`/app/classes/${spaceId}?error=You%20must%20be%20a%20member%20to%20create%20threads`);
+  }
+
+  const moderation = await checkContentWithAI(`${title}\n${body}`, "class discussion thread");
+  
+  if (!moderation.is_clean && moderation.risk_level === "high") {
+    await supabase.from("user_sanctions").insert({
+      user_id: profile.id,
+      type: "suspend",
+      reason: `AI moderation: ${moderation.violations.join(", ")}`,
+    });
+    redirect(`/app/classes/${spaceId}?error=Content%20violates%20community%20guidelines.%20Your%20account%20has%20been%20suspended.`);
+  }
+
+  const { data: thread, error } = await supabase
+    .from("threads")
+    .insert({
+      space_id: spaceId,
+      author_id: profile.id,
+      title,
+      body,
+      is_hidden: !moderation.is_clean,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    redirect(`/app/classes/${spaceId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  if (!moderation.is_clean) {
+    await supabase.from("moderation_actions").insert({
+      actor_id: profile.id,
+      action: "auto_flag",
+      target_type: "thread",
+      target_id: thread.id,
+      note: `AI moderation flagged: ${moderation.violations.join(", ")}`,
+    });
+  }
+
+  await logAudit("thread_create", profile.id, { spaceId, threadId: thread.id, title });
+
+  checkAndArchive();
+
+  revalidatePath(`/app/classes/*`);
+  redirect(`/app/classes/*/threads/${thread.id}`);
 }
 
 export async function toggleThreadPin(
   threadId: string,
-  spaceSlug: string,
-  pinned: boolean,
+  pinned: boolean
 ): Promise<void> {
   const profile = await requireProfile();
-  if (!isModerator(profile.role)) return;
-
   const supabase = await createClient();
+
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("space_id")
+    .eq("id", threadId)
+    .single();
+
+  if (!thread) {
+    redirect(`/app/classes/*/threads/${threadId}?error=Thread%20not%20found`);
+  }
+
+  const { data: membership } = await supabase
+    .from("space_members")
+    .select("role")
+    .eq("space_id", thread.space_id)
+    .eq("user_id", profile.id)
+    .single();
+
+  if (!membership || (membership.role !== "moderator" && membership.role !== "admin")) {
+    redirect(`/app/classes/*/threads/${threadId}?error=Unauthorized%20-%20moderator%20required`);
+  }
+
   const { error } = await supabase
     .from("threads")
     .update({ is_pinned: pinned })
     .eq("id", threadId);
 
-  if (error) return;
-  revalidatePath(`/app/spaces/${spaceSlug}`);
+  if (error) {
+    redirect(`/app/classes/*/threads/${threadId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/app/classes/*/threads/${threadId}`);
 }
 
 export async function toggleThreadLock(
   threadId: string,
-  spaceSlug: string,
-  locked: boolean,
+  locked: boolean
 ): Promise<void> {
   const profile = await requireProfile();
-  if (!isModerator(profile.role)) return;
-
   const supabase = await createClient();
+
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("space_id")
+    .eq("id", threadId)
+    .single();
+
+  if (!thread) {
+    redirect(`/app/classes/*/threads/${threadId}?error=Thread%20not%20found`);
+  }
+
+  const { data: membership } = await supabase
+    .from("space_members")
+    .select("role")
+    .eq("space_id", thread.space_id)
+    .eq("user_id", profile.id)
+    .single();
+
+  if (!membership || (membership.role !== "moderator" && membership.role !== "admin")) {
+    redirect(`/app/classes/*/threads/${threadId}?error=Unauthorized%20-%20moderator%20required`);
+  }
+
   const { error } = await supabase
     .from("threads")
     .update({ is_locked: locked })
     .eq("id", threadId);
 
-  if (error) return;
-  revalidatePath(`/app/spaces/${spaceSlug}`);
+  if (error) {
+    redirect(`/app/classes/*/threads/${threadId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/app/classes/*/threads/${threadId}`);
 }
 
-export async function hideThread(threadId: string, spaceSlug: string): Promise<void> {
+export async function hideThread(
+  threadId: string,
+  hidden: boolean
+): Promise<void> {
   const profile = await requireProfile();
-  if (!isModerator(profile.role)) return;
-
   const supabase = await createClient();
+
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("space_id")
+    .eq("id", threadId)
+    .single();
+
+  if (!thread) {
+    redirect(`/app/classes/*/threads/${threadId}?error=Thread%20not%20found`);
+  }
+
+  const { data: membership } = await supabase
+    .from("space_members")
+    .select("role")
+    .eq("space_id", thread.space_id)
+    .eq("user_id", profile.id)
+    .single();
+
+  if (!membership || (membership.role !== "moderator" && membership.role !== "admin")) {
+    redirect(`/app/classes/*/threads/${threadId}?error=Unauthorized%20-%20moderator%20required`);
+  }
+
   const { error } = await supabase
     .from("threads")
-    .update({ is_hidden: true })
+    .update({ is_hidden: hidden })
     .eq("id", threadId);
 
-  if (error) return;
+  if (error) {
+    redirect(`/app/classes/*/threads/${threadId}?error=${encodeURIComponent(error.message)}`);
+  }
 
-  await supabase.from("moderation_actions").insert({
-    actor_id: profile.id,
-    action: "hide_thread",
-    target_type: "thread",
-    target_id: threadId,
-  });
-
-  revalidatePath(spaceSlug ? `/app/spaces/${spaceSlug}` : "/app/mod");
+  revalidatePath(`/app/classes/*/threads/${threadId}`);
 }

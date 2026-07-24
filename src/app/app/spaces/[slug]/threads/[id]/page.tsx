@@ -61,7 +61,7 @@ export default async function ThreadPage({
         <div className="mt-2 flex gap-2">
           <ReportButton targetType="thread" targetId={id} />
           {canMod && (
-            <form action={hideThread.bind(null, id, slug)}>
+            <form action={hideThread.bind(null, id, true)}>
               <Button type="submit" variant="destructive" size="sm">
                 Hide thread
               </Button>
