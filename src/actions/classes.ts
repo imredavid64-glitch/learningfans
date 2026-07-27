@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { createClassSchema, validateOrThrow } from "@/lib/validation";
+import { hashPassword, validatePassword, verifyPassword } from "@/lib/password";
 
 export interface ClassSpace {
   id: string;
@@ -22,6 +23,7 @@ export interface ClassSpace {
   is_public: boolean;
   created_by: string;
   created_at: string;
+  join_password_hash: string | null;
 }
 
 export interface EnrollmentWithSpace {
@@ -95,6 +97,14 @@ export async function createClass(
     redirect(`/app/classes/new?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}`);
   }
 
+  const joinPassword = String(formData.get("joinPassword") ?? "").trim();
+  let joinPasswordHash: string | null = null;
+  if (joinPassword) {
+    const pwErr = validatePassword(joinPassword);
+    if (pwErr) redirect(`/app/classes/new?error=${encodeURIComponent(pwErr)}`);
+    joinPasswordHash = hashPassword(joinPassword);
+  }
+
   const { data: space, error } = await supabase
     .from("spaces")
     .insert({
@@ -107,6 +117,7 @@ export async function createClass(
       semester: validated.semester || null,
       instructor: validated.instructor || null,
       department: validated.department || null,
+      join_password_hash: joinPasswordHash,
     })
     .select()
     .single();
@@ -132,6 +143,7 @@ export async function createClass(
 
 export async function enrollInClass(
   classId: string,
+  formData?: FormData,
 ): Promise<void> {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -153,12 +165,19 @@ export async function enrollInClass(
 
   const { data: classData } = await supabase
     .from("spaces")
-    .select("id, name, is_public")
+    .select("id, name, is_public, join_password_hash")
     .eq("id", classId)
     .single();
 
   if (!classData) {
     redirect(`/app/classes?error=Class%20not%20found`);
+  }
+
+  if (classData.join_password_hash) {
+    const password = formData?.get("joinPassword") as string;
+    if (!password || !verifyPassword(password, classData.join_password_hash)) {
+      redirect(`/app/classes/${classId}?error=Incorrect%20password`);
+    }
   }
 
   const { error } = await supabase

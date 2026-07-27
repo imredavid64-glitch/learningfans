@@ -5,7 +5,7 @@ import { getAvailableClasses, getUserEnrollments, enrollInClass } from "@/action
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, BookOpen, Users, Calendar, Plus, CheckCircle2 } from "lucide-react";
+import { Search, Filter, BookOpen, Users, Calendar, Plus, CheckCircle2, Lock, Unlock } from "lucide-react";
 
 export default async function BrowseClassesPage() {
   const profile = await getCurrentProfile();
@@ -15,10 +15,15 @@ export default async function BrowseClassesPage() {
   
   const [classes, enrollments] = await Promise.all([
     getAvailableClasses(),
-    getUserEnrollments(profile.id)
+    getUserEnrollments(profile.id),
   ]);
 
+  const { data: spacePasswords } = await supabase
+    .from("spaces")
+    .select("id, join_password_hash");
+
   const enrolledIds = new Set(enrollments.map(e => e.class_id));
+  const passwordMap = new Map((spacePasswords || []).map((c) => [c.id, c.join_password_hash]));
 
   return (
     <div className="space-y-8">
@@ -56,6 +61,7 @@ export default async function BrowseClassesPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {classes.map((cls) => {
             const isEnrolled = enrolledIds.has(cls.id);
+            const hasPassword = !!passwordMap.get(cls.id);
             return (
               <Card key={cls.id} className="hover:shadow-md transition-shadow flex flex-col">
                 <CardHeader>
@@ -63,6 +69,11 @@ export default async function BrowseClassesPage() {
                     <div className="flex-1">
                       <CardTitle className="text-lg flex items-center gap-2">
                         {cls.name}
+                        {hasPassword ? (
+                          <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Password protected" />
+                        ) : (
+                          <Unlock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Open enrollment" />
+                        )}
                         <Badge variant={cls.is_public ? "default" : "secondary"} className="text-xs">
                           {cls.is_public ? "Public" : "Private"}
                         </Badge>
@@ -105,7 +116,16 @@ export default async function BrowseClassesPage() {
                     </Button>
                   </Link>
                   
-                  <form action={enrollInClass.bind(null, cls.id)}>
+                  <form action={enrollInClass.bind(null, cls.id)} className="space-y-2">
+                    {hasPassword && (
+                      <input
+                        type="password"
+                        name="joinPassword"
+                        placeholder="Class password"
+                        required
+                        className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    )}
                     <Button 
                       type="submit" 
                       disabled={isEnrolled}
