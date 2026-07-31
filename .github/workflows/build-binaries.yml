@@ -65,7 +65,7 @@ jobs:
         run: npm ci
 
       - name: Build Windows NSIS installer
-        run: npx electron-builder --config desktop/electron-builder.yml --win
+        run: npx electron-builder --config desktop/electron-builder.yml --win --publish never
 
       - name: Upload installer to release
         env:
@@ -89,7 +89,7 @@ jobs:
         run: npm ci
 
       - name: Build Linux targets
-        run: npx electron-builder --config desktop/electron-builder.yml --linux
+        run: npx electron-builder --config desktop/electron-builder.yml --linux --publish never
 
       - name: Upload to release
         env:
