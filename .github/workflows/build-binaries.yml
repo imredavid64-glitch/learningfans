@@ -48,8 +48,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/release/app-release.apk release/learningfans-0.1.0-android.apk
           gh release upload "${{ github.event.inputs.tag }}" \
-            "android/app/build/outputs/apk/release/app-release.apk#learningfans-0.1.0-android.apk" --clobber
+            release/learningfans-0.1.0-android.apk --clobber
 
   windows:
     name: Windows installer
