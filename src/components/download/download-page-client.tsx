@@ -32,7 +32,7 @@ const PLATFORMS: {
     label: "Android",
     icon: Smartphone,
     desc: "Native app for Android",
-    file: "/downloads/learningfans-android.apk",
+    url: "https://github.com/imredavid64-glitch/learningfans/releases/download/v0.1.0/learningfans-0.1.0-android.apk",
     note: "Download the APK and allow installs from unknown sources if prompted.",
   },
   {
@@ -48,7 +48,7 @@ const PLATFORMS: {
     label: "Windows",
     icon: Laptop,
     desc: "Desktop app for Windows",
-    file: "/downloads/learningfans-windows.exe",
+    url: "https://github.com/imredavid64-glitch/learningfans/releases/download/v0.1.0/learningfans-0.1.0-win-x64.exe",
     note: "NSIS installer. Requires Windows 10 or later.",
   },
   {
@@ -56,7 +56,7 @@ const PLATFORMS: {
     label: "Linux",
     icon: Server,
     desc: "Desktop app for Linux",
-    file: "/downloads/learningfans-linux.AppImage",
+    url: "https://github.com/imredavid64-glitch/learningfans/releases/download/v0.1.0/learningfans-0.1.0-linux-x86_64.AppImage",
     note: "AppImage — make it executable, then run it.",
   },
 ];
