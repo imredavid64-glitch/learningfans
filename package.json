@@ -2,6 +2,12 @@
   "name": "learningfans",
   "version": "0.1.0",
   "private": true,
+  "description": "LearningFans — your study community on every device",
+  "author": {
+    "name": "imredavid64-glitch",
+    "email": "imredavid64@users.noreply.github.com"
+  },
+  "homepage": "https://learningfans.vercel.app",
   "main": "desktop/main.js",
   "scripts": {
     "dev": "next dev",
