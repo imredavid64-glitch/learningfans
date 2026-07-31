@@ -1,0 +1,100 @@
+name: Build platform binaries
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to upload assets to"
+        required: true
+        default: "v0.1.0"
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare web assets dir
+        run: mkdir -p .next
+
+      - name: Generate Android platform
+        run: npx cap add android && npx cap sync android
+
+      - name: Sign release with debug keystore
+        run: |
+          sed -i 's/            minifyEnabled false/            minifyEnabled false\n            signingConfig signingConfigs.debug/' android/app/build.gradle
+          grep -n "signingConfig signingConfigs.debug" android/app/build.gradle
+
+      - name: Build APK
+        run: cd android && ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.inputs.tag }}" \
+            "android/app/build/outputs/apk/release/app-release.apk#learningfans-0.1.0-android.apk" --clobber
+
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows NSIS installer
+        run: npx electron-builder --config desktop/electron-builder.yml --win
+
+      - name: Upload installer to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release upload "${{ github.event.inputs.tag }}" \
+            release/learningfans-0.1.0-win*.exe --clobber
+
+  linux:
+    name: Linux AppImage + deb
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Linux targets
+        run: npx electron-builder --config desktop/electron-builder.yml --linux
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.inputs.tag }}" \
+            release/learningfans-0.1.0-linux*.AppImage \
+            release/learningfans-0.1.0-linux*.deb --clobber
