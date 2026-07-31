@@ -7,6 +7,8 @@ import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { generateReminder, getReminderSchedule } from "@/lib/reminders";
 
+export type ActionResult = { redirect?: string; error?: string };
+
 export interface Meeting {
   id: string;
   space_id: string | null;
@@ -28,8 +30,9 @@ export interface MeetingWithParticipants extends Meeting {
 }
 
 export async function createMeeting(
+  _prev: ActionResult | null,
   formData: FormData
-): Promise<void> {
+): Promise<ActionResult> {
   const profile = await requireProfile();
   const supabase = await createClient();
 
@@ -40,17 +43,18 @@ export async function createMeeting(
   const endsAt = String(formData.get("endsAt") ?? "");
   const spaceId = String(formData.get("spaceId") ?? "").trim() || null;
   const participantIdsRaw = String(formData.get("participantIds") ?? "").trim();
+  const isImmediate = formData.get("is_immediate") === "true";
 
   if (!title || !startsAt || !endsAt) {
-    redirect("/app/meetings/new?error=Title%2C%20start%2C%20and%20end%20are%20required");
+    return { redirect: "/app/meetings/new?error=Title%2C%20start%2C%20and%20end%20are%20required" };
   }
 
   if (title.length > 200) {
-    redirect("/app/meetings/new?error=Title%20too%20long");
+    return { redirect: "/app/meetings/new?error=Title%20too%20long" };
   }
 
   if (callUrl && !callUrl.startsWith("http")) {
-    redirect("/app/meetings/new?error=Invalid%20call%20URL");
+    return { redirect: "/app/meetings/new?error=Invalid%20call%20URL" };
   }
 
   const participantIds = participantIdsRaw
@@ -67,13 +71,13 @@ export async function createMeeting(
       call_url: callUrl || null,
       starts_at: startsAt,
       ends_at: endsAt,
-      status: "scheduled",
+      status: isImmediate ? "live" : "scheduled",
     })
     .select()
     .single();
 
   if (error) {
-    redirect(`/app/meetings/new?error=${encodeURIComponent(error.message)}`);
+    return { redirect: `/app/meetings/new?error=${encodeURIComponent(error.message)}` };
   }
 
   if (participantIds.length > 0) {
@@ -90,7 +94,7 @@ export async function createMeeting(
 
   revalidatePath("/app/meetings");
   revalidatePath("/app/schedule");
-  redirect(`/app/meetings/${meeting.id}`);
+  return { redirect: `/app/meetings/${meeting.id}` };
 }
 
 async function scheduleReminders(

@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, isAdmin } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
-import { Users, TrendingUp, Database, Settings, Shield, Plus, Search, MoreVertical } from "lucide-react";
+import { Users, TrendingUp, Database, Settings, Shield, Plus, Search, MoreVertical, Building2 } from "lucide-react";
 
 export default async function AdminPage() {
   const profile = await getCurrentProfile();
-  if (!profile || !isAdmin(profile.role)) redirect("/app");
+  if (!profile || !isAdmin(profile.role)) {
+    return <div className="p-12 text-center"><p className="text-muted-foreground">Unauthorized — admin access required.</p></div>;
+  }
 
   const supabase = await createClient();
 
@@ -228,6 +230,10 @@ export default async function AdminPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <Link href="/app/admin/schools" className="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-border bg-background bg-clip-padding px-2.5 h-8 gap-1.5 text-sm font-medium whitespace-nowrap transition-all outline-none select-none hover:bg-muted hover:text-foreground">
+              <Building2 className="h-4 w-4" />
+              Manage Schools
+            </Link>
             <Button variant="outline" className="w-full justify-start gap-2">
               <Plus className="h-4 w-4" />
               Create Announcement

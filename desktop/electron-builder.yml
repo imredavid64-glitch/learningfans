@@ -1,0 +1,29 @@
+appId: com.learningfans.app
+productName: LearningFans
+directories:
+  output: release
+files:
+  - desktop/main.js
+  - desktop/preload.js
+  - package.json
+mac:
+  category: public.app-category.education
+  target:
+    - dmg
+    - zip
+  icon: public/icons/icon-512x512.png
+win:
+  target:
+    - nsis
+  icon: public/icons/icon-512x512.png
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Education
+  icon: public/icons/icon-512x512.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: LearningFans
+artifactName: learningfans-${version}-${os}-${arch}.${ext}

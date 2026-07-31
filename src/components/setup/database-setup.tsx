@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { signOut } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import {
   Card,
   CardContent,
@@ -65,11 +65,9 @@ export function DatabaseSetup() {
             <ButtonLink href="/app" variant="outline">
               Refresh after migration
             </ButtonLink>
-            <form action={signOut}>
-              <Button type="submit" variant="ghost">
-                Sign out
-              </Button>
-            </form>
+            <SignOutButton variant="ghost">
+              Sign out
+            </SignOutButton>
           </div>
         </CardContent>
       </Card>

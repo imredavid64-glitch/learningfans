@@ -6,9 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { eventSchema, validateOrThrow } from "@/lib/validation";
 
-export async function createEvent(
-  formData: FormData
-): Promise<void> {
+export async function createEvent(formData: FormData): Promise<void> {
   const profile = await requireProfile();
   const supabase = await createClient();
 
@@ -50,6 +48,12 @@ export async function createEvent(
     redirect(`/app/schedule?error=Unauthorized%20-%20instructor%20only`);
   }
 
+  const { data: space } = await supabase
+    .from("spaces")
+    .select("slug")
+    .eq("id", spaceId)
+    .single();
+
   const { error } = await supabase
     .from("schedule_events")
     .insert({
@@ -69,15 +73,14 @@ export async function createEvent(
     redirect(`/app/schedule/new?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath(`/app/classes/${spaceId}/schedule`);
+  if (space) {
+    revalidatePath(`/app/classes/${space.slug}/schedule`);
+  }
   revalidatePath("/app/schedule");
   redirect(`/app/schedule`);
 }
 
-export async function rsvpToEvent(
-  eventId: string,
-  status: "going" | "maybe"
-): Promise<void> {
+export async function rsvpToEvent(eventId: string, status: "going" | "maybe"): Promise<void> {
   const profile = await requireProfile();
   const supabase = await createClient();
 
@@ -88,6 +91,16 @@ export async function rsvpToEvent(
   if (status !== "going" && status !== "maybe") {
     redirect(`/app/schedule?error=Invalid%20status`);
   }
+
+  const { data: event } = await supabase
+    .from("schedule_events")
+    .select("space_id")
+    .eq("id", eventId)
+    .single();
+
+  const { data: space } = event?.space_id
+    ? await supabase.from("spaces").select("slug").eq("id", event.space_id).single()
+    : { data: null };
 
   const { error } = await supabase
     .from("event_attendees")
@@ -101,7 +114,9 @@ export async function rsvpToEvent(
     redirect(`/app/schedule?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath(`/app/classes/*/schedule`);
+  if (space) {
+    revalidatePath(`/app/classes/${space.slug}/schedule`);
+  }
   revalidatePath("/app/schedule");
 }
 
@@ -137,6 +152,12 @@ export async function deleteEvent(eventId: string): Promise<void> {
     redirect(`/app/schedule?error=Unauthorized`);
   }
 
+  const { data: space } = await supabase
+    .from("spaces")
+    .select("slug")
+    .eq("id", event.space_id)
+    .single();
+
   const { error } = await supabase
     .from("schedule_events")
     .delete()
@@ -146,6 +167,8 @@ export async function deleteEvent(eventId: string): Promise<void> {
     redirect(`/app/schedule?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath(`/app/classes/*/schedule`);
+  if (space) {
+    revalidatePath(`/app/classes/${space.slug}/schedule`);
+  }
   revalidatePath("/app/schedule");
 }

@@ -16,13 +16,21 @@ function checkBot(formData: FormData): boolean {
   return false;
 }
 
-export async function createPost(
-  threadId: string,
-  formData: FormData
-): Promise<void> {
-  if (checkBot(formData)) {
-    redirect(`/app/classes/*/threads/${threadId}`);
-  }
+async function getSpaceSlug(supabase: Awaited<ReturnType<typeof createClient>>, spaceId: string): Promise<string> {
+  const { data } = await supabase
+    .from("spaces")
+    .select("slug")
+    .eq("id", spaceId)
+    .single();
+  return data?.slug || spaceId;
+}
+
+function threadPath(slug: string, threadId: string) {
+  return `/app/classes/${slug}/threads/${threadId}`;
+}
+
+export async function createPost(threadId: string, formData: FormData): Promise<void> {
+  if (checkBot(formData)) return;
 
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -33,7 +41,7 @@ export async function createPost(
       body: String(formData.get("body") ?? "").trim(),
     }));
   } catch (err) {
-    redirect(`/app/classes/*/threads/${threadId}?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}`);
+    redirect(`/app/threads/${threadId}?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}`);
   }
 
   const { data: thread } = await supabase
@@ -43,11 +51,13 @@ export async function createPost(
     .single();
 
   if (!thread) {
-    redirect(`/app/classes/*/threads/${threadId}?error=Thread%20not%20found`);
+    redirect("/app/classes?error=Thread%20not%20found");
   }
 
+  const slug = await getSpaceSlug(supabase, thread.space_id);
+
   if (thread.is_locked) {
-    redirect(`/app/classes/*/threads/${threadId}?error=This%20thread%20is%20locked`);
+    redirect(`${threadPath(slug, threadId)}?error=This%20thread%20is%20locked`);
   }
 
   const { data: membership } = await supabase
@@ -58,18 +68,18 @@ export async function createPost(
     .single();
 
   if (!membership) {
-    redirect(`/app/classes/*/threads/${threadId}?error=You%20must%20be%20a%20member%20to%20reply`);
+    redirect(`${threadPath(slug, threadId)}?error=You%20must%20be%20a%20member%20to%20reply`);
   }
 
   const moderation = await checkContentWithAI(body, "class discussion reply");
-  
+
   if (!moderation.is_clean && moderation.risk_level === "high") {
     await supabase.from("user_sanctions").insert({
       user_id: profile.id,
       type: "suspend",
       reason: `AI moderation: ${moderation.violations.join(", ")}`,
     });
-    redirect(`/app/classes/*/threads/${threadId}?error=Content%20violates%20community%20guidelines.%20Your%20account%20has%20been%20suspended.`);
+    redirect(`${threadPath(slug, threadId)}?error=Content%20violates%20community%20guidelines.%20Your%20account%20has%20been%20suspended.`);
   }
 
   const { data: post, error } = await supabase
@@ -84,7 +94,7 @@ export async function createPost(
     .single();
 
   if (error) {
-    redirect(`/app/classes/*/threads/${threadId}?error=${encodeURIComponent(error.message)}`);
+    redirect(`${threadPath(slug, threadId)}?error=${encodeURIComponent(error.message)}`);
   }
 
   await supabase
@@ -105,21 +115,17 @@ export async function createPost(
   await logAudit("post_create", profile.id, { threadId, postId: post.id });
 
   checkAndArchive();
-
-  revalidatePath(`/app/classes/*/threads/${threadId}`);
-  redirect(`/app/classes/*/threads/${threadId}`);
+  revalidatePath(threadPath(slug, threadId));
+  redirect(threadPath(slug, threadId));
 }
 
-export async function createThread(
-  spaceId: string,
-  formData: FormData
-): Promise<void> {
-  if (checkBot(formData)) {
-    redirect(`/app/classes/${spaceId}`);
-  }
+export async function createThread(spaceId: string, formData: FormData): Promise<void> {
+  if (checkBot(formData)) return;
 
   const profile = await requireProfile();
   const supabase = await createClient();
+
+  const slug = await getSpaceSlug(supabase, spaceId);
 
   let title: string;
   let body: string;
@@ -129,7 +135,7 @@ export async function createThread(
       body: String(formData.get("body") ?? "").trim(),
     }));
   } catch (err) {
-    redirect(`/app/classes/${spaceId}?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}`);
+    redirect(`/app/classes/${slug}?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}`);
   }
 
   const { data: membership } = await supabase
@@ -140,18 +146,18 @@ export async function createThread(
     .single();
 
   if (!membership) {
-    redirect(`/app/classes/${spaceId}?error=You%20must%20be%20a%20member%20to%20create%20threads`);
+    redirect(`/app/classes/${slug}?error=You%20must%20be%20a%20member%20to%20create%20threads`);
   }
 
   const moderation = await checkContentWithAI(`${title}\n${body}`, "class discussion thread");
-  
+
   if (!moderation.is_clean && moderation.risk_level === "high") {
     await supabase.from("user_sanctions").insert({
       user_id: profile.id,
       type: "suspend",
       reason: `AI moderation: ${moderation.violations.join(", ")}`,
     });
-    redirect(`/app/classes/${spaceId}?error=Content%20violates%20community%20guidelines.%20Your%20account%20has%20been%20suspended.`);
+    redirect(`/app/classes/${slug}?error=Content%20violates%20community%20guidelines.%20Your%20account%20has%20been%20suspended.`);
   }
 
   const { data: thread, error } = await supabase
@@ -167,7 +173,7 @@ export async function createThread(
     .single();
 
   if (error) {
-    redirect(`/app/classes/${spaceId}?error=${encodeURIComponent(error.message)}`);
+    redirect(`/app/classes/${slug}?error=${encodeURIComponent(error.message)}`);
   }
 
   if (!moderation.is_clean) {
@@ -183,17 +189,28 @@ export async function createThread(
   await logAudit("thread_create", profile.id, { spaceId, threadId: thread.id, title });
 
   checkAndArchive();
-
-  revalidatePath(`/app/classes/*`);
-  redirect(`/app/classes/*/threads/${thread.id}`);
+  revalidatePath(`/app/classes/${slug}`);
+  redirect(threadPath(slug, thread.id));
 }
 
-export async function toggleThreadPin(
-  threadId: string,
-  pinned: boolean
-): Promise<void> {
+async function getModActionSlug(supabase: Awaited<ReturnType<typeof createClient>>, threadId: string): Promise<string | null> {
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("space_id")
+    .eq("id", threadId)
+    .single();
+  if (!thread) return null;
+  return getSpaceSlug(supabase, thread.space_id);
+}
+
+export async function toggleThreadPin(threadId: string, pinned: boolean): Promise<void> {
   const profile = await requireProfile();
   const supabase = await createClient();
+
+  const slug = await getModActionSlug(supabase, threadId);
+  if (!slug) {
+    redirect("/app/classes?error=Thread%20not%20found");
+  }
 
   const { data: thread } = await supabase
     .from("threads")
@@ -202,7 +219,7 @@ export async function toggleThreadPin(
     .single();
 
   if (!thread) {
-    redirect(`/app/classes/*/threads/${threadId}?error=Thread%20not%20found`);
+    redirect(threadPath(slug, threadId) + "?error=Thread%20not%20found");
   }
 
   const { data: membership } = await supabase
@@ -213,7 +230,7 @@ export async function toggleThreadPin(
     .single();
 
   if (!membership || (membership.role !== "moderator" && membership.role !== "admin")) {
-    redirect(`/app/classes/*/threads/${threadId}?error=Unauthorized%20-%20moderator%20required`);
+    redirect(threadPath(slug, threadId) + "?error=Unauthorized%20-%20moderator%20required");
   }
 
   const { error } = await supabase
@@ -222,18 +239,20 @@ export async function toggleThreadPin(
     .eq("id", threadId);
 
   if (error) {
-    redirect(`/app/classes/*/threads/${threadId}?error=${encodeURIComponent(error.message)}`);
+    redirect(threadPath(slug, threadId) + `?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath(`/app/classes/*/threads/${threadId}`);
+  revalidatePath(threadPath(slug, threadId));
 }
 
-export async function toggleThreadLock(
-  threadId: string,
-  locked: boolean
-): Promise<void> {
+export async function toggleThreadLock(threadId: string, locked: boolean): Promise<void> {
   const profile = await requireProfile();
   const supabase = await createClient();
+
+  const slug = await getModActionSlug(supabase, threadId);
+  if (!slug) {
+    redirect("/app/classes?error=Thread%20not%20found");
+  }
 
   const { data: thread } = await supabase
     .from("threads")
@@ -242,7 +261,7 @@ export async function toggleThreadLock(
     .single();
 
   if (!thread) {
-    redirect(`/app/classes/*/threads/${threadId}?error=Thread%20not%20found`);
+    redirect(threadPath(slug, threadId) + "?error=Thread%20not%20found");
   }
 
   const { data: membership } = await supabase
@@ -253,7 +272,7 @@ export async function toggleThreadLock(
     .single();
 
   if (!membership || (membership.role !== "moderator" && membership.role !== "admin")) {
-    redirect(`/app/classes/*/threads/${threadId}?error=Unauthorized%20-%20moderator%20required`);
+    redirect(threadPath(slug, threadId) + "?error=Unauthorized%20-%20moderator%20required");
   }
 
   const { error } = await supabase
@@ -262,18 +281,20 @@ export async function toggleThreadLock(
     .eq("id", threadId);
 
   if (error) {
-    redirect(`/app/classes/*/threads/${threadId}?error=${encodeURIComponent(error.message)}`);
+    redirect(threadPath(slug, threadId) + `?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath(`/app/classes/*/threads/${threadId}`);
+  revalidatePath(threadPath(slug, threadId));
 }
 
-export async function hideThread(
-  threadId: string,
-  hidden: boolean
-): Promise<void> {
+export async function hideThread(threadId: string, hidden: boolean): Promise<void> {
   const profile = await requireProfile();
   const supabase = await createClient();
+
+  const slug = await getModActionSlug(supabase, threadId);
+  if (!slug) {
+    redirect("/app/classes?error=Thread%20not%20found");
+  }
 
   const { data: thread } = await supabase
     .from("threads")
@@ -282,7 +303,7 @@ export async function hideThread(
     .single();
 
   if (!thread) {
-    redirect(`/app/classes/*/threads/${threadId}?error=Thread%20not%20found`);
+    redirect(threadPath(slug, threadId) + "?error=Thread%20not%20found");
   }
 
   const { data: membership } = await supabase
@@ -293,7 +314,7 @@ export async function hideThread(
     .single();
 
   if (!membership || (membership.role !== "moderator" && membership.role !== "admin")) {
-    redirect(`/app/classes/*/threads/${threadId}?error=Unauthorized%20-%20moderator%20required`);
+    redirect(threadPath(slug, threadId) + "?error=Unauthorized%20-%20moderator%20required");
   }
 
   const { error } = await supabase
@@ -302,8 +323,8 @@ export async function hideThread(
     .eq("id", threadId);
 
   if (error) {
-    redirect(`/app/classes/*/threads/${threadId}?error=${encodeURIComponent(error.message)}`);
+    redirect(threadPath(slug, threadId) + `?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath(`/app/classes/*/threads/${threadId}`);
+  revalidatePath(threadPath(slug, threadId));
 }

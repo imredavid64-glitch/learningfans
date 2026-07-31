@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { BookOpen, Calendar, Flag, Home, Layers, ListOrdered, Settings, Shield, Video } from "lucide-react";
-import { signOut } from "@/actions/auth";
+import { BookOpen, Calendar, Flag, Home, Layers, ListOrdered, Settings, Shield, Video, GraduationCap } from "lucide-react";
 import { isModerator, isAdmin } from "@/lib/auth";
 import type { Profile } from "@/types/database";
 import { Button } from "@/components/ui/button";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 
 const links = [
   { href: "/app", label: "Dashboard", icon: Home },
@@ -41,6 +41,13 @@ export function AppNav({ profile }: { profile: Profile }) {
               Moderation
             </Link>
           )}
+          <Link
+            href="/app/study-hub"
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <GraduationCap className="h-4 w-4" />
+            Study Hub
+          </Link>
           {isAdmin(profile.role) && (
             <Link
               href="/app/admin"
@@ -60,11 +67,9 @@ export function AppNav({ profile }: { profile: Profile }) {
               <Settings className="h-4 w-4" />
             </Button>
           </Link>
-          <form action={signOut}>
-            <Button variant="outline" size="sm" type="submit">
-              Sign out
-            </Button>
-          </form>
+          <SignOutButton variant="outline" size="sm">
+            Sign out
+          </SignOutButton>
         </div>
       </div>
     </header>

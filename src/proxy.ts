@@ -1,4 +1,4 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy-session";
 
 const CSP_HEADER = [
@@ -15,6 +15,13 @@ const CSP_HEADER = [
 ].join("; ");
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Skip proxy for server action POST requests — let them pass through without interference
+  if (pathname.startsWith("/_next/server-actions")) {
+    return NextResponse.next();
+  }
+
   const response = await updateSession(request);
 
   // Security headers

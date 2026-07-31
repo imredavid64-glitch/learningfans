@@ -1,28 +1,27 @@
-"use client";
-
-import { useActionState } from "react";
-import { signIn, signUp, type AuthState } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-const initialState: AuthState | null = null;
-
-export function AuthForm({ mode }: { mode: "login" | "signup" }) {
-  const action = mode === "login" ? signIn : signUp;
-  const [state, formAction, pending] = useActionState(action, initialState);
-
+export function AuthForm({
+  mode,
+  error,
+  message,
+}: {
+  mode: "login" | "signup";
+  error?: string;
+  message?: string;
+}) {
   return (
-    <form action={formAction} className="space-y-4">
-      {state?.error && (
+    <form action={mode === "login" ? "/api/login" : "/api/signup"} method="POST" className="space-y-4">
+      {error && (
         <Alert variant="destructive">
-          <AlertDescription>{state.error}</AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      {state?.message && (
+      {message && (
         <Alert>
-          <AlertDescription>{state.message}</AlertDescription>
+          <AlertDescription>{message}</AlertDescription>
         </Alert>
       )}
       {mode === "signup" && (
@@ -46,8 +45,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           required
         />
       </div>
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
+      <Button type="submit" className="w-full">
+        {mode === "login" ? "Sign in" : "Create account"}
       </Button>
     </form>
   );

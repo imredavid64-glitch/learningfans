@@ -1,87 +1,82 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAppUrl } from "@/lib/app-url";
 import { rateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
 import { signUpSchema, signInSchema, validateOrThrow } from "@/lib/validation";
 
-export type AuthState = {
-  error?: string;
-  message?: string;
-};
+export type ActionResult = { redirect?: string; error?: string; message?: string };
 
-export async function signUp(
-  _prevState: AuthState | null,
-  formData: FormData,
-): Promise<AuthState> {
+export async function signUp(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { success } = await rateLimit(3);
   if (!success) {
-    return { error: "Too many attempts. Please try again later." };
+    return { redirect: "/signup?error=Too%20many%20attempts" };
   }
 
+  let email: string;
+  let password: string;
+  let displayName: string;
   try {
-    const { email, password, displayName } = validateOrThrow(signUpSchema, {
+    ({ email, password, displayName } = validateOrThrow(signUpSchema, {
       email: String(formData.get("email") ?? "").trim(),
       password: String(formData.get("password") ?? ""),
       displayName: String(formData.get("displayName") ?? "").trim(),
-    });
-
-    const supabase = await createClient();
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { display_name: displayName },
-        emailRedirectTo: `${getAppUrl()}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      return { error: error.message };
-    }
-
-    if (data.user) {
-      await logAudit("signup", data.user.id, { email });
-    }
-
-    if (data.user && !data.session) {
-      return {
-        message: "Check your email for a confirmation link, then sign in here.",
-      };
-    }
-
-    revalidatePath("/", "layout");
-    redirect("/app");
+    }));
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Invalid input" };
+    return { redirect: `/signup?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}` };
   }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { display_name: displayName },
+      emailRedirectTo: `${getAppUrl()}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    return { redirect: `/signup?error=${encodeURIComponent(error.message)}` };
+  }
+
+  if (data.user) {
+    await logAudit("signup", data.user.id, { email });
+  }
+
+  if (data.user && !data.session) {
+    return { redirect: "/login?message=Check%20your%20email%20for%20a%20confirmation%20link" };
+  }
+
+  revalidatePath("/", "layout");
+  return { redirect: "/app" };
 }
 
-export async function signIn(
-  _prevState: AuthState | null,
-  formData: FormData,
-): Promise<AuthState> {
-  const { success } = await rateLimit(5);
-  if (!success) {
-    return { error: "Too many attempts. Please try again later." };
-  }
-
+export async function signIn(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
-    const { email, password } = validateOrThrow(signInSchema, {
-      email: String(formData.get("email") ?? "").trim(),
-      password: String(formData.get("password") ?? ""),
-    });
+    const { success } = await rateLimit(5);
+    if (!success) {
+      return { redirect: "/login?error=Too%20many%20attempts" };
+    }
+
+    let email: string;
+    let password: string;
+    try {
+      ({ email, password } = validateOrThrow(signInSchema, {
+        email: String(formData.get("email") ?? "").trim(),
+        password: String(formData.get("password") ?? ""),
+      }));
+    } catch (err) {
+      return { redirect: `/login?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}` };
+    }
 
     const supabase = await createClient();
-
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      return { error: "Invalid email or password" };
+      return { redirect: "/login?error=Invalid%20email%20or%20password" };
     }
 
     if (data.user) {
@@ -89,15 +84,15 @@ export async function signIn(
     }
 
     revalidatePath("/", "layout");
-    redirect("/app");
+    return { redirect: "/app" };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Invalid input" };
+    return { error: err instanceof Error ? err.message : String(err) };
   }
 }
 
-export async function signOut() {
+export async function signOut(_prev: ActionResult | null, _formData: FormData): Promise<ActionResult> {
   const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
-  redirect("/");
+  return { redirect: "/" };
 }

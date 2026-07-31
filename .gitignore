@@ -43,6 +43,18 @@ yarn-error.log*
 # vercel
 .vercel
 
+# capacitor / mobile native projects
+/ios/
+/android/
+*.xcarchive
+*.xcworkspace
+*.ipa
+*.apk
+*.aab
+
+# desktop build output
+/release/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -1,0 +1,13 @@
+ios
+android
+scripts
+desktop
+release
+*.xcarchive
+*.ipa
+*.apk
+*.aab
+*.dmg
+*.exe
+*.AppImage
+*.deb
