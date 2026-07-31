@@ -40,8 +40,8 @@ const PLATFORMS: {
     label: "macOS",
     icon: Monitor,
     desc: "Desktop app for Mac",
-    file: "/downloads/learningfans-mac.dmg",
-    note: "DMG installer. Requires macOS 11 or later.",
+    url: "https://github.com/imredavid64-glitch/learningfans/releases/download/v0.1.0/learningfans-0.1.0-mac-arm64.dmg",
+    note: "DMG installer (Apple Silicon). Requires macOS 11 or later.",
   },
   {
     id: "windows",
