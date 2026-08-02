@@ -19,9 +19,10 @@ export async function POST(request: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  // Redirect to the client reset page, which reads the recovery tokens
-  // from the URL fragment (the server never sees them).
-  const redirectTo = `${getAppUrl()}/reset-password`;
+  // Route the recovery through the already-whitelisted auth callback.
+  // The callback exchanges the recovery code for a session, then continues
+  // to the client /reset-password page (which reads the session cookies).
+  const redirectTo = `${getAppUrl()}/auth/callback?next=/reset-password`;
 
   const response = NextResponse.redirect(
     new URL("/forgot-password?message=Check%20your%20email%20for%20a%20reset%20link", request.url),
