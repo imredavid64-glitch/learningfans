@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import Link from "next/link";
 
 export function AuthForm({
   mode,
@@ -36,14 +37,25 @@ export function AuthForm({
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete={mode === "login" ? "current-password" : "new-password"}
-          minLength={6}
-          required
-        />
+        <div className="relative">
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            minLength={6}
+            required
+            className="pr-16"
+          />
+          {mode === "login" && (
+            <Link
+              href="/forgot-password"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-primary hover:underline"
+            >
+              Forgot?
+            </Link>
+          )}
+        </div>
       </div>
       <Button type="submit" className="w-full">
         {mode === "login" ? "Sign in" : "Create account"}
