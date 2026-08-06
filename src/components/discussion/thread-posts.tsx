@@ -56,6 +56,7 @@ export function ThreadPosts({
   }, [threadId]);
 
   async function handleSubmit(formData: FormData) {
+    formData.set("timestamp", Date.now().toString());
     await createPost(threadId, formData);
   }
 
@@ -75,7 +76,6 @@ export function ThreadPosts({
       {!isLocked && (
         <form action={handleSubmit} className="space-y-2">
           <input type="text" name="website" className="hidden" tabIndex={-1} autoComplete="off" />
-          <input type="hidden" name="timestamp" value={Date.now().toString()} />
           <Textarea name="body" placeholder="Write a reply…" required rows={3} />
           <Button type="submit">Reply</Button>
         </form>

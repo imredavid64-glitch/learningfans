@@ -11,6 +11,14 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/signup?error=Email%20and%20password%20required", request.url));
   }
 
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    return NextResponse.redirect(new URL("/signup?error=Invalid%20email%20format", request.url));
+  }
+
+  if (password.length < 8) {
+    return NextResponse.redirect(new URL("/signup?error=Password%20must%20be%20at%20least%208%20characters", request.url));
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 

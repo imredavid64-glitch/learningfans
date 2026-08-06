@@ -68,7 +68,7 @@ export async function createMeeting(
       organizer_id: profile.id,
       title: title.slice(0, 200),
       description: description.slice(0, 2000) || null,
-      call_url: callUrl || null,
+      call_url: callUrl || `https://meet.jit.si/LearningFans-Meeting-${Date.now()}`,
       starts_at: startsAt,
       ends_at: endsAt,
       status: isImmediate ? "live" : "scheduled",
@@ -116,12 +116,14 @@ async function scheduleReminders(
         hours,
       );
 
-      await supabase.from("meeting_reminders").insert({
-        meeting_id: meetingId,
-        recipient_id: null,
-        reminder_text: reminder.text,
-        scheduled_for: reminder.scheduledFor.toISOString(),
-      });
+      if (participantCount > 0) {
+        await supabase.from("meeting_reminders").insert({
+          meeting_id: meetingId,
+          recipient_id: null,
+          reminder_text: reminder.text,
+          scheduled_for: reminder.scheduledFor.toISOString(),
+        });
+      }
     }
   } catch {}
 }
@@ -228,6 +230,36 @@ export async function rsvpMeeting(
   revalidatePath("/app/meetings");
 }
 
+export async function updateMeetingStatus(
+  meetingId: string,
+  status: "scheduled" | "live" | "completed" | "cancelled"
+): Promise<void> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const { data: meeting } = await supabase
+    .from("meetings")
+    .select("organizer_id")
+    .eq("id", meetingId)
+    .single();
+
+  if (!meeting) {
+    redirect("/app/meetings?error=Meeting%20not%20found");
+  }
+
+  if (meeting.organizer_id !== profile.id) {
+    redirect(`/app/meetings/${meetingId}?error=Only%20the%20organizer%20can%20update%20status`);
+  }
+
+  await supabase
+    .from("meetings")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", meetingId);
+
+  revalidatePath(`/app/meetings/${meetingId}`);
+  revalidatePath("/app/meetings");
+}
+
 export async function cancelMeeting(meetingId: string): Promise<void> {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -269,12 +301,15 @@ export async function getMeetingReminders(userId: string): Promise<{ id: string;
 
   if (!data) return [];
 
-  return data.map((r: any) => ({
-    id: r.id,
-    text: r.reminder_text,
-    meetingTitle: r.meetings?.title || "Untitled Meeting",
-    scheduledFor: r.scheduled_for,
-  }));
+  return (data as { id: string; reminder_text: string; scheduled_for: string; meetings: { title: string }[] | null }[]).map((r) => {
+    const m = Array.isArray(r.meetings) ? r.meetings[0] : r.meetings;
+    return {
+      id: r.id,
+      text: r.reminder_text,
+      meetingTitle: m?.title || "Untitled Meeting",
+      scheduledFor: r.scheduled_for,
+    };
+  });
 }
 
 export async function dismissReminder(reminderId: string): Promise<void> {

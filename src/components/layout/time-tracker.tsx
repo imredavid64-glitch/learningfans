@@ -39,8 +39,8 @@ function saveTimeData(data: TimeData) {
 
 export function TimeTracker() {
   const [timeData, setTimeData] = useState<TimeData>(loadTimeData);
-  const [sessionStart] = useState(Date.now());
-  const [now, setNow] = useState(Date.now());
+  const [sessionStart] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [dismissed, setDismissed] = useState(false);
 
   const sessionMinutes = (now - sessionStart) / 60000;

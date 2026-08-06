@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { VisualScheduleCalendar } from "@/components/schedule/visual-schedule-calendar";
 
 export default async function SchedulePage({
   searchParams,
@@ -56,28 +57,40 @@ export default async function SchedulePage({
     .in("space_id", spaceIds.length ? spaceIds : ["00000000-0000-0000-0000-000000000000"])
     .limit(50);
 
+  const formattedSharedEvents = (filteredShared || []).map((e) => ({
+    ...e,
+    spaceName: (e.spaces as { name?: string })?.name,
+  }));
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Schedule</h1>
+        <h1 className="text-2xl font-bold">Schedule & Planner</h1>
         <p className="text-muted-foreground">
-          Personal study planner and shared space events.
+          Visual calendar, study planner, and shared class events.
         </p>
       </div>
 
+      {/* Interactive Visual Schedule Calendar */}
+      <VisualScheduleCalendar
+        personalEvents={personalEvents || []}
+        sharedEvents={formattedSharedEvents}
+      />
+
       <Card>
         <CardHeader>
-          <CardTitle>New event</CardTitle>
+          <CardTitle>New Event</CardTitle>
+          <CardDescription>Add a study session or class event to your calendar.</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={createEvent} className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="title">Title</Label>
-              <Input id="title" name="title" required />
+              <Input id="title" name="title" required placeholder="e.g. Calculus Exam Prep" />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea id="description" name="description" rows={2} />
+              <Textarea id="description" name="description" rows={2} placeholder="Topics, goals, room or meeting link..." />
             </div>
             <div className="space-y-2">
               <Label htmlFor="startsAt">Starts</Label>
@@ -95,51 +108,36 @@ export default async function SchedulePage({
                 defaultValue="private"
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
               >
-                <option value="private">Personal</option>
-                <option value="space">Shared (space)</option>
+                <option value="private">Personal (Private)</option>
+                <option value="space">Shared (Class / Space)</option>
               </select>
             </div>
-            {spaceIds.length > 0 && (
+            {memberships && memberships.length > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="spaceId">Class/Space</Label>
+                <Label htmlFor="spaceId">Class / Space</Label>
                 <select
                   id="spaceId"
                   name="spaceId"
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                  required
                 >
-                  {memberships?.map((m) => (
-                    <option key={m.space_id} value={m.space_id}>
-                      {(m.spaces as any)?.name}
-                    </option>
-                  ))}
+                  <option value="">Select class space...</option>
+                  {memberships.map((m) => {
+                    const raw = m.spaces;
+                    const s = (Array.isArray(raw) ? raw[0] : raw) as {
+                      id: string;
+                      name: string;
+                    };
+                    return (
+                      <option key={m.space_id} value={m.space_id}>
+                        {s?.name || "Class"}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="spaceId">Space (for shared)</Label>
-              <select
-                id="spaceId"
-                name="spaceId"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-              >
-                <option value="">—</option>
-                {memberships?.map((m) => {
-                  const raw = m.spaces;
-                  const s = (Array.isArray(raw) ? raw[0] : raw) as {
-                    id: string;
-                    name: string;
-                  };
-                  return (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="linkedMaterialId">Link material (optional)</Label>
+              <Label htmlFor="linkedMaterialId">Link study material (optional)</Label>
               <select
                 id="linkedMaterialId"
                 name="linkedMaterialId"
@@ -157,12 +155,12 @@ export default async function SchedulePage({
               <Label htmlFor="reminder">Reminder (minutes before)</Label>
               <Input id="reminder" name="reminder" type="number" placeholder="30" />
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="allDay" />
-              All day
-            </label>
+            <div className="flex items-center space-x-2 pt-6">
+              <input type="checkbox" id="allDay" name="allDay" className="rounded border-input" />
+              <Label htmlFor="allDay" className="text-sm font-normal">All day event</Label>
+            </div>
             <Button type="submit" className="sm:col-span-2 w-fit">
-              Add event
+              Add to Schedule
             </Button>
           </form>
         </CardContent>
@@ -170,15 +168,15 @@ export default async function SchedulePage({
 
       <Tabs defaultValue="personal">
         <TabsList>
-          <TabsTrigger value="personal">Personal</TabsTrigger>
-          <TabsTrigger value="shared">Shared</TabsTrigger>
+          <TabsTrigger value="personal">Personal Events ({personalEvents?.length || 0})</TabsTrigger>
+          <TabsTrigger value="shared">Shared Events ({filteredShared?.length || 0})</TabsTrigger>
         </TabsList>
         <TabsContent value="personal" className="mt-4 space-y-3">
           {personalEvents?.map((e) => (
             <EventCard key={e.id} event={e} showDelete />
           ))}
           {!personalEvents?.length && (
-            <p className="text-sm text-muted-foreground">No personal events.</p>
+            <p className="text-sm text-muted-foreground">No personal events added yet.</p>
           )}
         </TabsContent>
         <TabsContent value="shared" className="mt-4 space-y-3">
@@ -191,7 +189,7 @@ export default async function SchedulePage({
             />
           ))}
           {!filteredShared?.length && (
-            <p className="text-sm text-muted-foreground">No shared events.</p>
+            <p className="text-sm text-muted-foreground">No shared events for your classes.</p>
           )}
         </TabsContent>
       </Tabs>

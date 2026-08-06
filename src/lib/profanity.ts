@@ -22,6 +22,32 @@ function normalizeWord(word: string): string {
     .trim();
 }
 
+// Common safe inflections to catch ("shitting", "bitches", "asshole(s)") without
+// false-positive substring hits like "ass" inside "class"/"assignment"/"pass".
+const SUFFIXES = ["ing", "ed", "er", "s", "es"];
+
+function matchesWord(profane: string, normalized: string): boolean {
+  if (normalized === profane) return true;
+
+  // Only allow inflections for words long enough that a suffix can't
+  // accidentally form a shorter profanity (e.g. never "ass" via "class").
+  if (profane.length < 4) return false;
+
+  for (const suffix of SUFFIXES) {
+    if (normalized === profane + suffix) return true;
+    if (normalized === profane + suffix + suffix) return true;
+
+    // Handle doubled final consonant ("shitting" -> "shit"+ing, "runner" -> "run"+er)
+    const stem = normalized.endsWith(suffix)
+      ? normalized.slice(0, -suffix.length)
+      : "";
+    if (stem.length === profane.length + 1 && stem.slice(0, -1) === profane && stem.endsWith(stem.slice(-2, -1))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function containsProfanity(text: string): { clean: boolean; words: string[] } {
   const words = text.toLowerCase().split(/[\s.,!?;:()"']+/);
   const found: string[] = [];
@@ -31,7 +57,7 @@ export function containsProfanity(text: string): { clean: boolean; words: string
     if (normalized.length < 2) continue;
 
     for (const profane of PROFANITY_LIST) {
-      if (normalized === profane || normalized.includes(profane)) {
+      if (matchesWord(profane, normalized)) {
         found.push(profane);
         break;
       }

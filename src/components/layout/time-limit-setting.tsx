@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,23 +9,34 @@ import { Label } from "@/components/ui/label";
 const STORAGE_KEY = "lf-time-tracker";
 const DEFAULT_DAILY_LIMIT = 120;
 
-export function TimeLimitSetting() {
-  const [limit, setLimit] = useState(DEFAULT_DAILY_LIMIT);
-  const [todayMinutes, setTodayMinutes] = useState(0);
-  const [saved, setSaved] = useState(false);
+function loadStoredLimit(): number {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      return data.dailyLimit || DEFAULT_DAILY_LIMIT;
+    }
+  } catch {}
+  return DEFAULT_DAILY_LIMIT;
+}
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        setLimit(data.dailyLimit || DEFAULT_DAILY_LIMIT);
-        if (data.date === new Date().toISOString().slice(0, 10)) {
-          setTodayMinutes(data.elapsedMinutes || 0);
-        }
+function loadTodayMinutes(): number {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.date === new Date().toISOString().slice(0, 10)) {
+        return data.elapsedMinutes || 0;
       }
-    } catch {}
-  }, []);
+    }
+  } catch {}
+  return 0;
+}
+
+export function TimeLimitSetting() {
+  const [limit, setLimit] = useState(loadStoredLimit);
+  const [todayMinutes, setTodayMinutes] = useState(loadTodayMinutes);
+  const [saved, setSaved] = useState(false);
 
   function save() {
     try {

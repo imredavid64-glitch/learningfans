@@ -29,35 +29,37 @@ export async function createEvent(formData: FormData): Promise<void> {
   }
 
   const spaceId = String(formData.get("spaceId") ?? "").trim();
-  if (!spaceId) {
-    redirect(`/app/schedule/new?error=Space%20is%20required`);
-  }
-
-  const room = String(formData.get("room") ?? "").trim().slice(0, 100);
   const visibility = formData.get("visibility") as string;
   const validVisibility = visibility === "private" ? "private" : "space";
 
-  const { data: membership } = await supabase
-    .from("space_members")
-    .select("role")
-    .eq("space_id", spaceId)
-    .eq("user_id", profile.id)
-    .single();
-
-  if (!membership || (membership.role !== "moderator" && membership.role !== "admin")) {
-    redirect(`/app/schedule?error=Unauthorized%20-%20instructor%20only`);
+  // Private/personal events don't need a space. Shared events do.
+  if (validVisibility === "space" && !spaceId) {
+    redirect(`/app/schedule?error=Space%20is%20required%20for%20shared%20events`);
   }
 
-  const { data: space } = await supabase
-    .from("spaces")
-    .select("slug")
-    .eq("id", spaceId)
-    .single();
+  const room = String(formData.get("room") ?? "").trim().slice(0, 100);
+
+  if (validVisibility === "space" && spaceId) {
+    const { data: membership } = await supabase
+      .from("space_members")
+      .select("role")
+      .eq("space_id", spaceId)
+      .eq("user_id", profile.id)
+      .single();
+
+    if (!membership || (membership.role !== "moderator" && membership.role !== "admin")) {
+      redirect(`/app/schedule?error=Unauthorized%20-%20instructor%20only`);
+    }
+  }
+
+  const { data: space } = spaceId
+    ? await supabase.from("spaces").select("slug").eq("id", spaceId).single()
+    : { data: null };
 
   const { error } = await supabase
     .from("schedule_events")
     .insert({
-      space_id: spaceId,
+      space_id: spaceId || null,
       owner_id: profile.id,
       title: title.slice(0, 200),
       description: description.slice(0, 2000) || null,
@@ -66,11 +68,11 @@ export async function createEvent(formData: FormData): Promise<void> {
       all_day: allDay,
       timezone: "UTC",
       visibility: validVisibility,
-      room: room || null,
+      ...(room !== null && room !== "" ? { room } : {}),
     });
 
   if (error) {
-    redirect(`/app/schedule/new?error=${encodeURIComponent(error.message)}`);
+    redirect(`/app/schedule?error=${encodeURIComponent(error.message)}`);
   }
 
   if (space) {

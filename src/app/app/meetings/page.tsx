@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
+import { Video } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: "bg-blue-500/10 text-blue-500",
@@ -12,6 +13,32 @@ const STATUS_COLORS: Record<string, string> = {
   completed: "bg-muted text-muted-foreground",
   cancelled: "bg-destructive/10 text-destructive",
 };
+
+interface MeetingRow {
+  id: string;
+  title: string;
+  status: string;
+  starts_at: string;
+  call_url: string | null;
+  spaces?: { name: string; slug: string } | { name: string; slug: string }[] | null;
+}
+
+interface RsvpRow {
+  meeting_id: string;
+  rsvp_status: string;
+  meetings: MeetingRow[] | null;
+}
+
+function getSpaceName(spaces: MeetingRow["spaces"]): string | undefined {
+  if (!spaces) return undefined;
+  const s = Array.isArray(spaces) ? spaces[0] : spaces;
+  return s?.name;
+}
+
+function getMeeting(r: RsvpRow): MeetingRow | null {
+  const list = Array.isArray(r.meetings) ? r.meetings : [r.meetings].filter(Boolean);
+  return list[0] ?? null;
+}
 
 export default async function MeetingsPage() {
   const profile = await getCurrentProfile();
@@ -53,38 +80,56 @@ export default async function MeetingsPage() {
       ) : (
         <div className="grid gap-4">
           {organized?.map((m) => {
-            const participant = m as any;
+            const spaceName = getSpaceName(m.spaces);
             return (
               <Link key={m.id} href={`/app/meetings/${m.id}`} className="block">
-                <Card className="transition-colors hover:bg-accent/50">
+                <Card className={`transition-colors hover:bg-accent/50 ${m.status === "live" ? "border-green-500/40 bg-green-500/5" : ""}`}>
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
                       <CardTitle className="text-base">{m.title}</CardTitle>
-                      <Badge className={STATUS_COLORS[m.status]} variant="secondary">{m.status}</Badge>
+                      <div className="flex items-center gap-2">
+                        {m.status === "live" && (
+                          <Badge className="gap-1 bg-green-500/15 text-green-600 dark:text-green-400">
+                            <Video className="h-3 w-3 animate-pulse" /> LIVE
+                          </Badge>
+                        )}
+                        <Badge className={STATUS_COLORS[m.status]} variant="secondary">{m.status}</Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                       <span>{format(new Date(m.starts_at), "MMM d, yyyy · h:mm a")}</span>
-                      {m.spaces && <span>📚 {m.spaces.name}</span>}
+                      {spaceName && <span>📚 {spaceName}</span>}
                       {m.call_url && <span>🔗 {new URL(m.call_url).hostname}</span>}
                     </div>
+                    {m.status === "live" && (
+                      <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white">
+                        <Video className="h-3.5 w-3.5" /> Join Live Call →
+                      </span>
+                    )}
                   </CardContent>
                 </Card>
               </Link>
             );
           })}
 
-          {(rsvps as any[])?.filter(Boolean).map((r) => {
-            const m = r.meetings;
+          {(rsvps ?? [])?.map((r) => {
+            const m = getMeeting(r);
             if (!m) return null;
+            const spaceName = getSpaceName(m.spaces);
             return (
               <Link key={m.id} href={`/app/meetings/${m.id}`} className="block">
-                <Card className="transition-colors hover:bg-accent/50">
+                <Card className={`transition-colors hover:bg-accent/50 ${m.status === "live" ? "border-green-500/40 bg-green-500/5" : ""}`}>
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
                       <CardTitle className="text-base">{m.title}</CardTitle>
                       <div className="flex items-center gap-2">
+                        {m.status === "live" && (
+                          <Badge className="gap-1 bg-green-500/15 text-green-600 dark:text-green-400">
+                            <Video className="h-3 w-3 animate-pulse" /> LIVE
+                          </Badge>
+                        )}
                         <Badge className={STATUS_COLORS[m.status]} variant="secondary">{m.status}</Badge>
                         <Badge variant="outline">{r.rsvp_status}</Badge>
                       </div>
@@ -93,8 +138,13 @@ export default async function MeetingsPage() {
                   <CardContent>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                       <span>{format(new Date(m.starts_at), "MMM d, yyyy · h:mm a")}</span>
-                      {m.spaces && <span>📚 {m.spaces.name}</span>}
+                      {spaceName && <span>📚 {spaceName}</span>}
                     </div>
+                    {m.status === "live" && (
+                      <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white">
+                        <Video className="h-3.5 w-3.5" /> Join Live Call →
+                      </span>
+                    )}
                   </CardContent>
                 </Card>
               </Link>

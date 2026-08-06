@@ -70,7 +70,7 @@ export default async function ClassStudentsPage({ params }: StudentsPageProps) {
   const assignmentIds = assignments?.map(a => a.id) || [];
 
   // Get all grades for these assignments
-  let gradesMap = new Map();
+  const gradesMap = new Map();
   if (assignmentIds.length > 0) {
     const { data: grades } = await supabase
       .from("grades")

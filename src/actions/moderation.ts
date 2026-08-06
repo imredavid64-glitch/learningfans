@@ -30,7 +30,7 @@ export async function submitReport(
       target_type: targetType,
       target_id: targetId,
       reason: reason.slice(0, 2000),
-      description: description?.slice(0, 2000) || null,
+      ...(description?.trim() && description !== "" ? { description: description.slice(0, 2000) } : {}),
       status: "open",
       created_at: new Date().toISOString(),
     });
@@ -109,10 +109,10 @@ export async function moderateContent(
       updateFields = { is_hidden: false };
       if (targetType === "post") {
         await moderatePost(targetId);
+      } else if (targetType === "profile") {
       }
       break;
     case "hide":
-      updateFields = { is_hidden: true };
       if (targetType === "profile") {
         await supabase.from("user_sanctions").insert({
           user_id: targetId,
@@ -120,6 +120,8 @@ export async function moderateContent(
           reason: note?.slice(0, 500) || "Content moderation violation",
           created_by: profile.id,
         });
+      } else {
+        updateFields = { is_hidden: true };
       }
       break;
     case "strike":

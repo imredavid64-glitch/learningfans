@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createEvent } from "@/actions/schedule";
+import { createEvent, rsvpToEvent } from "@/actions/schedule";
 import { Calendar, Plus, Clock, MapPin, Users, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, isSameDay, eachDayOfInterval } from "date-fns";
 
@@ -123,9 +123,11 @@ export default async function ClassSchedulePage({ params }: SchedulePageProps) {
                 </Badge>
               )}
               {!rsvpMap.has(event.id) && (
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {}}>
-                  <Plus className="h-3 w-3" />
-                </Button>
+                <form action={rsvpToEvent.bind(null, event.id, "going")}>
+                  <Button type="submit" variant="ghost" size="icon" className="h-6 w-6">
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </form>
               )}
             </div>
           </div>
@@ -173,10 +175,12 @@ export default async function ClassSchedulePage({ params }: SchedulePageProps) {
               </span>
               <div className="flex items-center gap-2">
                 {!rsvpMap.has(event.id) && (
-                  <Button variant="ghost" size="sm" className="gap-1 h-8 px-3">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    RSVP
-                  </Button>
+                  <form action={rsvpToEvent.bind(null, event.id, "going")}>
+                    <Button type="submit" variant="ghost" size="sm" className="gap-1 h-8 px-3">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      RSVP
+                    </Button>
+                  </form>
                 )}
                 {rsvpMap.get(event.id) === "going" && (
                   <Badge variant="default" className="gap-1">
@@ -212,7 +216,7 @@ export default async function ClassSchedulePage({ params }: SchedulePageProps) {
           <p className="text-muted-foreground mt-1">Class events, office hours, and study sessions</p>
         </div>
         {(isEnrolled || isInstructor) && (
-          <ButtonLink href={`/app/classes/${slug}/schedule/new`} className="gap-2">
+          <ButtonLink href={`/app/schedule?space=${classData.id}`} className="gap-2">
             <Plus className="h-4 w-4" />
             Add Event
           </ButtonLink>
@@ -275,8 +279,10 @@ export default async function ClassSchedulePage({ params }: SchedulePageProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={createEvent.bind(null, classData.id)}>
+            <form action={createEvent}>
               <div className="grid gap-4 sm:grid-cols-2">
+                <input type="hidden" name="spaceId" value={classData.id} />
+                <input type="hidden" name="visibility" value="space" />
                 <div>
                   <label className="block text-sm font-medium mb-1">Event Title</label>
                   <Input name="title" placeholder="Study Session, Office Hours, Exam Review..." required />

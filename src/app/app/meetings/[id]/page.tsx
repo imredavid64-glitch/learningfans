@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cancelMeeting, rsvpMeeting } from "@/actions/meetings";
+import { LiveCallRoom } from "@/components/meetings/live-call-room";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: "bg-blue-500/10 text-blue-500",
@@ -36,9 +37,22 @@ export default async function MeetingDetailPage(props: { params: Promise<{ id: s
 
   const myRsvp = participants?.find((p) => p.user_id === profile.id);
   const isOrganizer = meeting.organizer_id === profile.id;
+  const callUrl = meeting.call_url || `https://meet.jit.si/LearningFans-Meeting-${meeting.id}`;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
+      {/* Embedded Live Video/Audio Call Room */}
+      {meeting.status !== "cancelled" && (
+        <LiveCallRoom
+          meetingId={meeting.id}
+          title={meeting.title}
+          callUrl={callUrl}
+          status={meeting.status as "scheduled" | "live" | "completed" | "cancelled"}
+          isOrganizer={isOrganizer}
+          userDisplayName={profile.display_name || "Scholar"}
+        />
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between">
@@ -72,17 +86,6 @@ export default async function MeetingDetailPage(props: { params: Promise<{ id: s
               <p className="text-sm text-muted-foreground">Description</p>
               <p className="whitespace-pre-wrap text-sm">{meeting.description}</p>
             </div>
-          )}
-
-          {meeting.call_url && (
-            <a
-              href={meeting.call_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Join call ↗
-            </a>
           )}
         </CardContent>
       </Card>

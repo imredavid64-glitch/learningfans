@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 const SH_PROJECT = process.env.STUDY_HUB_PROJECT || "nnrdkdisjfudibvrggxb";
 const SH_URL = `https://${SH_PROJECT}.supabase.co`;
 const SH_SERVICE_KEY = process.env.STUDY_HUB_SERVICE_KEY || "";
@@ -55,6 +57,8 @@ async function shFetch(path: string, options: RequestInit = {}) {
 }
 
 function computeAchievements(s: any) {
+  // s: State snapshot data from Study Hub (all any type due to dynamic schema)
+  // Next major schema migration expected (removed Study Hub DB, REST API only for now)
   const tasks = s.tasks || [];
   const sessions = s.sessions || [];
   const flashcards = s.flashcards || [];
@@ -71,7 +75,7 @@ function computeAchievements(s: any) {
   if (uniqueDates.length > 0) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    let check = new Date(today);
+    const check = new Date(today);
     for (const dStr of uniqueDates) {
       const d = new Date(dStr + "T00:00:00");
       d.setHours(0, 0, 0, 0);
