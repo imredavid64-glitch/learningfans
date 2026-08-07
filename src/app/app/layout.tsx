@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AppNav } from "@/components/layout/app-nav";
 import { DatabaseSetup } from "@/components/setup/database-setup";
 import { TimeTracker } from "@/components/layout/time-tracker";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { DemoModeProvider } from "@/lib/demo-mode";
 import { ProfanityStatusBanner } from "@/components/moderation/profanity-status-banner";
 import {
@@ -43,6 +44,7 @@ export default async function AppLayout({
         <TimeTracker />
         <ProfanityStatusBanner />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+        <MobileNav />
       </div>
     </DemoModeProvider>
   );

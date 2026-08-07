@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Users, Plus, Search, Filter } from "lucide-react";
+import { BookOpen, Users, Plus, Search, Filter, Sparkles } from "lucide-react";
 import { ListSkeleton } from "@/components/ui/skeleton";
+import { DEMO_SPACES } from "@/lib/demo-data";
 
 async function ClassesContent() {
   const profile = await getCurrentProfile();
@@ -106,10 +107,16 @@ async function ClassesContent() {
               <BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium">No classes yet</h3>
               <p className="text-muted-foreground mt-2">Browse available classes to get started</p>
-              <ButtonLink href="/app/classes/browse" className="mt-4 inline-flex">
-                <Plus className="h-4 w-4 mr-2" />
-                Browse Classes
-              </ButtonLink>
+              <div className="mt-4 flex flex-col sm:flex-row gap-3 justify-center">
+                <ButtonLink href="/app/classes/browse" className="inline-flex">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Browse Classes
+                </ButtonLink>
+                <ButtonLink href="/app/demo" className="inline-flex gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Load Sample
+                </ButtonLink>
+              </div>
             </CardContent>
           </Card>
         )}

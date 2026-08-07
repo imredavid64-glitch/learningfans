@@ -6,7 +6,8 @@ import { getCurrentProfile } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
-import { Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Video, Sparkles } from "lucide-react";
 import { ListSkeleton } from "@/components/ui/skeleton";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -75,8 +76,17 @@ async function MeetingsContent() {
 
       {(!organized?.length && !rsvps?.length) ? (
         <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            No upcoming meetings. Schedule one to get started.
+          <CardContent className="py-12 text-center">
+            <Video className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">No upcoming meetings</h3>
+            <p className="text-muted-foreground text-sm mb-4">Schedule one to get started</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <ButtonLink href="/app/meetings/new">Schedule meeting</ButtonLink>
+              <ButtonLink href="/app/demo" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                See Demo Meetings
+              </ButtonLink>
+            </div>
           </CardContent>
         </Card>
       ) : (

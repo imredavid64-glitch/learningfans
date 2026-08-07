@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Zap } from "lucide-react";
+import { Zap, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 export function FlashcardReview({
   cards,
@@ -24,7 +26,19 @@ export function FlashcardReview({
   const card = cards[index];
 
   if (!cards.length) {
-    return <p className="text-sm text-muted-foreground">No cards in this set.</p>;
+    return (
+      <Card className="mx-auto max-w-lg text-center py-12">
+        <CardContent>
+          <p className="text-muted-foreground mb-4">No cards in this set.</p>
+          <Link href="/app/demo">
+            <Button className="gap-2 w-full" onClick={() => toast.success("Loading sample flashcards...")}>
+              <Sparkles className="h-4 w-4" />
+              Load Sample Flashcards
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+    );
   }
 
   const accentClasses = {
@@ -80,8 +94,7 @@ export function FlashcardReview({
         <div className="flex gap-2 pt-2">
           <Button
             variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5 border-red-500/30 text-red-600 hover:bg-red-500/10"
+            className="flex-1 gap-1.5 border-red-500/30 text-red-600 hover:bg-red-500/10 h-11"
             onClick={() => {
               // Review Again - re-queue card
               setFlipped(false);
@@ -91,8 +104,7 @@ export function FlashcardReview({
           </Button>
           <Button
             variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5 border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+            className="flex-1 gap-1.5 border-amber-500/30 text-amber-600 hover:bg-amber-500/10 h-11"
             onClick={() => {
               // Got It - standard interval
               setIndex((i) => (i + 1) % cards.length);
@@ -103,13 +115,13 @@ export function FlashcardReview({
           </Button>
           <Button
             variant="default"
-            size="sm"
-            className="flex-1 gap-1.5 bg-green-600 hover:bg-green-700"
+            className="flex-1 gap-1.5 bg-green-600 hover:bg-green-700 h-11"
             onClick={() => {
               // Mastered - grants loyalty points
               setIndex((i) => (i + 1) % cards.length);
               setFlipped(false);
               // TODO: Award loyalty points
+              toast.success("+10 XP earned!");
             }}
           >
             <span className="text-lg">🟢</span> Mastered (+10 XP)
@@ -120,6 +132,7 @@ export function FlashcardReview({
           <Button
             variant="outline"
             disabled={index === 0}
+            className="h-11"
             onClick={() => {
               setIndex((i) => i - 1);
               setFlipped(false);
@@ -129,6 +142,7 @@ export function FlashcardReview({
           </Button>
           <Button
             disabled={index >= cards.length - 1}
+            className="h-11"
             onClick={() => {
               setIndex((i) => i + 1);
               setFlipped(false);

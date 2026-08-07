@@ -343,21 +343,21 @@ export function FanDemoView({ profile, stats, spaces, materials, challenges, lea
                           const isSelected = selectedAnswer === index;
                           const showFeedback = selectedAnswer !== null;
                           
-                          return (
-                            <button
-                              key={index}
-                              onClick={() => handleAnswerSelect(index)}
-                              disabled={selectedAnswer !== null}
-                              className={`w-full text-left rounded-lg border p-4 text-sm transition-all ${
-                                showFeedback
-                                  ? isCorrect
-                                    ? "bg-green-500/10 border-green-500 text-green-700 dark:text-green-300"
-                                    : isSelected
-                                    ? "bg-red-500/10 border-red-500 text-red-700 dark:text-red-300"
-                                    : ""
-                                  : "hover:bg-muted/50"
-                              }`}
-                            >
+                           return (
+                             <button
+                               key={index}
+                               onClick={() => handleAnswerSelect(index)}
+                               disabled={selectedAnswer !== null}
+                               className={`w-full text-left rounded-lg border p-4 text-sm transition-all min-h-[44px] ${
+                                 showFeedback
+                                   ? isCorrect
+                                     ? "bg-green-500/10 border-green-500 text-green-700 dark:text-green-300"
+                                     : isSelected
+                                     ? "bg-red-500/10 border-red-500 text-red-700 dark:text-red-300"
+                                     : ""
+                                   : "hover:bg-muted/50"
+                               }`}
+                             >
                               <div className="flex items-center gap-3">
                                 <span className="font-medium">
                                   {String.fromCharCode(65 + index)}. {option}
@@ -388,13 +388,13 @@ export function FanDemoView({ profile, stats, spaces, materials, challenges, lea
                       </div>
                     )}
 
-                    <Button
-                      onClick={handleNextQuestion}
-                      disabled={selectedAnswer === null}
-                      className="w-full"
-                    >
-                      {currentQuizIndex < quizQuestions.length - 1 ? "Next Question" : "View Results"}
-                    </Button>
+                     <Button
+                       onClick={handleNextQuestion}
+                       disabled={selectedAnswer === null}
+                       className="w-full h-11"
+                     >
+                       {currentQuizIndex < quizQuestions.length - 1 ? "Next Question" : "View Results"}
+                     </Button>
                   </div>
                 </>
               ) : (
@@ -407,20 +407,20 @@ export function FanDemoView({ profile, stats, spaces, materials, challenges, lea
                   <p className="text-sm text-muted-foreground mb-4">
                     +100 Fan XP Earned
                   </p>
-                  <div className="space-y-3">
-                    <Button onClick={handleShareScore} className="w-full">
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Share Score on Community Feed
-                    </Button>
-                    <Button variant="outline" onClick={() => {
-                      setQuizComplete(false);
-                      setCurrentQuizIndex(0);
-                      setSelectedAnswer(null);
-                      setShowExplanation(false);
-                    }} className="w-full">
-                      Try Again
-                    </Button>
-                  </div>
+                   <div className="space-y-3">
+                     <Button onClick={handleShareScore} className="w-full h-11">
+                       <Share2 className="h-4 w-4 mr-2" />
+                       Share Score on Community Feed
+                     </Button>
+                     <Button variant="outline" onClick={() => {
+                       setQuizComplete(false);
+                       setCurrentQuizIndex(0);
+                       setSelectedAnswer(null);
+                       setShowExplanation(false);
+                     }} className="w-full h-11">
+                       Try Again
+                     </Button>
+                   </div>
                 </div>
               )}
             </CardContent>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { ExternalLink, FileText, Layers, StickyNote, Zap } from "lucide-react";
+import { ExternalLink, FileText, Layers, StickyNote, Zap, Sparkles } from "lucide-react";
 import { toggleUpvote, setMaterialPriority } from "@/actions/materials";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import type { MaterialPriority } from "@/lib/constants";
 import type { StudyMaterial } from "@/types/database";
+import { DEMO_MATERIALS } from "@/lib/demo-data";
+import { toast } from "sonner";
 
 const typeIcons = {
   file: FileText,
@@ -22,6 +24,19 @@ const typeIcons = {
   note: StickyNote,
   flashcard_set: Layers,
 };
+
+function LoadSampleMaterialsButton({ onLoad, spaceSlug }: { onLoad: () => void; spaceSlug: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-indigo-200 rounded-2xl bg-indigo-50/50">
+      <p className="text-indigo-900 font-medium mb-4">No study materials in this space yet.</p>
+      <Button onClick={onLoad} className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+        <Sparkles className="h-4 w-4" />
+        Load Sample Creator Study Feed
+      </Button>
+      <p className="text-sm text-indigo-600 mt-3">Instantly see how study materials work!</p>
+    </div>
+  );
+}
 
 export function MaterialList({
   materials,
@@ -32,6 +47,16 @@ export function MaterialList({
   spaceSlug: string;
   userUpvotes: Set<string>;
 }) {
+  const handleLoadSample = () => {
+    toast.success("Sample creator study feed loaded!");
+    // In a real implementation, this would populate the state
+    // For now, we just show the toast
+  };
+
+  if (materials.length === 0) {
+    return <LoadSampleMaterialsButton onLoad={handleLoadSample} spaceSlug={spaceSlug} />;
+  }
+
   return (
     <ul className="space-y-3">
       {materials.map((m) => {

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Shield, AlertCircle, Mail, UserCheck, XCircle, CheckCircle, Loader2 } from "lucide-react";
+import { Shield, AlertCircle, Mail, UserCheck, XCircle, CheckCircle, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProfanityStatus {
@@ -20,14 +20,44 @@ interface ProfanityStatus {
   schoolName: string | null;
 }
 
+function getToastMessage(status: ProfanityStatus): string | null {
+  if (status.restrictionLevel === "suspended") {
+    return `⚠️ Account Suspended: Your account has been suspended due to repeated profanity violations. Parent and principal have been notified.`;
+  }
+  if (status.restrictionLevel === "restricted") {
+    return `⚠️ Account Restricted: Your account is in read-only mode due to profanity violations. Please add parent email for notification.`;
+  }
+  if (status.restrictionLevel === "warning" && status.warnings > 0) {
+    return `⚠️ Content Warning: You have ${status.warnings} warning(s). Next violation will restrict your account.`;
+  }
+  return null;
+}
+
 export function ProfanityStatusBanner() {
   const [status, setStatus] = useState<ProfanityStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     fetchStatus();
   }, []);
+
+  useEffect(() => {
+    // Show toast when status changes and it's not none
+    if (status && status.restrictionLevel !== "none" && !dismissed) {
+      const message = getToastMessage(status);
+      if (message) {
+        toast.warning(message, {
+          duration: 8000,
+          action: {
+            label: "View Details",
+            onClick: () => setDismissed(false),
+          },
+        });
+      }
+    }
+  }, [status, dismissed]);
 
   async function fetchStatus() {
     try {
@@ -66,7 +96,7 @@ export function ProfanityStatusBanner() {
 
   if (loading || !status) return null;
 
-  if (status.restrictionLevel === "none") return null;
+  if (status.restrictionLevel === "none" || dismissed) return null;
 
   const getStatusConfig = () => {
     switch (status.restrictionLevel) {
@@ -117,16 +147,27 @@ export function ProfanityStatusBanner() {
           <div className={`flex-shrink-0 p-2 rounded-lg bg-${config.color}-500/10`}>
             <Icon className={`h-5 w-5 text-${config.color}-600`} />
           </div>
-          <div className="flex-1 min-w-0">
-            <CardTitle className={`text-${config.color}-700 dark:text-${config.color}-300`}>
-              {config.title}
-            </CardTitle>
-            <CardDescription className="mt-1">{config.description}</CardDescription>
-          </div>
-          <Badge variant="secondary" className={`bg-${config.color}-500/10 text-${config.color}-700 dark:text-${config.color}-300 border-${config.color}-500/20`}>
-            {status.violations} violation(s)
-          </Badge>
-        </div>
+         <div className="flex-1 min-w-0">
+             <CardTitle className={`text-${config.color}-700 dark:text-${config.color}-300`}>
+               {config.title}
+             </CardTitle>
+             <CardDescription className="mt-1">{config.description}</CardDescription>
+           </div>
+           <div className="flex items-center gap-2">
+             <Badge variant="secondary" className={`bg-${config.color}-500/10 text-${config.color}-700 dark:text-${config.color}-300 border-${config.color}-500/20`}>
+               {status.violations} violation(s)
+             </Badge>
+             <Button
+               variant="ghost"
+               size="icon"
+               onClick={() => setDismissed(true)}
+               className="h-6 w-6"
+               aria-label="Dismiss"
+             >
+               <X className="h-3 w-3" />
+             </Button>
+           </div>
+         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <Alert variant={config.color === "destructive" ? "destructive" : "default"} className={`border-${config.color}-200`}>
