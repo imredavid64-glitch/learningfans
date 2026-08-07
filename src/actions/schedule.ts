@@ -96,11 +96,30 @@ export async function rsvpToEvent(eventId: string, status: "going" | "maybe"): P
 
   const { data: event } = await supabase
     .from("schedule_events")
-    .select("space_id")
+    .select("space_id, owner_id")
     .eq("id", eventId)
     .single();
 
-  const { data: space } = event?.space_id
+  if (!event) {
+    redirect(`/app/schedule?error=Event%20not%20found`);
+  }
+
+  if (event.space_id) {
+    const { data: membership } = await supabase
+      .from("space_members")
+      .select("role")
+      .eq("space_id", event.space_id)
+      .eq("user_id", profile.id)
+      .single();
+
+    if (!membership) {
+      redirect(`/app/schedule?error=Not%20a%20member%20of%20this%20space`);
+    }
+  } else if (event.owner_id !== profile.id) {
+    redirect(`/app/schedule?error=Not%20authorized`);
+  }
+
+  const { data: space } = event.space_id
     ? await supabase.from("spaces").select("slug").eq("id", event.space_id).single()
     : { data: null };
 

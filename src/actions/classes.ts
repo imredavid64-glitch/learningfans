@@ -23,7 +23,7 @@ export interface ClassSpace {
   is_public: boolean;
   created_by: string;
   created_at: string;
-  join_password_hash: string | null;
+  has_password: boolean;
 }
 
 export interface EnrollmentWithSpace {
@@ -39,12 +39,28 @@ export async function getAvailableClasses(): Promise<ClassSpace[]> {
 
   const { data } = await supabase
     .from("spaces")
-    .select("*")
+    .select("id, name, slug, description, class_code, semester, quarter, instructor, department, room, meeting_schedule, is_public, created_by, created_at, join_password_hash")
     .eq("is_public", true)
     .order("created_at", { ascending: false })
     .limit(50);
 
-  return data || [];
+  return (data || []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    description: c.description,
+    class_code: c.class_code,
+    semester: c.semester,
+    quarter: c.quarter,
+    instructor: c.instructor,
+    department: c.department,
+    room: c.room,
+    meeting_schedule: c.meeting_schedule,
+    is_public: c.is_public,
+    created_by: c.created_by,
+    created_at: c.created_at,
+    has_password: Boolean(c.join_password_hash),
+  }));
 }
 
 export async function getUserEnrollments(userId: string): Promise<EnrollmentWithSpace[]> {
@@ -138,7 +154,7 @@ export async function createClass(
   await logAudit("class_create", profile.id, { classId: space.id, name: validated.name, slug: validated.slug });
 
   revalidatePath("/app/classes");
-  redirect(`/app/classes/${space.id}`);
+  redirect(`/app/classes/${space.slug}`);
 }
 
 export async function enrollInClass(
@@ -171,6 +187,10 @@ export async function enrollInClass(
 
   if (!classData) {
     redirect(`/app/classes?error=Class%20not%20found`);
+  }
+
+  if (!classData.is_public) {
+    redirect(`/app/classes?error=This%20class%20is%20private`);
   }
 
   if (classData.join_password_hash) {

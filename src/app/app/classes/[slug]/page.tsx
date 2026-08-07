@@ -322,8 +322,8 @@ export default async function ClassDetailPage({ params }: ClassDetailPageProps) 
                   <FileText className="h-4 w-4" />
                   Upcoming Assignments
                 </CardTitle>
-                <Link href={`/app/classes/${slug}/assignments`}>
-                  <ButtonLink href={`/app/classes/${slug}/assignments`} variant="ghost" size="sm">
+                <Link href={`/app/classes/${slug}/grades`}>
+                  <ButtonLink href={`/app/classes/${slug}/grades`} variant="ghost" size="sm">
                     View All
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </ButtonLink>
@@ -543,8 +543,8 @@ export default async function ClassDetailPage({ params }: ClassDetailPageProps) 
                           )}
                         </div>
                       </div>
-                      <Link href={`/app/classes/${slug}/assignments/${assignment.id}`}>
-                        <ButtonLink href={`/app/classes/${slug}/assignments/${assignment.id}`} variant="ghost" size="sm">
+                      <Link href={`/app/classes/${slug}/grades`}>
+                        <ButtonLink href={`/app/classes/${slug}/grades`} variant="ghost" size="sm">
                           View
                           <ArrowRight className="h-3 w-3 ml-1" />
                         </ButtonLink>
@@ -569,8 +569,8 @@ export default async function ClassDetailPage({ params }: ClassDetailPageProps) 
 
         {/* Schedule Tab */}
         <TabsContent value="schedule">
-          <Link href={`/app/classes/${slug}/schedule/new`} className="mb-4 inline-flex">
-            <ButtonLink href={`/app/classes/${slug}/schedule/new`} className="gap-2">
+          <Link href={`/app/classes/${slug}/schedule`} className="mb-4 inline-flex">
+            <ButtonLink href={`/app/classes/${slug}/schedule`} className="gap-2">
               <Plus className="h-4 w-4" />
               Add Event
             </ButtonLink>
@@ -600,9 +600,9 @@ export default async function ClassDetailPage({ params }: ClassDetailPageProps) 
                           <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{event.description}</p>
                         )}
                       </div>
-                      <Link href={`/app/classes/${slug}/schedule/${event.id}`}>
-                        <ButtonLink href={`/app/classes/${slug}/schedule/${event.id}`} variant="ghost" size="sm">View</ButtonLink>
-                      </Link>
+              <Link href={`/app/classes/${slug}/schedule`}>
+                <ButtonLink href={`/app/classes/${slug}/schedule`} variant="ghost" size="sm">View</ButtonLink>
+              </Link>
                     </div>
                   </CardContent>
                 </Card>
@@ -667,8 +667,8 @@ export default async function ClassDetailPage({ params }: ClassDetailPageProps) 
                           </td>
                           <td className="py-3">
                             <div className="flex items-center gap-2">
-                              <Link href={`/app/classes/${slug}/students/${student?.id}/grades`}>
-                                <ButtonLink href={`/app/classes/${slug}/students/${student?.id}/grades`} variant="ghost" size="icon">
+                              <Link href={`/app/classes/${slug}/grades`}>
+                                <ButtonLink href={`/app/classes/${slug}/grades`} variant="ghost" size="icon">
                                   <Award className="h-4 w-4" />
                                 </ButtonLink>
                               </Link>

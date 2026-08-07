@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
@@ -6,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Video } from "lucide-react";
+import { ListSkeleton } from "@/components/ui/skeleton";
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: "bg-blue-500/10 text-blue-500",
@@ -40,7 +42,7 @@ function getMeeting(r: RsvpRow): MeetingRow | null {
   return list[0] ?? null;
 }
 
-export default async function MeetingsPage() {
+async function MeetingsContent() {
   const profile = await getCurrentProfile();
   if (!profile) return null;
 
@@ -49,7 +51,7 @@ export default async function MeetingsPage() {
 
   const { data: organized } = await supabase
     .from("meetings")
-    .select("*, spaces(name, slug)")
+    .select("*", { head: true, count: "exact" })
     .eq("organizer_id", profile.id)
     .gte("starts_at", now)
     .order("starts_at", { ascending: true })
@@ -57,7 +59,7 @@ export default async function MeetingsPage() {
 
   const { data: rsvps } = await supabase
     .from("meeting_participants")
-    .select("meeting_id, rsvp_status, meetings!inner(*, spaces(name, slug))")
+    .select("meeting_id, rsvp_status, meetings!inner(*, spaces(name, slug))", { head: true, count: "exact" })
     .eq("user_id", profile.id)
     .gte("meetings.starts_at", now);
 
@@ -150,8 +152,16 @@ export default async function MeetingsPage() {
               </Link>
             );
           })}
-        </div>
-      )}
-    </div>
+         </div>
+       )}
+     </div>
+   );
+}
+
+export default function MeetingsPage() {
+  return (
+    <Suspense fallback={<ListSkeleton count={4} />}>
+      <MeetingsContent />
+    </Suspense>
   );
 }

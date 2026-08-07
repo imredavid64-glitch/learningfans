@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Users, Plus, Search, Filter } from "lucide-react";
+import { ListSkeleton } from "@/components/ui/skeleton";
 
-export default async function ClassesPage() {
+async function ClassesContent() {
   const profile = await getCurrentProfile();
   if (!profile) return null;
 
@@ -119,14 +121,14 @@ export default async function ClassesPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Discover More Classes</h2>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="gap-2">
+              <ButtonLink href="/app/classes/browse" variant="ghost" size="sm" className="gap-2">
                 <Search className="h-4 w-4" />
                 Search
-              </Button>
-              <Button variant="ghost" size="sm" className="gap-2">
+              </ButtonLink>
+              <ButtonLink href="/app/classes/browse" variant="ghost" size="sm" className="gap-2">
                 <Filter className="h-4 w-4" />
                 Filter
-              </Button>
+              </ButtonLink>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -171,5 +173,13 @@ export default async function ClassesPage() {
         </section>
       )}
     </div>
+  );
+}
+
+export default function ClassesPage() {
+  return (
+    <Suspense fallback={<ListSkeleton count={6} />}>
+      <ClassesContent />
+    </Suspense>
   );
 }

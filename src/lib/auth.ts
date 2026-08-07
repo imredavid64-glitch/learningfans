@@ -92,6 +92,22 @@ export async function requireProfile(): Promise<Profile> {
   return profile;
 }
 
+export type SpaceMembershipRole = "member" | "moderator" | "admin";
+
+export async function getSpaceMembership(
+  spaceId: string,
+  userId: string,
+): Promise<{ role: SpaceMembershipRole } | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("space_members")
+    .select("role")
+    .eq("space_id", spaceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data as { role: SpaceMembershipRole } | null;
+}
+
 export function isModerator(role: Profile["role"]) {
   return role === "moderator" || role === "admin";
 }

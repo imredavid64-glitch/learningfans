@@ -51,6 +51,14 @@ export async function joinSpace(spaceId: string): Promise<void> {
   const profile = await requireProfile();
   const supabase = await createClient();
 
+  const { data: space } = await supabase
+    .from("spaces")
+    .select("is_public")
+    .eq("id", spaceId)
+    .single();
+
+  if (!space || !space.is_public) return;
+
   const { error } = await supabase.from("space_members").insert({
     space_id: spaceId,
     user_id: profile.id,

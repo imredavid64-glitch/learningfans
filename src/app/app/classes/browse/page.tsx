@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { getAvailableClasses, getUserEnrollments, enrollInClass } from "@/actions/classes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,19 +10,12 @@ export default async function BrowseClassesPage() {
   const profile = await getCurrentProfile();
   if (!profile) return null;
 
-  const supabase = await createClient();
-  
   const [classes, enrollments] = await Promise.all([
     getAvailableClasses(),
     getUserEnrollments(profile.id),
   ]);
 
-  const { data: spacePasswords } = await supabase
-    .from("spaces")
-    .select("id, join_password_hash");
-
   const enrolledIds = new Set(enrollments.map(e => e.class_id));
-  const passwordMap = new Map((spacePasswords || []).map((c) => [c.id, c.join_password_hash]));
 
   return (
     <div className="space-y-8">
@@ -61,7 +53,7 @@ export default async function BrowseClassesPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {classes.map((cls) => {
             const isEnrolled = enrolledIds.has(cls.id);
-            const hasPassword = !!passwordMap.get(cls.id);
+            const hasPassword = cls.has_password;
             return (
               <Card key={cls.id} className="hover:shadow-md transition-shadow flex flex-col">
                 <CardHeader>

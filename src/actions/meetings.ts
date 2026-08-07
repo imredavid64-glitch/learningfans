@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, getSpaceMembership } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { generateReminder, getReminderSchedule } from "@/lib/reminders";
 
@@ -57,9 +57,26 @@ export async function createMeeting(
     return { redirect: "/app/meetings/new?error=Invalid%20call%20URL" };
   }
 
-  const participantIds = participantIdsRaw
+  if (spaceId) {
+    const membership = await getSpaceMembership(spaceId, profile.id);
+    if (!membership) {
+      return { redirect: "/app/meetings/new?error=You%20are%20not%20a%20member%20of%20this%20space" };
+    }
+  }
+
+  let participantIds = participantIdsRaw
     ? participantIdsRaw.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
+
+  if (participantIds.length > 0) {
+    const { data: validUsers } = await supabase
+      .from("profiles")
+      .select("id")
+      .in("id", participantIds);
+
+    const validIds = new Set((validUsers || []).map((u) => u.id));
+    participantIds = participantIds.filter((id) => validIds.has(id));
+  }
 
   const { data: meeting, error } = await supabase
     .from("meetings")
@@ -89,7 +106,7 @@ export async function createMeeting(
     await supabase.from("meeting_participants").insert(participants);
   }
 
-  await scheduleReminders(meeting.id, title, description, callUrl, startsAt, profile.display_name, participantIds.length);
+  await scheduleReminders(meeting.id, title, description, callUrl, startsAt, profile.display_name, participantIds);
   await logAudit("class_create", profile.id, { meetingId: meeting.id, title });
 
   revalidatePath("/app/meetings");
@@ -104,7 +121,7 @@ async function scheduleReminders(
   callUrl: string | null,
   startsAt: string,
   organizerName: string,
-  participantCount: number,
+  participantIds: string[],
 ): Promise<void> {
   try {
     const supabase = await createClient();
@@ -112,17 +129,19 @@ async function scheduleReminders(
 
     for (const hours of hoursList) {
       const reminder = await generateReminder(
-        { title, description, startsAt, callUrl, organizerName, participantCount },
+        { title, description, startsAt, callUrl, organizerName, participantCount: participantIds.length },
         hours,
       );
 
-      if (participantCount > 0) {
-        await supabase.from("meeting_reminders").insert({
-          meeting_id: meetingId,
-          recipient_id: null,
-          reminder_text: reminder.text,
-          scheduled_for: reminder.scheduledFor.toISOString(),
-        });
+      const rows = participantIds.map((userId) => ({
+        meeting_id: meetingId,
+        recipient_id: userId,
+        reminder_text: reminder.text,
+        scheduled_for: reminder.scheduledFor.toISOString(),
+      }));
+
+      if (rows.length > 0) {
+        await supabase.from("meeting_reminders").insert(rows);
       }
     }
   } catch {}
@@ -214,6 +233,34 @@ export async function rsvpMeeting(
     redirect(`/app/meetings/${meetingId}?error=Invalid%20status`);
   }
 
+  const { data: meeting } = await supabase
+    .from("meetings")
+    .select("space_id, organizer_id")
+    .eq("id", meetingId)
+    .single();
+
+  if (!meeting) {
+    redirect("/app/meetings?error=Meeting%20not%20found");
+  }
+
+  if (meeting.space_id) {
+    const membership = await getSpaceMembership(meeting.space_id, profile.id);
+    if (!membership) {
+      redirect(`/app/meetings/${meetingId}?error=Not%20a%20member%20of%20this%20space`);
+    }
+  } else {
+    const { data: invited } = await supabase
+      .from("meeting_participants")
+      .select("id")
+      .eq("meeting_id", meetingId)
+      .eq("user_id", profile.id)
+      .maybeSingle();
+
+    if (!invited && meeting.organizer_id !== profile.id) {
+      redirect(`/app/meetings/${meetingId}?error=Not%20invited%20to%20this%20meeting`);
+    }
+  }
+
   const { error } = await supabase
     .from("meeting_participants")
     .upsert({
@@ -295,6 +342,7 @@ export async function getMeetingReminders(userId: string): Promise<{ id: string;
   const { data } = await supabase
     .from("meeting_reminders")
     .select("id, reminder_text, scheduled_for, meeting_id, meetings!inner(title)")
+    .eq("recipient_id", userId)
     .lte("scheduled_for", now)
     .is("sent_at", null)
     .limit(10);
@@ -313,9 +361,11 @@ export async function getMeetingReminders(userId: string): Promise<{ id: string;
 }
 
 export async function dismissReminder(reminderId: string): Promise<void> {
+  const profile = await requireProfile();
   const supabase = await createClient();
   await supabase
     .from("meeting_reminders")
     .update({ sent_at: new Date().toISOString() })
-    .eq("id", reminderId);
+    .eq("id", reminderId)
+    .eq("recipient_id", profile.id);
 }

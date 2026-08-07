@@ -7,6 +7,7 @@ export type AuditAction =
   | "class_create"
   | "class_join"
   | "class_leave"
+  | "assignment_create"
   | "thread_create"
   | "post_create"
   | "report_create"

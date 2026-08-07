@@ -95,7 +95,16 @@ export default async function EnrollPage({ params }: EnrollPageProps) {
             )}
           </div>
 
-          <form action={enrollInClass.bind(null, classData.id)}>
+          <form action={enrollInClass.bind(null, classData.id)} className="space-y-3">
+            {classData.join_password_hash && (
+              <input
+                type="password"
+                name="joinPassword"
+                placeholder="Class password"
+                required
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            )}
             <Button type="submit" className="w-full gap-2" size="lg">
               <CheckCircle2 className="h-4 w-4" />
               Enroll in Class

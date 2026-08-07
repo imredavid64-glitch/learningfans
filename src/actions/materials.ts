@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, getSpaceMembership } from "@/lib/auth";
 import {
   ALLOWED_FILE_MIME_TYPES,
   MAX_FILE_SIZE_BYTES,
@@ -31,6 +31,9 @@ export async function createLinkMaterial(
     .single();
 
   if (!space) return;
+
+  const membership = await getSpaceMembership(space.id, profile.id);
+  if (!membership) return;
 
   const { error } = await supabase.from("study_materials").insert({
     space_id: space.id,
@@ -66,6 +69,9 @@ export async function createNoteMaterial(
     .single();
 
   if (!space) return;
+
+  const membership = await getSpaceMembership(space.id, profile.id);
+  if (!membership) return;
 
   const { error } = await supabase.from("study_materials").insert({
     space_id: space.id,
@@ -108,6 +114,9 @@ export async function createFlashcardMaterial(
     .single();
 
   if (!space) return;
+
+  const membership = await getSpaceMembership(space.id, profile.id);
+  if (!membership) return;
 
   const { error } = await supabase.from("study_materials").insert({
     space_id: space.id,
@@ -154,6 +163,9 @@ export async function uploadFileMaterial(
     .single();
 
   if (!space) return;
+
+  const membership = await getSpaceMembership(space.id, profile.id);
+  if (!membership) return;
 
   const { data: material, error: matError } = await supabase
     .from("study_materials")
@@ -214,6 +226,17 @@ export async function toggleUpvote(
   const profile = await requireProfile();
   const supabase = await createClient();
 
+  const { data: material } = await supabase
+    .from("study_materials")
+    .select("space_id")
+    .eq("id", materialId)
+    .maybeSingle();
+
+  if (!material) return;
+
+  const membership = await getSpaceMembership(material.space_id, profile.id);
+  if (!membership) return;
+
   const { data: existing } = await supabase
     .from("material_upvotes")
     .select("material_id")
@@ -261,7 +284,20 @@ export async function setMaterialPriority(
 }
 
 export async function getSignedMaterialUrl(storagePath: string) {
+  const profile = await requireProfile();
   const supabase = await createClient();
+
+  const { data: material } = await supabase
+    .from("study_materials")
+    .select("space_id")
+    .eq("storage_path", storagePath)
+    .maybeSingle();
+
+  if (!material) return { error: "Material not found" };
+
+  const membership = await getSpaceMembership(material.space_id, profile.id);
+  if (!membership) return { error: "Not a member of this space" };
+
   const { data, error } = await supabase.storage
     .from("materials")
     .createSignedUrl(storagePath, 3600);

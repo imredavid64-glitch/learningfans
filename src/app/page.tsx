@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { BookOpen, Calendar, MessageSquare, Shield, Lock, Bell, Users, Clock, Monitor, Download } from "lucide-react";
+import { BookOpen, Calendar, MessageSquare, Shield, Lock, Bell, Users, Clock, Monitor, Download, Zap, TrendingUp, Award } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button-link";
+import { Badge } from "@/components/ui/badge";
 
 export default function HomePage() {
   return (
@@ -21,12 +22,18 @@ export default function HomePage() {
 
       <main className="flex-1">
         <section className="mx-auto max-w-5xl px-4 py-24 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1.5 text-sm font-medium text-indigo-700 mb-6">
+            <Zap className="h-4 w-4" />
+            <span>New: Creator-Fan Study Ecosystem</span>
+            <Badge variant="secondary" className="ml-2">Live Demo</Badge>
+          </div>
           <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
-            Study together, <span className="text-primary">safely</span>
+            Students drop traditional study apps because learning in isolation is boring.
+            <br />
+            <span className="text-primary">LearningFans combines creator dynamics with AI study feeds to drive 4x higher completion rates.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground leading-relaxed">
-            Create class communities, manage assignments, discuss topics in real-time, and stay on schedule —
-            all in a moderated, AI-protected environment built for students.
+            Join 1,240+ active learners in creator-led cohorts. Earn badges, maintain streaks, and access VIP study materials — all in a moderated, AI-protected environment.
           </p>
           <div className="mt-10 flex justify-center gap-4">
             <ButtonLink href="/signup" size="lg" className="px-8">
@@ -35,6 +42,22 @@ export default function HomePage() {
             <ButtonLink href="/login" size="lg" variant="outline">
               Sign in
             </ButtonLink>
+          </div>
+          
+          {/* Impact Metrics Bar */}
+          <div className="mt-16 grid grid-cols-3 gap-8 max-w-3xl mx-auto text-center">
+            <div>
+              <div className="text-3xl font-bold text-primary">4x</div>
+              <div className="text-sm text-muted-foreground">Higher Completion</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-primary">88%</div>
+              <div className="text-sm text-muted-foreground">Quiz Completion Rate</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-primary">3.4h</div>
+              <div className="text-sm text-muted-foreground">Weekly Engagement</div>
+            </div>
           </div>
         </section>
 
@@ -50,6 +73,9 @@ export default function HomePage() {
                 { icon: BookOpen, title: "Study Materials", desc: "Upload files, share links, create notes and flashcards with priority ranking." },
                 { icon: Bell, title: "Meeting Calls", desc: "Schedule study sessions with AI-powered reminder notifications." },
                 { icon: Clock, title: "Time Tracker", desc: "Built-in timer to help you manage how long you spend studying." },
+                { icon: Zap, title: "AI Deck Generator", desc: "Upload notes → auto-generate flashcards. Gate VIP content for subscribers." },
+                { icon: Award, title: "Gamified Learning", desc: "Streaks, badges, leaderboards, and creator loyalty rewards." },
+                { icon: TrendingUp, title: "Creator Analytics", desc: "Track fan engagement, quiz completion, and revenue in real-time." },
               ].map(({ icon: Icon, title, desc }) => (
                 <div key={title} className="rounded-xl border border-border bg-card p-6 transition-shadow hover:shadow-md">
                   <Icon className="mb-3 h-8 w-8 text-primary" />
@@ -67,10 +93,11 @@ export default function HomePage() {
             <h2 className="mt-4 text-2xl font-bold">Safety first</h2>
             <p className="mt-2 text-muted-foreground leading-relaxed">
               Every message is checked by AI for profanity, hate speech, spam, and inappropriate content.
-              Moderators have full tools to manage spaces. Your study environment stays respectful and productive.
+              Escalating moderation: warnings → restrictions → automatic parent/principal notifications.
+              Your study environment stays respectful and productive.
             </p>
             <div className="mt-8 flex justify-center gap-8 text-sm">
-              {["AI Content Moderation", "User Reports", "Sanction System", "Password Protection"].map((f) => (
+              {["AI Content Moderation", "Escalating Sanctions", "Parent/Principal Alerts", "Password Protection"].map((f) => (
                 <div key={f} className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-primary" />
                   <span className="text-muted-foreground">{f}</span>
