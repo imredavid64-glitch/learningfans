@@ -256,7 +256,7 @@ export async function submitGrade(
   return { success: true };
 }
 
-export function calculateLetterGrade(score: number): string {
+export async function calculateLetterGrade(score: number): Promise<string> {
   if (score >= 97) return "A+";
   if (score >= 93) return "A";
   if (score >= 90) return "A-";
