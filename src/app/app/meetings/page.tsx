@@ -6,7 +6,6 @@ import { getCurrentProfile } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
-import { Button } from "@/components/ui/button";
 import { Video, Sparkles } from "lucide-react";
 import { ListSkeleton } from "@/components/ui/skeleton";
 

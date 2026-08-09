@@ -154,7 +154,7 @@ export default async function GradesPage() {
 
       {/* Per-Class Grades */}
       <div className="space-y-6">
-        {gradesData.map(({ class: classData, grades, average, gradedCount, totalCount }) => (
+        {gradesData.map(({ class: classData, grades, average }) => (
           <Card key={classData.id} className="overflow-hidden">
             <CardHeader className="bg-muted/30">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

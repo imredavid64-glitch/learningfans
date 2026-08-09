@@ -4,8 +4,6 @@ import { getCurrentProfile, isModerator, isAdmin } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { 
@@ -15,7 +13,6 @@ import {
   AlertCircle, 
   CheckCircle2, 
   Eye,
-  Ban,
   AlertTriangle,
   MoreVertical,
   Search,

@@ -12,12 +12,10 @@ type PostWithAuthor = Post & { profiles: Pick<Profile, "display_name"> | null };
 
 export function ThreadPosts({
   threadId,
-  spaceSlug,
   initialPosts,
   isLocked,
 }: {
   threadId: string;
-  spaceSlug: string;
   initialPosts: PostWithAuthor[];
   isLocked: boolean;
 }) {

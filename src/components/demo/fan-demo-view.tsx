@@ -5,19 +5,28 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Zap, Flame, Award, BookOpen, Calendar, Clock, Trophy, Users, MessageSquare, Check, X, Lightbulb, Share2, TrendingUp, Layers, FileText, Upload } from "lucide-react";
+import { Zap, Flame, Award, BookOpen, Trophy, Check, X, Lightbulb, Share2, TrendingUp, Layers, FileText, Upload } from "lucide-react";
+import type {
+  DemoProfile,
+  DemoFanStats,
+  DemoSpace,
+  DemoMaterial,
+  DemoChallenge,
+  DemoLeaderboardEntry,
+  DemoActivityItem,
+  DemoQuizQuestion,
+} from "@/lib/demo-data";
 
 interface FanDemoProps {
-  profile: any;
-  stats: any;
-  spaces: any[];
-  materials: any[];
-  challenges: any[];
-  leaderboard: any[];
-  activityFeed: any[];
-  quizQuestions: any[];
+  profile: DemoProfile;
+  stats: DemoFanStats;
+  spaces: DemoSpace[];
+  materials: DemoMaterial[];
+  challenges: DemoChallenge[];
+  leaderboard: DemoLeaderboardEntry[];
+  activityFeed: DemoActivityItem[];
+  quizQuestions: DemoQuizQuestion[];
 }
 
 export function FanDemoView({ profile, stats, spaces, materials, challenges, leaderboard, activityFeed, quizQuestions }: FanDemoProps) {
@@ -288,7 +297,7 @@ export function FanDemoView({ profile, stats, spaces, materials, challenges, lea
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboard.map((entry, index) => (
+                    {leaderboard.map((entry) => (
                       <tr
                         key={entry.rank}
                         className="border-t text-sm"

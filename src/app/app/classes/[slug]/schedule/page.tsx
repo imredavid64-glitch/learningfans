@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,25 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createEvent, rsvpToEvent } from "@/actions/schedule";
-import { Calendar, Plus, Clock, MapPin, Users, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Calendar, Plus, MapPin, Users, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, isSameDay, eachDayOfInterval } from "date-fns";
 
 interface SchedulePageProps {
   params: Promise<{ slug: string }>;
+}
+
+interface EventAuthor {
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+interface EventRow {
+  id: string;
+  title: string;
+  starts_at: string;
+  room?: string | null;
+  description?: string | null;
+  profiles?: EventAuthor | EventAuthor[] | null;
 }
 
 export default async function ClassSchedulePage({ params }: SchedulePageProps) {
@@ -83,13 +97,11 @@ export default async function ClassSchedulePage({ params }: SchedulePageProps) {
   );
 
   // Helper to render events for a day
-  const renderDayEvents = (dayEvents: any[]) => {
+  const renderDayEvents = (dayEvents: EventRow[]) => {
     if (dayEvents.length === 0) {
       return <p className="text-sm text-muted-foreground text-center py-8">No events</p>;
     }
     return dayEvents.map((event) => {
-      const author = Array.isArray(event.profiles) ? event.profiles[0] : event.profiles;
-      const userRsvp = rsvpMap.get(event.id);
       return (
         <div 
           key={event.id} 
@@ -137,7 +149,7 @@ export default async function ClassSchedulePage({ params }: SchedulePageProps) {
   };
 
   // Helper to render events list
-  const renderEventsList = (eventList: any[]) => {
+  const renderEventsList = (eventList: EventRow[]) => {
     if (!eventList.length) {
       return (
         <div className="text-center py-8 text-muted-foreground">
@@ -148,7 +160,6 @@ export default async function ClassSchedulePage({ params }: SchedulePageProps) {
     }
     return eventList.map((event) => {
       const author = Array.isArray(event.profiles) ? event.profiles[0] : event.profiles;
-      const userRsvp = rsvpMap.get(event.id);
       return (
         <div key={event.id} className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/50">
           <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center">

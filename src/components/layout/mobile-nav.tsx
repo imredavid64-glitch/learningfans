@@ -2,18 +2,32 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 import { Home, Layers, ListOrdered, Calendar, Video, Zap, Users, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDemoMode } from "@/lib/demo-mode";
 
+function subscribeToViewport(callback: () => void) {
+  const mql = window.matchMedia("(min-width: 768px)");
+  mql.addEventListener("change", callback);
+  return () => mql.removeEventListener("change", callback);
+}
+
+function isDesktop(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(min-width: 768px)").matches;
+}
+
+function isDesktopServer(): boolean {
+  return false;
+}
+
 export function MobileNav() {
   const pathname = usePathname();
   const { demoMode, setDemoMode } = useDemoMode();
+  const desktop = useSyncExternalStore(subscribeToViewport, isDesktop, isDesktopServer);
 
-  // Only show on mobile
-  if (typeof window !== "undefined" && window.innerWidth >= 768) {
-    return null;
-  }
+  if (desktop) return null;
 
   const navItems = [
     { href: "/app", icon: Home, label: "Home" },

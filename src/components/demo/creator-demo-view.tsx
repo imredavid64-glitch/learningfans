@@ -6,16 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Zap, BookOpen, Users, DollarSign, BarChart3, Plus, Lock, Eye, Upload, FileText, Layers, Calendar, Clock, Trophy, MessageSquare } from "lucide-react";
-import type { DemoMode } from "@/lib/demo-mode";
-import { DEMO_CREATOR_STATS } from "@/lib/demo-data";
+import { Zap, BookOpen, Users, DollarSign, BarChart3, Plus, Lock, Eye, Upload, FileText, Layers, Calendar, Clock, Trophy } from "lucide-react";
+import type { DemoProfile, DemoCreatorStats, DemoSpace, DemoMaterial, DemoChallenge } from "@/lib/demo-data";
 
 interface CreatorDemoProps {
-  profile: any;
-  stats: any;
-  spaces: any[];
-  materials: any[];
-  challenges: any[];
+  profile: DemoProfile;
+  stats: DemoCreatorStats;
+  spaces: DemoSpace[];
+  materials: DemoMaterial[];
+  challenges: DemoChallenge[];
 }
 
 export function CreatorDemoView({ profile, stats, spaces, materials, challenges }: CreatorDemoProps) {

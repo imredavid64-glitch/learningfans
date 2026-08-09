@@ -14,8 +14,6 @@ import {
   Send, 
   Flag, 
   Shield, 
-  Loader2,
-  MoreVertical,
   Edit,
   Trash2,
   Lock,

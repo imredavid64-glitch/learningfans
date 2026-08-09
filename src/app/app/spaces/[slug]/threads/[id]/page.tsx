@@ -71,7 +71,6 @@ export default async function ThreadPage({
       </div>
       <ThreadPosts
         threadId={id}
-        spaceSlug={slug}
         initialPosts={posts ?? []}
         isLocked={thread.is_locked}
       />

@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createThread } from "@/actions/discussion";
-import { MessageSquare, Plus, Pin, Lock, User, Calendar, ChevronRight, ArrowLeft, Flag, CheckCircle2 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { MessageSquare, Plus, Pin, Lock, User, ArrowLeft, Flag } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 interface ThreadsPageProps {
   params: Promise<{ slug: string }>;
@@ -40,7 +40,6 @@ export default async function ClassThreadsPage({ params }: ThreadsPageProps) {
     .single();
 
   const isEnrolled = !!enrollment;
-  const isInstructor = classData.created_by === profile.id;
 
   // Get threads
   const { data: threads } = await supabase
@@ -147,9 +146,7 @@ required
           threads.map((thread) => {
             const postCount = postCountMap.get(thread.id) || 0;
             const author = Array.isArray(thread.profiles) ? thread.profiles[0] : thread.profiles;
-            const membership = Array.isArray(thread.space_members) ? thread.space_members[0] : thread.space_members;
             const isAuthor = author.id === profile.id;
-            const isModerator = membership?.role === "moderator" || membership?.role === "admin";
             const isPinned = thread.is_pinned;
             const isLocked = thread.is_locked;
 

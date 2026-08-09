@@ -81,27 +81,6 @@ alter table public.meeting_participants enable row level security;
 alter table public.meeting_reminders enable row level security;
 `;
 
-function generateSeedSql(schoolName: string, adminEmail: string): string {
-  return `
-do \$\$
-declare
-  v_admin_id uuid;
-  v_space_id uuid;
-begin
-  select id into v_admin_id from public.profiles limit 1;
-  if v_admin_id is null then
-    v_admin_id := gen_random_uuid();
-    insert into public.profiles (id, display_name, role) values (v_admin_id, '${schoolName} Admin', 'admin');
-  else
-    update public.profiles set role = 'admin' where id = v_admin_id;
-  end if;
-  insert into public.spaces (name, description, slug, is_public, created_by)
-  values ('${schoolName} General', 'General discussion for ${schoolName}', '${slugify(schoolName)}-general', false, v_admin_id)
-  on conflict (slug) do nothing;
-end \$\$;
-`;
-}
-
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
@@ -146,7 +125,7 @@ export async function provisionSchool(
     const project = await createProject(`${name} - LearningFans`, organizationId, DEFAULT_REGION);
     const projectRef = project.ref as string;
 
-    const readyProject = await waitForProjectReady(projectRef);
+    await waitForProjectReady(projectRef);
     const { anonKey, serviceRoleKey } = await getProjectApiKeys(projectRef);
 
     const schemaStatements = SCHEMA_SQL

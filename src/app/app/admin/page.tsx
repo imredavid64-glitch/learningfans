@@ -4,8 +4,6 @@ import { getCurrentProfile, isAdmin } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Users, TrendingUp, Database, Settings, Shield, Plus, Search, MoreVertical, Building2 } from "lucide-react";
 
@@ -164,7 +162,6 @@ export default async function AdminPage() {
                         <select 
                           defaultValue={user.role}
                           className="border border-input bg-background rounded-md py-1 px-2 text-sm"
-                          onChange={(e) => {}}
                         >
                           <option value="student">Student</option>
                           <option value="moderator">Moderator</option>

@@ -73,7 +73,7 @@ export async function generateReminder(meeting: MeetingInfo, hoursUntil: number)
   return { text: fallback, scheduledFor };
 }
 
-export function getReminderSchedule(startsAt: string, durationMinutes: number): number[] {
+export function getReminderSchedule(startsAt: string, _durationMinutes: number): number[] {
   const now = new Date();
   const start = new Date(startsAt);
   const hoursUntil = (start.getTime() - now.getTime()) / (1000 * 60 * 60);

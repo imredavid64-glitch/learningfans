@@ -6,9 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Users, Plus, Search, Filter, Sparkles } from "lucide-react";
+import { BookOpen, Plus, Search, Filter, Sparkles } from "lucide-react";
 import { ListSkeleton } from "@/components/ui/skeleton";
-import { DEMO_SPACES } from "@/lib/demo-data";
 
 async function ClassesContent() {
   const profile = await getCurrentProfile();

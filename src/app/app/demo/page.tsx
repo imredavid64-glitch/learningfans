@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Zap, Users, Trophy, Brain, ArrowLeft, Award, Calendar, Clock, TrendingUp } from "lucide-react";
+import { Zap, Users, Brain, ArrowLeft, Award, Calendar, TrendingUp } from "lucide-react";
 import { DEMO_CREATOR_PROFILE, DEMO_CREATOR_STATS, DEMO_FAN_PROFILE, DEMO_FAN_STATS, DEMO_SPACES, DEMO_MATERIALS, DEMO_CHALLENGES, DEMO_LEADERBOARD, DEMO_ACTIVITY_FEED, DEMO_QUIZ_QUESTIONS } from "@/lib/demo-data";
 import { CreatorDemoView } from "@/components/demo/creator-demo-view";
 import { FanDemoView } from "@/components/demo/fan-demo-view";

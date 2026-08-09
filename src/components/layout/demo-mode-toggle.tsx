@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Zap, Users, Brain } from "lucide-react";
 import { useDemoMode } from "@/lib/demo-mode";
 

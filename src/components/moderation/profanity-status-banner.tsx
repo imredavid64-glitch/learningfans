@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Shield, AlertCircle, Mail, UserCheck, XCircle, CheckCircle, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
-interface ProfanityStatus {
+export interface ProfanityStatus {
   warnings: number;
   violations: number;
   restrictionLevel: "none" | "warning" | "restricted" | "suspended";
@@ -20,7 +20,7 @@ interface ProfanityStatus {
   schoolName: string | null;
 }
 
-function getToastMessage(status: ProfanityStatus): string | null {
+export function getToastMessage(status: ProfanityStatus): string | null {
   if (status.restrictionLevel === "suspended") {
     return `⚠️ Account Suspended: Your account has been suspended due to repeated profanity violations. Parent and principal have been notified.`;
   }
@@ -39,8 +39,39 @@ export function ProfanityStatusBanner() {
   const [saving, setSaving] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/profanity/status");
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch profanity status:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    fetchStatus();
+    let active = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/profanity/status");
+        if (res.ok) {
+          const data = await res.json();
+          if (active) setStatus(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch profanity status:", error);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -58,20 +89,6 @@ export function ProfanityStatusBanner() {
       }
     }
   }, [status, dismissed]);
-
-  async function fetchStatus() {
-    try {
-      const res = await fetch("/api/profanity/status");
-      if (res.ok) {
-        const data = await res.json();
-        setStatus(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch profanity status:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function saveEmails(parentEmail: string, principalEmail: string) {
     setSaving(true);

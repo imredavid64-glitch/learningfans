@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useSyncExternalStore, ReactNode } from "react";
 
 export type DemoMode = "off" | "creator" | "fan";
 
@@ -12,31 +12,37 @@ interface DemoModeContextType {
 
 const DemoModeContext = createContext<DemoModeContextType | undefined>(undefined);
 
+const STORAGE_KEY = "learningfans-demo-mode";
+
+function subscribe(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
+export function getDemoModeSnapshot(): DemoMode {
+  if (typeof window === "undefined") return "off";
+  const saved = window.localStorage.getItem(STORAGE_KEY);
+  return saved === "creator" || saved === "fan" ? saved : "off";
+}
+
+export function getDemoModeServerSnapshot(): DemoMode {
+  return "off";
+}
+
 export function DemoModeProvider({ children }: { children: ReactNode }) {
-  const [demoMode, setDemoMode] = useState<DemoMode>("off");
-  const [mounted, setMounted] = useState(false);
+  const demoMode = useSyncExternalStore(subscribe, getDemoModeSnapshot, getDemoModeServerSnapshot);
 
-  useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem("learningfans-demo-mode") as DemoMode | null;
-    if (saved) setDemoMode(saved);
-  }, []);
-
-  const handleSetDemoMode = (mode: DemoMode) => {
-    setDemoMode(mode);
+  const setDemoMode = (mode: DemoMode) => {
     if (mode === "off") {
-      localStorage.removeItem("learningfans-demo-mode");
+      window.localStorage.removeItem(STORAGE_KEY);
     } else {
-      localStorage.setItem("learningfans-demo-mode", mode);
+      window.localStorage.setItem(STORAGE_KEY, mode);
     }
+    window.dispatchEvent(new Event("storage"));
   };
 
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
   return (
-    <DemoModeContext.Provider value={{ demoMode, setDemoMode: handleSetDemoMode, isDemoMode: demoMode !== "off" }}>
+    <DemoModeContext.Provider value={{ demoMode, setDemoMode, isDemoMode: demoMode !== "off" }}>
       {children}
     </DemoModeContext.Provider>
   );

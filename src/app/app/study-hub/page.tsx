@@ -1,5 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExternalLink, Calendar, User, Database, BookOpen } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ExternalLink, Calendar, User, Database } from "lucide-react";
 import { StudyHubData } from "./study-hub-data";
 
 export default function StudyHubPage() {

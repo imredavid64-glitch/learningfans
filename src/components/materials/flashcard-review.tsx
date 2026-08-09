@@ -12,7 +12,6 @@ export function FlashcardReview({
   cards,
   isVip = false,
   creatorName = "Creator",
-  creatorAvatar = null,
   accentColor = "indigo",
 }: {
   cards: { front: string; back: string }[];

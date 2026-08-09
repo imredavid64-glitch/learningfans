@@ -202,7 +202,7 @@ export async function getUpcomingMeetings(): Promise<MeetingWithParticipants[]> 
 }
 
 export async function getMeetingById(meetingId: string): Promise<MeetingWithParticipants | null> {
-  const profile = await requireProfile();
+  await requireProfile();
   const supabase = await createClient();
 
   const { data: meeting } = await supabase

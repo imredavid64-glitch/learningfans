@@ -3,7 +3,102 @@
 
 import type { Profile } from "@/types/database";
 
-export const DEMO_CREATOR_PROFILE: Profile & { major: string; bio: string; interests: string[]; gpa: number; credits_completed: number } = {
+export interface DemoProfile extends Profile {
+  major: string;
+  bio: string;
+  interests: string[];
+  gpa: number;
+  credits_completed: number;
+}
+
+export interface DemoCreatorStats {
+  activeFans: number;
+  publishedDecks: number;
+  activeChallenges: number;
+  monthlyRevenue: number;
+  avgQuizCompletion: number;
+  weeklyEngagementHours: number;
+}
+
+export interface DemoFanStats {
+  studyStreak: number;
+  tier: string;
+  tierRank: string;
+  fanXP: number;
+  badgesEarned: number;
+  quizzesCompleted: number;
+  avgScore: number;
+}
+
+export interface DemoSpace {
+  id: string;
+  name: string;
+  description: string;
+  slug: string;
+  is_public: boolean;
+  created_by: string;
+  created_at: string;
+  class_code: string;
+  semester: string;
+  year?: string;
+  instructor: string;
+  department: string;
+  room: string;
+  meeting_schedule: string;
+}
+
+export interface DemoMaterial {
+  id: string;
+  space_id: string;
+  author_id: string;
+  type: "flashcard_set" | "note" | "link";
+  title: string;
+  description: string;
+  url: string | null;
+  storage_path: string | null;
+  metadata: { cards?: number; is_vip?: boolean };
+  community_score: number;
+  is_hidden: boolean;
+  created_at: string;
+}
+
+export interface DemoChallenge {
+  id: string;
+  title: string;
+  description: string;
+  xp_reward: number;
+  badge: string;
+  expires_at: string;
+  participants: number;
+}
+
+export interface DemoLeaderboardEntry {
+  rank: number;
+  name: string;
+  weeklyScore: number;
+  streak: number;
+  xp: number;
+}
+
+export interface DemoActivityItem {
+  id: string;
+  author: string;
+  type: string;
+  content: string;
+  timestamp: string;
+  options?: string[];
+  votes?: number[];
+}
+
+export interface DemoQuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correct: number;
+  explanation: string;
+}
+
+export const DEMO_CREATOR_PROFILE: DemoProfile = {
   id: "demo-creator-1",
   display_name: "Prof. Sarah Chen",
   avatar_url: null,
@@ -17,7 +112,7 @@ export const DEMO_CREATOR_PROFILE: Profile & { major: string; bio: string; inter
   credits_completed: 0,
 };
 
-export const DEMO_FAN_PROFILE: Profile & { major: string; bio: string; interests: string[]; gpa: number; credits_completed: number } = {
+export const DEMO_FAN_PROFILE: DemoProfile = {
   id: "demo-fan-1",
   display_name: "David Park",
   avatar_url: null,
@@ -31,7 +126,7 @@ export const DEMO_FAN_PROFILE: Profile & { major: string; bio: string; interests
   credits_completed: 42,
 };
 
-export const DEMO_CREATOR_STATS = {
+export const DEMO_CREATOR_STATS: DemoCreatorStats = {
   activeFans: 1240,
   publishedDecks: 47,
   activeChallenges: 12,
@@ -40,7 +135,7 @@ export const DEMO_CREATOR_STATS = {
   weeklyEngagementHours: 3.4,
 };
 
-export const DEMO_FAN_STATS = {
+export const DEMO_FAN_STATS: DemoFanStats = {
   studyStreak: 12,
   tier: "Gold",
   tierRank: "Top 5%",
@@ -50,7 +145,7 @@ export const DEMO_FAN_STATS = {
   avgScore: 92,
 };
 
-export const DEMO_SPACES = [
+export const DEMO_SPACES: DemoSpace[] = [
   {
     id: "demo-space-1",
     name: "AP Physics C: Mechanics",
@@ -83,7 +178,7 @@ export const DEMO_SPACES = [
   },
 ];
 
-export const DEMO_MATERIALS = [
+export const DEMO_MATERIALS: DemoMaterial[] = [
   {
     id: "demo-material-1",
     space_id: "demo-space-1",
@@ -142,7 +237,7 @@ export const DEMO_MATERIALS = [
   },
 ];
 
-export const DEMO_CHALLENGES = [
+export const DEMO_CHALLENGES: DemoChallenge[] = [
   {
     id: "demo-challenge-1",
     title: "Week 3: Projectile Motion Mastery",
@@ -163,7 +258,7 @@ export const DEMO_CHALLENGES = [
   },
 ];
 
-export const DEMO_LEADERBOARD = [
+export const DEMO_LEADERBOARD: DemoLeaderboardEntry[] = [
   { rank: 1, name: "Alex Chen", weeklyScore: 98, streak: 14, xp: 2100 },
   { rank: 2, name: "Maria Rodriguez", weeklyScore: 96, streak: 12, xp: 1980 },
   { rank: 3, name: "David Park", weeklyScore: 94, streak: 12, xp: 1450 },
@@ -171,7 +266,7 @@ export const DEMO_LEADERBOARD = [
   { rank: 5, name: "Sarah Kim", weeklyScore: 90, streak: 9, xp: 1180 },
 ];
 
-export const DEMO_ACTIVITY_FEED = [
+export const DEMO_ACTIVITY_FEED: DemoActivityItem[] = [
   {
     id: "demo-activity-1",
     author: "Prof. Sarah Chen",
@@ -197,7 +292,7 @@ export const DEMO_ACTIVITY_FEED = [
   },
 ];
 
-export const DEMO_QUIZ_QUESTIONS = [
+export const DEMO_QUIZ_QUESTIONS: DemoQuizQuestion[] = [
   {
     id: "q1",
     question: "A projectile is launched at 30° above horizontal with initial speed 20 m/s. What is its maximum height? (g = 9.8 m/s²)",

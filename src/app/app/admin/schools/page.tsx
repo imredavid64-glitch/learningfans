@@ -1,13 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, isAdmin } from "@/lib/auth";
-import { createSchool, deleteSchool, checkSchoolsHealth, runAIAnalysis, getSchoolSetupInstructions } from "@/actions/schools";
-import { getOrganizationsList } from "@/actions/schools";
+import { createSchool, deleteSchool, checkSchoolsHealth, runAIAnalysis } from "@/actions/schools";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Globe, Shield, Database, Activity, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { Building2, Globe, Shield, Database, Plus, RefreshCw, Sparkles } from "lucide-react";
 
 export default async function SchoolsAdminPage({
   searchParams,
@@ -26,8 +25,6 @@ export default async function SchoolsAdminPage({
     .from("schools")
     .select("*")
     .order("created_at", { ascending: false });
-
-  const setupInstructions: Record<string, string> = {};
 
   return (
     <div className="space-y-8">

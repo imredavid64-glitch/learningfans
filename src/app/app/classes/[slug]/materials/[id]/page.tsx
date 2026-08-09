@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { format } from "date-fns";
-import { FileText, Link as LinkIcon, BookOpen, Download } from "lucide-react";
+import { FileText, Link as LinkIcon, Download } from "lucide-react";
 
 interface MaterialDetailPageProps {
   params: Promise<{ slug: string; id: string }>;

@@ -5,7 +5,7 @@ import { enrollInClass } from "@/actions/enrollments";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, BookOpen, Users, Calendar, Loader2 } from "lucide-react";
+import { CheckCircle2, BookOpen, Users, Calendar } from "lucide-react";
 
 interface EnrollPageProps {
   params: Promise<{ slug: string }>;

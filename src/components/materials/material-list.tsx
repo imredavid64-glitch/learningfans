@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/select";
 import type { MaterialPriority } from "@/lib/constants";
 import type { StudyMaterial } from "@/types/database";
-import { DEMO_MATERIALS } from "@/lib/demo-data";
 import { toast } from "sonner";
 
 const typeIcons = {
@@ -25,7 +24,7 @@ const typeIcons = {
   flashcard_set: Layers,
 };
 
-function LoadSampleMaterialsButton({ onLoad, spaceSlug }: { onLoad: () => void; spaceSlug: string }) {
+function LoadSampleMaterialsButton({ onLoad }: { onLoad: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-indigo-200 rounded-2xl bg-indigo-50/50">
       <p className="text-indigo-900 font-medium mb-4">No study materials in this space yet.</p>
@@ -54,7 +53,7 @@ export function MaterialList({
   };
 
   if (materials.length === 0) {
-    return <LoadSampleMaterialsButton onLoad={handleLoadSample} spaceSlug={spaceSlug} />;
+    return <LoadSampleMaterialsButton onLoad={handleLoadSample} />;
   }
 
   return (

@@ -20,8 +20,6 @@ import {
   Unlock,
   GraduationCap,
   Clock,
-  AlertCircle,
-  CheckCircle2,
   MoreVertical
 } from "lucide-react";
 import { format } from "date-fns";
@@ -116,7 +114,29 @@ export default async function ClassDetailPage({ params }: ClassDetailPageProps) 
     .limit(5);
 
   // Get students (if instructor)
-  let students: any[] = [];
+  let students: Array<{
+    id: string;
+    student_id: string;
+    status: string;
+    enrolled_at: string;
+    profiles:
+      | {
+          id: string;
+          display_name: string | null;
+          avatar_url: string | null;
+          email: string | null;
+          major: string | null;
+          gpa: number | null;
+        }
+      | Array<{
+          id: string;
+          display_name: string | null;
+          avatar_url: string | null;
+          email: string | null;
+          major: string | null;
+          gpa: number | null;
+        }>;
+  }> = [];
   if (isInstructor) {
     const { data: enrolledStudents } = await supabase
       .from("class_enrollments")

@@ -13,10 +13,75 @@ const ACHIEVEMENT_ICONS: Record<string, string> = {
   book: "📚", voice: "💬",
 };
 
+interface StudyHubUser {
+  name?: string;
+  major?: string;
+  weekly_target_hours?: number;
+}
+
+interface StudyHubAchievement {
+  id: string;
+  title: string;
+  desc: string;
+  icon: string;
+  earned: boolean;
+}
+
+interface StudyHubCalendarEvent {
+  id?: string;
+  title: string;
+  date?: string;
+  time?: string;
+  desc?: string;
+}
+
+interface StudyHubGoal {
+  id: string;
+  title: string;
+  subject?: string;
+  deadline?: string;
+  hours?: number;
+  priority?: string;
+}
+
+interface StudyHubTask {
+  id: string;
+  title: string;
+  status?: string;
+  due?: string;
+}
+
+interface StudyHubProfile {
+  name?: string;
+  major?: string;
+  weeklyTargetHours?: number;
+}
+
+interface StudyHubSettings {
+  studyMode?: string;
+}
+
+interface StudyHubStateData {
+  calendarEvents?: StudyHubCalendarEvent[];
+  goals?: StudyHubGoal[];
+  tasks?: StudyHubTask[];
+  profile?: StudyHubProfile;
+  settings?: StudyHubSettings;
+}
+
+interface StudyHubResponse {
+  status: string;
+  user: StudyHubUser | null;
+  state?: { state_data?: StudyHubStateData; last_updated?: string } | null;
+  achievements?: StudyHubAchievement[];
+  error?: string;
+  message?: string;
+}
+
 export function StudyHubData() {
   const [userId, setUserId] = useState("");
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<StudyHubResponse | null>(null);
   const [error, setError] = useState("");
 
   async function fetchData() {
@@ -43,13 +108,13 @@ export function StudyHubData() {
 
   const state = data?.state?.state_data;
   const user = data?.user;
-  const achievements: any[] = data?.achievements || [];
-  const calendarEvents: any[] = state?.calendarEvents || [];
-  const goals: any[] = state?.goals || [];
-  const tasks: any[] = state?.tasks || [];
-  const profile = state?.profile || {};
-  const settings = state?.settings || {};
-  const earnedCount = achievements.filter((a: any) => a.earned).length;
+  const achievements: StudyHubAchievement[] = data?.achievements || [];
+  const calendarEvents: StudyHubCalendarEvent[] = state?.calendarEvents || [];
+  const goals: StudyHubGoal[] = state?.goals || [];
+  const tasks: StudyHubTask[] = state?.tasks || [];
+  const profile: StudyHubProfile = state?.profile || {};
+  const settings: StudyHubSettings = state?.settings || {};
+  const earnedCount = achievements.filter((a) => a.earned).length;
   const totalCount = achievements.length;
   const pct = totalCount > 0 ? Math.round(earnedCount / totalCount * 100) : 0;
 
@@ -126,7 +191,7 @@ export function StudyHubData() {
               <span className="text-sm text-muted-foreground font-semibold">{pct}%</span>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              {achievements.map((a: any) => (
+              {achievements.map((a) => (
                 <div
                   key={a.id}
                   className={`flex items-center gap-3 rounded-xl border p-3 text-sm transition-all ${
@@ -159,7 +224,7 @@ export function StudyHubData() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {calendarEvents.map((ev: any, i: number) => (
+            {calendarEvents.map((ev, i) => (
               <div key={ev.id || i} className="flex items-center justify-between rounded-lg border p-3 text-sm">
                 <div>
                   <p className="font-medium">{ev.title}</p>
@@ -185,7 +250,7 @@ export function StudyHubData() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {goals.map((g: any) => (
+            {goals.map((g) => (
               <div key={g.id} className="rounded-lg border p-3 text-sm">
                 <div className="flex items-center justify-between">
                   <p className="font-medium">{g.title}</p>
@@ -211,7 +276,7 @@ export function StudyHubData() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {tasks.map((t: any) => (
+            {tasks.map((t) => (
               <div key={t.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
                 <div className="flex items-center gap-3">
                   <div className={`h-2 w-2 rounded-full ${

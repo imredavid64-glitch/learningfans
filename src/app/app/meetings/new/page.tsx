@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { MeetingForm } from "@/components/meetings/meeting-form";
 
 export default async function NewMeetingPage() {
-  const profile = await getCurrentProfile();
+  await getCurrentProfile();
   const supabase = await createClient();
 
   const { data: spaces } = await supabase

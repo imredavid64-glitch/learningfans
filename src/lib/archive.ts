@@ -40,6 +40,18 @@ interface ArchiveRecord {
   archived_at: string;
 }
 
+type FilterOperator =
+  | "eq"
+  | "neq"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "like"
+  | "ilike"
+  | "is"
+  | "in";
+
 async function getArchiveCount(): Promise<number> {
   const client = getArchiveClient();
   if (!client) return 0;
@@ -100,7 +112,7 @@ export async function archiveOldData(): Promise<{ archived: number; deleted: num
 
     if (extraCondition) {
       const [col, op, val] = extraCondition.split(".");
-      query = query.filter(col, op as any, val);
+      query = query.filter(col, op as FilterOperator, val);
     }
 
     const { data: oldRecords } = await query;
