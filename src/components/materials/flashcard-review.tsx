@@ -29,7 +29,7 @@ export function FlashcardReview({
       <Card className="mx-auto max-w-lg text-center py-12">
         <CardContent>
           <p className="text-muted-foreground mb-4">No cards in this set.</p>
-          <Link href="/app/demo">
+          <Link href="/demo">
             <Button className="gap-2 w-full" onClick={() => toast.success("Loading sample flashcards...")}>
               <Sparkles className="h-4 w-4" />
               Load Sample Flashcards

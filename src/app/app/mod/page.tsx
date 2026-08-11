@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, isModerator, isAdmin } from "@/lib/auth";
@@ -246,7 +247,7 @@ export default async function ModerationPage() {
                             <div className="flex items-center gap-2">
                               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                                 {user?.avatar_url ? (
-                                  <img src={user.avatar_url} alt="" className="h-8 w-8 rounded-full" />
+                                  <Image src={user.avatar_url} alt="" width={64} height={64} className="h-8 w-8 rounded-full" />
                                 ) : (
                                   <span className="text-primary font-medium">{user?.display_name?.[0]?.toUpperCase()}</span>
                                 )}

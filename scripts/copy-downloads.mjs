@@ -10,7 +10,7 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 
 const patterns = [
-  { dir: join(root, "android", "app", "build", "outputs", "apk", "release"), match: /\.apk$/, copy: (f) => `learningfans-android.apk` },
+  { dir: join(root, "android", "app", "build", "outputs", "apk", "release"), match: /\.apk$/, copy: () => `learningfans-android.apk` },
   { dir: join(root, "release"), match: /\.(dmg|zip|exe|AppImage|deb)$/, copy: (f) => `learningfans-${f.replace(/^learningfans-/, "")}` },
 ];
 

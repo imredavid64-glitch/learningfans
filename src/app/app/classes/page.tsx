@@ -111,7 +111,7 @@ async function ClassesContent() {
                   <Plus className="h-4 w-4 mr-2" />
                   Browse Classes
                 </ButtonLink>
-                <ButtonLink href="/app/demo" className="inline-flex gap-2">
+                <ButtonLink href="/demo" className="inline-flex gap-2">
                   <Sparkles className="h-4 w-4" />
                   Load Sample
                 </ButtonLink>

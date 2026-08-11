@@ -81,7 +81,7 @@ async function MeetingsContent() {
             <p className="text-muted-foreground text-sm mb-4">Schedule one to get started</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <ButtonLink href="/app/meetings/new">Schedule meeting</ButtonLink>
-              <ButtonLink href="/app/demo" className="gap-2">
+              <ButtonLink href="/demo" className="gap-2">
                 <Sparkles className="h-4 w-4" />
                 See Demo Meetings
               </ButtonLink>

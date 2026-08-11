@@ -55,6 +55,9 @@ yarn-error.log*
 # desktop build output
 /release/
 
+# local runtime artifacts (desktop app sqlite db + logs)
+/.freebuff/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

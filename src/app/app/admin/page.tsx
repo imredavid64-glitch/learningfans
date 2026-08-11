@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, isAdmin } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -134,7 +135,7 @@ export default async function AdminPage() {
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                           {user.avatar_url ? (
-                            <img src={user.avatar_url} alt="" className="h-8 w-8 rounded-full" />
+                            <Image src={user.avatar_url} alt="" width={64} height={64} className="h-8 w-8 rounded-full" />
                           ) : (
                             <span className="text-primary font-medium">{user.display_name?.[0]?.toUpperCase()}</span>
                           )}

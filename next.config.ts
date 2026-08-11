@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  images: {
+    // Avatar/profile images are served from Supabase Storage (public bucket).
+    remotePatterns: [
+      { protocol: "https", hostname: "**.supabase.co" },
+    ],
+  },
   async headers() {
     return [
       {

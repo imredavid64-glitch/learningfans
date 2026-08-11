@@ -25,6 +25,8 @@ const eslintConfig = defineConfig([
     "android/**",
     "ios/**",
     "electron/**",
+    // Electron main/preload sources use CommonJS require() by design:
+    "desktop/**",
   ]),
 ]);
 

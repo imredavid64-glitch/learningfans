@@ -158,13 +158,43 @@ export async function GET(request: Request) {
   }
 
   // Check if tables exist
-  const { ok: tablesExist } = await shFetch("/rest/v1/user_state_snapshots?select=id&limit=1");
+  const { ok: tablesExist, status: shStatus } = await shFetch(
+    "/rest/v1/user_state_snapshots?select=id&limit=1",
+  );
 
   if (!tablesExist) {
+    // A rejected service key (rotated/revoked/wrong project) must not be
+    // misreported as "needs setup" — surface it so the owner can fix the env.
+    if (shStatus === 401 || shStatus === 403) {
+      return NextResponse.json(
+        {
+          status: "error",
+          message:
+            "Study Hub service key is invalid or expired — update STUDY_HUB_SERVICE_KEY (project nnrdkdisjfudibvrggxb).",
+        },
+        { status: 500 },
+      );
+    }
     return NextResponse.json({
       status: "needs_migration",
       message: "Study Hub database needs setup. Visit Study Hub → Settings → Cloud Sync to sync your data.",
     });
+  }
+
+  // Study-mate matching: read subjects from each user's cloud state snapshot
+  // (state_data.profile.subjects) so no schema change is needed.
+  async function fetchSubjects() {
+    const { data: snapshots } = await shFetch(
+      "/rest/v1/user_state_snapshots?select=user_id,state_data&limit=200",
+    );
+    const map: Record<string, string[]> = {};
+    (snapshots || []).forEach((s: any) => {
+      const subjects = s?.state_data?.profile?.subjects;
+      if (Array.isArray(subjects)) {
+        map[s.user_id] = subjects.map((x: any) => String(x));
+      }
+    });
+    return map;
   }
 
   if (action === "data") {
@@ -176,13 +206,46 @@ export async function GET(request: Request) {
 
     const stateData = snapshots?.[0]?.state_data || {};
     const achievements = computeAchievements(stateData);
+    const subjects = Array.isArray(stateData?.profile?.subjects)
+      ? stateData.profile.subjects.map((x: any) => String(x))
+      : [];
 
     return NextResponse.json({
       status: "ok",
-      user: userRecords?.[0] || null,
+      user: { ...(userRecords?.[0] || {}), subjects },
       state: snapshots?.[0] || null,
       achievements,
+      subjects,
     });
+  }
+
+  if (action === "mates") {
+    const subjectMap = await fetchSubjects();
+    const mySubjects = (subjectMap[userId] || []).map((s: string) => s.toLowerCase());
+
+    const { data: users } = await shFetch(
+      "/rest/v1/users?select=id,name,major,created_at&order=created_at.desc&limit=200",
+    );
+
+    const mates: Array<{
+      id: string; name: string; major?: string; subjects: string[]; overlap: string[];
+    }> = [];
+    (users || []).forEach((u: any) => {
+      if (u.id === userId) return;
+      const subs = subjectMap[u.id] || [];
+      const overlap = subs.filter((s: string) => mySubjects.includes(s.toLowerCase()));
+      if (overlap.length === 0) return;
+      mates.push({
+        id: u.id,
+        name: u.name || "Scholar",
+        major: u.major || "",
+        subjects: subs,
+        overlap: overlap.map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)),
+      });
+    });
+    mates.sort((a, b) => b.overlap.length - a.overlap.length);
+
+    return NextResponse.json({ status: "ok", mates: mates.slice(0, 25), yourSubjects: subjectMap[userId] || [] });
   }
 
   // List available users

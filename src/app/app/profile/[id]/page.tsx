@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
@@ -45,7 +46,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       <div className="flex items-center gap-4">
         <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
           {profile.avatar_url ? (
-            <img src={profile.avatar_url} alt="" className="h-16 w-16 rounded-full object-cover" />
+            <Image src={profile.avatar_url} alt="" width={128} height={128} className="h-16 w-16 rounded-full object-cover" />
           ) : (
             <GraduationCap className="h-8 w-8 text-primary" />
           )}

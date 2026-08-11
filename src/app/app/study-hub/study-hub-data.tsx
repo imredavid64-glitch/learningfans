@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Check, Lock } from "lucide-react";
+import { BookOpen, Check, Lock, Users } from "lucide-react";
 
 const ACHIEVEMENT_ICONS: Record<string, string> = {
   check: "✓", target: "🎯", star: "⭐", timer: "⏱", fire: "🔥",
@@ -69,6 +69,14 @@ interface StudyHubStateData {
   settings?: StudyHubSettings;
 }
 
+interface StudyMate {
+  id: string;
+  name: string;
+  major?: string;
+  subjects: string[];
+  overlap: string[];
+}
+
 interface StudyHubResponse {
   status: string;
   user: StudyHubUser | null;
@@ -79,10 +87,20 @@ interface StudyHubResponse {
 }
 
 export function StudyHubData() {
-  const [userId, setUserId] = useState("");
+  // Deep link from Study Hub: ?userId=user_xxx auto-loads the profile.
+  const [userId, setUserId] = useState(() => {
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).get("userId") || "";
+    }
+    return "";
+  });
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<StudyHubResponse | null>(null);
   const [error, setError] = useState("");
+  const [mates, setMates] = useState<StudyMate[]>([]);
+  const [matesLoading, setMatesLoading] = useState(false);
+  const [matesError, setMatesError] = useState("");
+  const [yourSubjects, setYourSubjects] = useState<string[]>([]);
 
   async function fetchData() {
     if (!userId.trim()) return;
@@ -96,13 +114,45 @@ export function StudyHubData() {
         setError(json.message);
       } else if (json.status === "ok") {
         setData(json);
+        if (json.user?.subjects && Array.isArray(json.user.subjects)) {
+          setYourSubjects(json.user.subjects);
+        }
       } else {
-        setError(json.error || "Failed to load data");
+        setError(json.error || json.message || "Failed to load data");
       }
     } catch {
       setError("Failed to connect to Study Hub");
     } finally {
       setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("userId");
+    if (id) {
+      const timer = setTimeout(() => void fetchData(), 0);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function fetchMates() {
+    if (!userId.trim()) return;
+    setMatesLoading(true);
+    setMatesError("");
+    try {
+      const res = await fetch(`/api/study-hub?userId=${encodeURIComponent(userId.trim())}&action=mates`);
+      const json = await res.json();
+      if (json.status === "ok") {
+        setMates(json.mates || []);
+        if (json.yourSubjects?.length) setYourSubjects(json.yourSubjects);
+      } else {
+        setMatesError(json.error || json.message || "Failed to load study mates");
+      }
+    } catch {
+      setMatesError("Failed to connect to Study Hub");
+    } finally {
+      setMatesLoading(false);
     }
   }
 
@@ -170,6 +220,70 @@ export function StudyHubData() {
               <span className="text-sm text-muted-foreground">Weekly Target</span>
               <p className="font-medium">{profile.weeklyTargetHours || user.weekly_target_hours || "—"} hrs</p>
             </div>
+            <div className="sm:col-span-2">
+              <span className="text-sm text-muted-foreground">Subjects</span>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {yourSubjects.length > 0 ? (
+                  yourSubjects.map((subject) => (
+                    <span key={subject} className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium">{subject}</span>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No subjects synced yet — set subjects in Study Hub (Settings → Profile) and sync.</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {user && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4" /> Study Mates
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Other Study Hub students studying the same subjects as you.
+            </p>
+            <Button
+              variant="outline"
+              onClick={fetchMates}
+              disabled={matesLoading || !userId.trim()}
+            >
+              {matesLoading ? "Finding mates..." : "Find study mates"}
+            </Button>
+            {matesError && (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                {matesError}
+              </div>
+            )}
+            {mates.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2 mt-4">
+                {mates.map((mate) => (
+                  <div key={mate.id} className="flex items-start gap-3 rounded-xl border p-3 text-sm">
+                    <span className="h-9 w-9 flex-shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold">
+                      {mate.name.charAt(0).toUpperCase()}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <strong className="block">{mate.name}</strong>
+                      <p className="text-xs text-muted-foreground m-0">{mate.major || "Student"}</p>
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {mate.overlap.map((o) => (
+                          <span key={o} className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{o}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!matesLoading && mates.length === 0 && !matesError && (
+              <p className="text-sm text-muted-foreground mt-4">
+                No matches yet — study mates appear once other Study Hub users sync subjects to the cloud.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}

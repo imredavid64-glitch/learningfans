@@ -25,7 +25,9 @@ export default function HomePage() {
           <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1.5 text-sm font-medium text-indigo-700 mb-6">
             <Zap className="h-4 w-4" />
             <span>New: Creator-Fan Study Ecosystem</span>
-            <Badge variant="secondary" className="ml-2">Live Demo</Badge>
+            <Link href="/demo" className="ml-2">
+              <Badge variant="secondary">Live Demo</Badge>
+            </Link>
           </div>
           <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
             Students drop traditional study apps because learning in isolation is boring.
@@ -39,7 +41,11 @@ export default function HomePage() {
             <ButtonLink href="/signup" size="lg" className="px-8">
               Create free account
             </ButtonLink>
-            <ButtonLink href="/login" size="lg" variant="outline">
+            <ButtonLink href="/demo" size="lg" variant="outline">
+              <Zap className="h-4 w-4 mr-1" />
+              Try the demo
+            </ButtonLink>
+            <ButtonLink href="/login" size="lg" variant="ghost">
               Sign in
             </ButtonLink>
           </div>

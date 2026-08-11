@@ -20,7 +20,7 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(e.request)
       .then((r) => {
-        const cache = caches.open(CACHE).then((c) => c.put(e.request, r.clone()));
+        caches.open(CACHE).then((c) => c.put(e.request, r.clone()));
         return r;
       })
       .catch(() => caches.match(e.request).then((r) => r || new Response("Offline", { status: 503 })))

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { notFound } from "next/navigation";
@@ -208,7 +209,7 @@ export default async function ClassGradesPage({ params }: GradesPageProps) {
                               <Link href={`/app/profile/${student.id}`} className="flex items-center gap-3">
                                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                                   {student.avatar_url ? (
-                                    <img src={student.avatar_url} alt="" className="h-8 w-8 rounded-full" />
+                                    <Image src={student.avatar_url} alt="" width={64} height={64} className="h-8 w-8 rounded-full" />
                                   ) : (
                                     <span className="text-primary font-medium">{student.display_name?.[0]?.toUpperCase()}</span>
                                   )}
