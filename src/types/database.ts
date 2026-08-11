@@ -132,3 +132,35 @@ export type UserSanction = {
 };
 
 export type AttendeeStatusType = AttendeeStatus;
+
+export type UserStats = {
+  user_id: string;
+  total_xp: number;
+  current_streak: number;
+  longest_streak: number;
+  last_study_date: string | null;
+  daily_checkin_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LeaderboardEntry = {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  total_xp: number;
+  level: number;
+  current_streak: number;
+};
+
+export type NotificationRow = {
+  id: string;
+  user_id: string;
+  actor_id: string | null;
+  type: string;
+  title: string;
+  body: string;
+  link: string | null;
+  read_at: string | null;
+  created_at: string;
+};

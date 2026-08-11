@@ -8,6 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-11 — Gamification + notifications + live study rooms
+- **Study Streaks + XP**: new `user_stats` table, `award_xp`/`check_in`/`get_leaderboard`/`xp_to_level` RPCs. XP awarded on flashcard "Mastered" (+10), material upload (+15), new thread (+5), post reply (+3), daily check-in (+5). Streak logic: consecutive-day study grows streak with bonus XP from day 2. Leaderboard on dashboard.
+- **Notifications**: new `notifications` table + `create_notification` RPC; auto-notify triggers on new materials/threads/meetings for space members. In-app bell in `app-nav` (realtime live-updates) + `/app/notifications` page.
+- **Real-time Study Room**: `StudyRoomPresence` on flashcard pages — Supabase Realtime presence shows who's studying the same deck right now.
+- Files: `src/actions/gamification.ts`, `src/actions/notifications.ts`, `src/lib/gamification.ts`, `src/components/gamification/study-stats-card.tsx`, `src/components/layout/notification-bell.tsx`, `src/components/materials/study-room-presence.tsx`, `src/app/app/notifications/page.tsx`, plus XP hooks in `materials.ts`/`discussion.ts`/`flashcard-review.tsx` and dashboard.
+- ⚠️ **REQUIRED manual step**: apply `supabase/migrations/20260811000000_study_progress_notifications.sql` in the Supabase SQL editor (`https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new`). Without it the new cards/bell show empty states gracefully, but XP/notifications won't persist. CLI `supabase db push` unavailable (no token access to this project).
+
 ## 2026-08-06 — Codebase health pass
 - Fixed all ESLint react/compiler + type issues flagged in the audit:
   - `thread-posts.tsx`: `Date.now()` no longer runs during render (timestamp moved into `handleSubmit` via `formData.set`)

@@ -7,18 +7,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Zap, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { awardXp } from "@/actions/gamification";
 
 export function FlashcardReview({
   cards,
   isVip = false,
   creatorName = "Creator",
   accentColor = "indigo",
+  materialId,
 }: {
   cards: { front: string; back: string }[];
   isVip?: boolean;
   creatorName?: string;
   creatorAvatar?: string | null;
   accentColor?: string;
+  materialId?: string;
 }) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -115,12 +118,25 @@ export function FlashcardReview({
           <Button
             variant="default"
             className="flex-1 gap-1.5 bg-green-600 hover:bg-green-700 h-11"
-            onClick={() => {
-              // Mastered - grants loyalty points
+            onClick={async () => {
+              // Mastered - grants XP (streak bonus included server-side)
               setIndex((i) => (i + 1) % cards.length);
               setFlipped(false);
-              // TODO: Award loyalty points
-              toast.success("+10 XP earned!");
+              if (!materialId) {
+                toast.success("+10 XP earned!");
+                return;
+              }
+              const res = await awardXp(10, "flashcard_mastered");
+              if (res.error) {
+                toast.error(res.error);
+              } else if (res.data) {
+                const bonus = res.data.bonus_xp ?? 0;
+                toast.success(
+                  bonus > 0
+                    ? `+${10 + bonus} XP earned (+${bonus} streak bonus)! Level ${res.data.level}`
+                    : `+10 XP earned! Level ${res.data.level}`,
+                );
+              }
             }}
           >
             <span className="text-lg">🟢</span> Mastered (+10 XP)

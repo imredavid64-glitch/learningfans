@@ -45,6 +45,11 @@ export async function createLinkMaterial(
   });
 
   if (error) return;
+  await supabase.rpc("award_xp", {
+    p_user_id: profile.id,
+    p_amount: 15,
+    p_reason: "create_material",
+  });
   revalidatePath(`/app/spaces/${spaceSlug}/materials`);
 }
 
@@ -83,6 +88,11 @@ export async function createNoteMaterial(
   });
 
   if (error) return;
+  await supabase.rpc("award_xp", {
+    p_user_id: profile.id,
+    p_amount: 15,
+    p_reason: "create_material",
+  });
   revalidatePath(`/app/spaces/${spaceSlug}/materials`);
 }
 
@@ -127,6 +137,11 @@ export async function createFlashcardMaterial(
   });
 
   if (error) return;
+  await supabase.rpc("award_xp", {
+    p_user_id: profile.id,
+    p_amount: 15,
+    p_reason: "create_material",
+  });
   revalidatePath(`/app/spaces/${spaceSlug}/materials`);
 }
 

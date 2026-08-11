@@ -2,6 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { getMyStats, getLeaderboard } from "@/actions/gamification";
 import {
   Card,
   CardContent,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
+import { StudyStatsCard } from "@/components/gamification/study-stats-card";
 
 export default async function DashboardPage() {
   const profile = await getCurrentProfile();
@@ -39,6 +41,11 @@ export default async function DashboardPage() {
     .order("starts_at", { ascending: true })
     .limit(5);
 
+  const [myStats, leaderboard] = await Promise.all([
+    getMyStats(),
+    getLeaderboard(5),
+  ]);
+
   return (
     <div className="space-y-8">
       <div>
@@ -47,6 +54,12 @@ export default async function DashboardPage() {
           Your study hub — spaces, priorities, and upcoming events.
         </p>
       </div>
+
+      <StudyStatsCard
+        userId={profile.id}
+        initialStats={myStats}
+        initialLeaderboard={leaderboard}
+      />
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-1">

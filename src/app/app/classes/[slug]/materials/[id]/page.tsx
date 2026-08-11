@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { FlashcardReview } from "@/components/materials/flashcard-review";
+import { StudyRoomPresence } from "@/components/materials/study-room-presence";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -93,11 +94,20 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
           )}
 
           {material.type === "flashcard_set" && (
-            <div>
+            <div className="space-y-4">
+              <StudyRoomPresence
+                materialId={material.id}
+                userId={profile.id}
+                displayName={profile.display_name}
+                avatarUrl={profile.avatar_url}
+              />
               {material.metadata?.assignment_details ? (
                 <p className="text-sm text-muted-foreground">This is an assignment. View it in the Grades section.</p>
               ) : (
-                <FlashcardReview cards={(material.metadata as { cards?: { front: string; back: string }[] } | null)?.cards ?? []} />
+                <FlashcardReview
+                  cards={(material.metadata as { cards?: { front: string; back: string }[] } | null)?.cards ?? []}
+                  materialId={material.id}
+                />
               )}
             </div>
           )}

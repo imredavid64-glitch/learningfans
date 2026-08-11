@@ -5,6 +5,7 @@ import type { Profile } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { DemoModeToggle } from "@/components/layout/demo-mode-toggle";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 const links = [
   { href: "/app", label: "Dashboard", icon: Home },
@@ -67,6 +68,7 @@ export function AppNav({ profile }: { profile: Profile }) {
           <span className="hidden text-sm text-muted-foreground sm:inline">
             {profile.display_name}
           </span>
+          <NotificationBell userId={profile.id} />
           <Link href="/app/settings">
             <Button variant="ghost" size="icon" aria-label="Settings">
               <Settings className="h-4 w-4" />

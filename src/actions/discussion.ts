@@ -112,6 +112,12 @@ export async function createPost(threadId: string, formData: FormData): Promise<
     });
   }
 
+  await supabase.rpc("award_xp", {
+    p_user_id: profile.id,
+    p_amount: 3,
+    p_reason: "post_reply",
+  });
+
   await logAudit("post_create", profile.id, { threadId, postId: post.id });
 
   checkAndArchive();
@@ -185,6 +191,12 @@ export async function createThread(spaceId: string, formData: FormData): Promise
       note: `AI moderation flagged: ${moderation.violations.join(", ")}`,
     });
   }
+
+  await supabase.rpc("award_xp", {
+    p_user_id: profile.id,
+    p_amount: 5,
+    p_reason: "create_thread",
+  });
 
   await logAudit("thread_create", profile.id, { spaceId, threadId: thread.id, title });
 
