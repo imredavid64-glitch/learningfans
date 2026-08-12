@@ -161,6 +161,11 @@ supabase/migrations/
 | `moderator` | + Mod queue, sanctions, hide content |
 | `admin` | + User roles, storage overview |
 
+## Launching?
+
+Work through [`docs/LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md) — the ordered runbook
+(pre-flight → signup → study-room QA → regression → security → native → post-launch).
+
 ## Feature brainstorm
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the living feature brainstorm (communication, streamlining, study tools, gamification, native, trust & safety).
