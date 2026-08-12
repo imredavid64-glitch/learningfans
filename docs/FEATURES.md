@@ -93,7 +93,9 @@ superpower of the Reddit-for-learners vision (see
   (`ThreadFlairControl`). `flair_id` is validated against the community's list
   server-side (`createThread` / `setThreadFlair` in `src/actions/discussion.ts`).
 - **Surface:** colored flair chips on thread cards in the feed (`ThreadFeed`)
-  and on the thread detail page.
+  and on the thread detail page; the community feed has a **browse-by-flair**
+  chip row (All + each flair) that narrows the feed, working with the
+  Hot/New/Top/Controversial sort tabs.
 
 ## Community branding + directory
 

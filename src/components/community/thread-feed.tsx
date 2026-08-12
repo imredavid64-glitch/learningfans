@@ -56,9 +56,11 @@ export function ThreadFeed({
   const flairMap = new Map(flairs.map((f) => [f.id, f]));
   const router = useRouter();
   const [sort, setSort] = useState<ThreadSort>("hot");
+  const [flairId, setFlairId] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
-  const ranked = rankThreads(threads, sort);
+  const filtered = flairId ? threads.filter((t) => t.flair_id === flairId) : threads;
+  const ranked = rankThreads(filtered, sort);
 
   async function handleVote(threadId: string, current: VoteValue, direction: 1 | -1) {
     const next: VoteValue = current === direction ? 0 : direction;
@@ -74,6 +76,40 @@ export function ThreadFeed({
 
   return (
     <div className="space-y-3">
+      {/* Browse by flair (color-coded community labels) */}
+      {flairs.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setFlairId(null)}
+            className={cn(
+              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              !flairId
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:bg-accent",
+            )}
+          >
+            All
+          </button>
+          {flairs.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFlairId((current) => (current === f.id ? null : f.id))}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-all",
+                FLAIR_COLOR_CLASSES[(f.color ?? "blue") as keyof typeof FLAIR_COLOR_CLASSES],
+                flairId === f.id
+                  ? "ring-2 ring-ring/60"
+                  : "opacity-60 hover:opacity-100",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Reddit-style sort tabs */}
       <div className="flex items-center gap-1 border-b pb-2">
         {SORTS.map((s) => (
@@ -93,8 +129,10 @@ export function ThreadFeed({
         ))}
       </div>
 
-      {threads.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No threads yet. Start one!</p>
+      {ranked.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {flairId ? "No threads with this flair yet — be the first!" : "No threads yet. Start one!"}
+        </p>
       ) : (
         ranked.map((t) => {
           const vote = userVotes[t.id] ?? 0;

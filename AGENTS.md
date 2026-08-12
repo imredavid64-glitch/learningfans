@@ -8,6 +8,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Browse-by-flair on the community feed
+- `ThreadFeed` gains a color-coded flair chip row (All + each flair, toggle to clear) that filters the thread list before Hot/New/Top/Controversial ranking; empty state distinguishes "no threads" from "none with this flair". Client-only, no migration.
+- Quality: 121/121 tests, tsc + lint clean, build compiles. Vercel cap still active — 10 verified commits queued.
+
 ## 2026-08-12 — Community branding + directory (Reddit Phase 2b round 2)
 - **Migration** `20260812000010_community_branding.sql` (manual apply ⚠️): `spaces.icon_url`/`banner_url`; `community-assets` storage bucket (public 5MB, image mimes) with public-read + mod-write policies (path folder must be a valid space uuid, guards the cast).
 - **Actions** (`src/actions/community.ts`): `uploadCommunityAsset(spaceId, kind, formData)` — mod-gated, sharp-compresses icon 256×256 / banner 1600×400 → jpeg, upserts to `community-assets/{spaceId}/{kind}.jpg`, tracks `storage_objects`, stores public URL on the space; `removeCommunityAsset`.
