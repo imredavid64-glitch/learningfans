@@ -8,6 +8,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Community home feed (Reddit Phase 4)
+- **Route** `/app/feed` (nav, desktop + mobile): server page fetches recent threads + study_materials from my communities (memberships ∪ public spaces), RLS-scoped, 50 each, newest first.
+- **`CommunityFeed`** client component merges both into one chronological timeline (capped 60) with All/Discussions/Materials filter chips; thread cards show score; material cards use type icons and link to the detail page for flashcard_set/quiz/file, else the materials list.
+- Quality: 121/121 tests, tsc + lint clean, build compiles. No migration. Vercel cap still active.
+
 ## 2026-08-12 — Nested (threaded) replies
 - **Migration** `20260812000011_nested_replies.sql` (manual apply ⚠️): `posts.parent_id` (self-ref, cascade) + `(thread_id, parent_id)` index; `notify_new_post` trigger extended to also ping the parent comment author (skips self + thread author).
 - **Action**: `createPost` reads an optional `parent_id` from the form and validates it belongs to the same thread before inserting.

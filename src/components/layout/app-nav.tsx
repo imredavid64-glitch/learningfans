@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Calendar, Compass, Flag, Home, Layers, ListOrdered, Settings, Shield, Video, GraduationCap, Search, Presentation } from "lucide-react";
+import { BookOpen, Calendar, Compass, Flag, Home, Layers, ListOrdered, Newspaper, Settings, Shield, Video, GraduationCap, Search, Presentation } from "lucide-react";
 import { isModerator, isAdmin } from "@/lib/auth";
 import type { Profile } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { NotificationBell } from "@/components/layout/notification-bell";
 const links = [
   { href: "/app", label: "Dashboard", icon: Home },
   { href: "/app/spaces", label: "Spaces", icon: Layers },
+  { href: "/app/feed", label: "Feed", icon: Newspaper },
   { href: "/app/communities", label: "Communities", icon: Compass },
   { href: "/app/study-rooms", label: "Study Rooms", icon: Presentation },
   { href: "/app/meetings", label: "Meetings", icon: Video },

@@ -152,6 +152,18 @@ superpower of the Reddit-for-learners vision (see
 - **Actions:** `src/actions/quizzes.ts`; **Files:** `quiz-builder.tsx`,
   `quiz-player.tsx`, `quiz-leaderboard.tsx`, `src/lib/quizzes.ts`.
 
+## Community home feed
+
+- **Route:** `/app/feed` (nav: desktop + mobile).
+- A combined, chronological timeline of **discussions + study materials** from
+  your communities (spaces you've joined plus every public space), with
+  All / Discussions / Materials filter chips.
+- Thread cards show score; material cards get a type icon (File/Link/Note/
+  Flashcards/Quiz) and link to the detail page for flashcards, quizzes, and
+  files (PDF preview / lightbox), or the materials list otherwise. Server page
+  (`src/app/app/feed/page.tsx`) fetches via RLS-scoped queries; the merge,
+  sort, and filter live in `src/components/community/community-feed.tsx`.
+
 ## Meetings & live calls
 
 - **Routes:** `/app/meetings`, `/app/meetings/new`, `/app/meetings/[id]`.

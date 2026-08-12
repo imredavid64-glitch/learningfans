@@ -56,8 +56,11 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   (server-built cards, idempotent, reload-safe).
 - ✅ **Nested (threaded) replies** — shipped 2026-08-12: posts render as a
   Reddit-style comment tree (`posts.parent_id`, same-thread validation, parent
-  author gets a bell notification too). Next: the community home feed, then
-  save/bookmark collections.
+  author gets a bell notification too).
+- ✅ **Community home feed** — shipped 2026-08-12 (Phase 4): `/app/feed` — a
+  combined chronological timeline of discussions + materials (quizzes,
+  flashcards, files…) across your communities with All/Discussions/Materials
+  filters. Next: save/bookmark collections + weekly digests.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or
