@@ -58,6 +58,23 @@ export async function createPost(threadId: string, formData: FormData): Promise<
 
   const slug = await getSpaceSlug(supabase, thread.space_id);
 
+  // Nested replies: an optional parent_id must point at a post in THIS thread.
+  const rawParent = String(formData.get("parent_id") ?? "").trim();
+  let parentId: string | null = null;
+  if (rawParent) {
+    const { data: parent } = await supabase
+      .from("posts")
+      .select("id, thread_id")
+      .eq("id", rawParent)
+      .single();
+    if (!parent || parent.thread_id !== threadId) {
+      redirect(
+        `${threadPath(slug, threadId)}?error=${encodeURIComponent("Can't reply to that comment.")}`,
+      );
+    }
+    parentId = rawParent;
+  }
+
   if (thread.is_locked) {
     redirect(`${threadPath(slug, threadId)}?error=This%20thread%20is%20locked`);
   }
@@ -90,6 +107,7 @@ export async function createPost(threadId: string, formData: FormData): Promise<
       thread_id: threadId,
       author_id: profile.id,
       body,
+      parent_id: parentId,
       is_hidden: !moderation.is_clean,
     })
     .select()

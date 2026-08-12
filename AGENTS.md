@@ -8,6 +8,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Nested (threaded) replies
+- **Migration** `20260812000011_nested_replies.sql` (manual apply ⚠️): `posts.parent_id` (self-ref, cascade) + `(thread_id, parent_id)` index; `notify_new_post` trigger extended to also ping the parent comment author (skips self + thread author).
+- **Action**: `createPost` reads an optional `parent_id` from the form and validates it belongs to the same thread before inserting.
+- **UI**: `ThreadPosts` rewritten as a recursive comment tree — per-post Reply button + inline composer (hidden `parent_id` input, honeypot kept), indentation capped at 3 levels (unlimited data depth), posts arriving over realtime nest correctly.
+- Quality: 121/121 tests, tsc + lint clean, build compiles. `combined.sql` regenerated (21 migrations).
+
 ## 2026-08-12 — Quiz results → SM-2 review queue
 - `createQuizReviewDeck(quizId, missedIndices)` in `src/actions/quizzes.ts`: server builds flashcard_set cards (front = question, back = correct answer + 💡 explanation) from the quiz payload, validates indices, idempotent via `metadata.is_quiz_review` + `metadata.quiz_id` lookup; `getQuizReviewDeck` finds the existing deck across reloads. No migration.
 - `QuizPlayer` results screen: "Add to my review queue" button (hidden on perfect scores) → "Review deck" link to the new deck; deck flows through the existing SM-2 flashcard review + local progress tracking.

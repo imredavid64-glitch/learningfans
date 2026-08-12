@@ -38,8 +38,11 @@ Server actions live in `src/actions/*.ts`; components in `src/components/*`.
   Space moderators + app moderators are gated by a dedicated RLS policy.
 - **Discussion:** threads (pin/lock/hide by mods), posts with **realtime** via
   `postgres_changes` on `posts` (same pattern as thread posts — see
-  `src/components/discussion/thread-posts.tsx`). Replies auto-notify the thread
-  author (migration 0001).
+  `src/components/discussion/thread-posts.tsx`). **Nested replies** — every post
+  has a Reply button opening an inline composer; replies render as a Reddit-
+  style tree (indented, visually capped at 3 levels; migration 0011 adds
+  `posts.parent_id`, validated same-thread server-side). Replies auto-notify the
+  thread author *and* the parent comment author (migration 0001 + 0011).
 - **Voting & sorting (Reddit-style):** thread cards show an up/down vote cluster
   (`post_votes` table, one row per user; `threads.score/ups/downs` cached by the
   `update_thread_score` trigger) and the feed sorts by **Hot / New / Top /

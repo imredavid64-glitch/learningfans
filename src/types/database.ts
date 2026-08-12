@@ -63,6 +63,8 @@ export type Post = {
   author_id: string;
   body: string;
   is_hidden: boolean;
+  /** Parent post id for nested (threaded) replies; null for top-level posts. */
+  parent_id?: string | null;
   created_at: string;
 };
 

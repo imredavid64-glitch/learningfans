@@ -53,8 +53,11 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   the feed and a fullscreen `ImageLightbox`.
 - ✅ **Quiz results → review queue** — shipped 2026-08-12 (Phase 3a round 2):
   "Add to my review queue" turns missed questions into an SM-2 flashcard deck
-  (server-built cards, idempotent, reload-safe). Next: nested comments, then the
-  community home feed.
+  (server-built cards, idempotent, reload-safe).
+- ✅ **Nested (threaded) replies** — shipped 2026-08-12: posts render as a
+  Reddit-style comment tree (`posts.parent_id`, same-thread validation, parent
+  author gets a bell notification too). Next: the community home feed, then
+  save/bookmark collections.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or

@@ -48,7 +48,7 @@ Patterns repeated across policies:
 |-------|---------|
 | `threads` | Discussion threads; `is_pinned`, `is_locked`, `is_hidden`, `flair_id` (references a flair from the space's flairs), cached vote counts `score` / `ups` / `downs` |
 | `post_votes` | Thread votes (PK post+user, `vote` 1/-1); maintains `threads.score/ups/downs` via the `update_thread_score` trigger |
-| `posts` | Thread replies; realtime publication |
+| `posts` | Thread replies; `parent_id` self-reference for nested (threaded) replies; realtime publication |
 | `study_materials` | `type` = file/link/note/flashcard_set/quiz; `metadata` jsonb (deck payloads, quiz questions, due dates); `community_score` |
 | `quiz_attempts` | One best-score row per user per quiz (PK material+user) — feeds the community leaderboard |
 | `user_material_rankings` | Per-user priority (`urgent/high/normal/low`), rank_score, due_at |
@@ -148,6 +148,7 @@ warns → restricts → suspends based on repeat violations
 | `20260812000008_quiz_posts.sql` | `material_type` gains `quiz`; `quiz_attempts` table (PK material+user, best-score RLS, leaderboard index) |
 | `20260812000009_post_flairs.sql` | `spaces.flairs` jsonb + `threads.flair_id` (partial index); no new RLS (existing mod/author update policies) |
 | `20260812000010_community_branding.sql` | `spaces.icon_url`/`banner_url`; `community-assets` public storage bucket (mod-gated writes, uuid-folder guard) |
+| `20260812000011_nested_replies.sql` | `posts.parent_id` (self-ref, cascade) + thread/parent index; `notify_new_post` also pings the parent comment author |
 | `combined.sql` | All of the above concatenated (one-shot fresh install) |
 
 > **Existing projects:** newer migrations (0001–0005, study_progress,

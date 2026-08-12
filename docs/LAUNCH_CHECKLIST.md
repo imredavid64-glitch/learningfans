@@ -145,6 +145,9 @@ for cross-account checks.
 ## 4. Regression sweep (existing features still healthy)
 
 - [ ] Create thread + reply in a space (realtime post appears without refresh)
+- [ ] Reply to a reply → it nests under the parent; Reply buttons render the inline composer
+- [ ] Deep chains indent to a maximum of 3 levels but still thread correctly; parent author gets a bell ping
+- [ ] A forged parent_id pointing at another thread's post is rejected
 - [ ] Upload a file, add a link, a note, and a flashcard set (5 MB / 25 MB caps enforced)
 - [ ] Review flashcards: SM-2 grading, mastered tracking, offline deck download
 - [ ] Upload a PDF → Preview opens the inline pane (iframes render in browser); Download works
