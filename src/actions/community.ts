@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, checkContentWithAI } from "@/lib/supabase/server";
 import { requireProfile, getSpaceMembership, isModerator } from "@/lib/auth";
 import sharp from "sharp";
 import {
@@ -242,6 +242,15 @@ export async function postAnnouncement(
   }
   if (cleanBody.length > MAX_ANNOUNCEMENT_BODY) {
     return { ok: false, error: `Announcements are limited to ${MAX_ANNOUNCEMENT_BODY} characters.` };
+  }
+
+  // AI moderation — announcements are official community posts.
+  const moderation = await checkContentWithAI(
+    `${cleanTitle}\n${cleanBody}`,
+    "community announcement",
+  );
+  if (!moderation.is_clean && moderation.risk_level === "high") {
+    return { ok: false, error: "This announcement was flagged by the moderation filter." };
   }
 
   const { data: space } = await supabase

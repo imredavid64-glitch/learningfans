@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, checkContentWithAI } from "@/lib/supabase/server";
 import { requireProfile, getSpaceMembership } from "@/lib/auth";
 import {
   gradeQuiz,
@@ -59,6 +59,15 @@ export async function createQuizMaterial(
 
   const membership = await getSpaceMembership(space.id, profile.id);
   if (!membership) return { ok: false, error: "You must be a member to post a quiz." };
+
+  // AI moderation — questions, options, and explanations must stay educational.
+  const quizText = `${title}\n${validation.questions
+    .map((q) => `${q.question} ${q.options.join(" ")} ${q.explanation ?? ""}`)
+    .join("\n")}`;
+  const moderation = await checkContentWithAI(quizText, "quiz for learners");
+  if (!moderation.is_clean && moderation.risk_level === "high") {
+    return { ok: false, error: "This quiz was flagged by the moderation filter — content must stay educational." };
+  }
 
   const { error } = await supabase.from("study_materials").insert({
     space_id: space.id,

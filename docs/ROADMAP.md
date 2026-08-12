@@ -71,7 +71,11 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   `/app/spaces/[slug]/moderation` with keyword automod rules (flag/remove,
   thread/reply scope) enforced in thread/post creation, plus the community's
   mod action history. Also fixed space-mods reading the log + auto_flag
-  logging. Next: karma/trophies.
+  logging.
+- ✅ **AI coverage hardening** — shipped 2026-08-12: AI moderation extended to
+  every creation surface (notes, links, flashcard decks, quizzes, file titles,
+  announcements, meetings) with a prompt that now also flags promotional
+  content and requires content to stay educational. Next: karma/trophies.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or

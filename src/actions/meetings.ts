@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, checkContentWithAI } from "@/lib/supabase/server";
 import { requireProfile, getSpaceMembership } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { generateReminder, getReminderSchedule } from "@/lib/reminders";
@@ -51,6 +51,14 @@ export async function createMeeting(
 
   if (title.length > 200) {
     return { redirect: "/app/meetings/new?error=Title%20too%20long" };
+  }
+
+  // AI moderation — meeting titles/descriptions must stay educational.
+  const moderation = await checkContentWithAI(`${title}\n${description}`, "study meeting");
+  if (!moderation.is_clean && moderation.risk_level === "high") {
+    return {
+      redirect: `/app/meetings/new?error=${encodeURIComponent("This meeting was flagged by the moderation filter — it must stay educational.")}`,
+    };
   }
 
   if (callUrl && !callUrl.startsWith("http")) {

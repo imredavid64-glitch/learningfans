@@ -85,14 +85,15 @@ export async function checkContentWithAI(content: string, context?: string): Pro
             3. Violence/threats
             4. Spam/repetitive patterns
             5. Inappropriate academic content
+            6. Promotional / advertising / monetized content (selling products or services, affiliate links, self-promotion that adds no educational value)
             
-            Return JSON with:
+            Content must be educational and on-topic for a learning community. Return JSON with:
             - is_clean: boolean (false if violations present)
             - risk_level: "none"|"low"|"medium"|"high" (severity)
             - violations: array of violation types
             - suggested_action: "allow"|"warn"|"strike"|"ban"
             
-            Violation types: "profanity", "hate", "violence", "spam", "inappropriate_academic", "other"
+            Violation types: "profanity", "hate", "violence", "spam", "inappropriate_academic", "promotional", "other"
             
             Context: ${context ?? "general academic discussion"}`,
           },
@@ -209,14 +210,15 @@ export async function checkProfanityWithEscalation(
             3. Violence/threats
             4. Spam/repetitive patterns
             5. Inappropriate academic content
+            6. Promotional / advertising / monetized content (selling products or services, affiliate links, self-promotion that adds no educational value)
             
-            Return JSON with:
+            Content must be educational and on-topic for a learning community. Return JSON with:
             - is_clean: boolean (false if violations present)
             - risk_level: "none"|"low"|"medium"|"high" (severity)
             - violations: array of violation types
             - suggested_action: "allow"|"warn"|"strike"|"ban"
             
-            Violation types: "profanity", "hate", "violence", "spam", "inappropriate_academic", "other"
+            Violation types: "profanity", "hate", "violence", "spam", "inappropriate_academic", "promotional", "other"
             
             Context: ${contextType ?? "general academic discussion"}`,
           },

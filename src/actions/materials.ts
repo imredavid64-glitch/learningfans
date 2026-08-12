@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import sharp from "sharp";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, checkContentWithAI } from "@/lib/supabase/server";
 import { requireProfile, getSpaceMembership } from "@/lib/auth";
 import {
   ALLOWED_FILE_MIME_TYPES,
@@ -14,6 +15,25 @@ import {
   USER_STORAGE_QUOTA_BYTES,
 } from "@/lib/constants";
 import type { MaterialPriority, MaterialType } from "@/lib/constants";
+
+/** AI-moderation gate shared by all material types. Returns false on high risk. */
+async function contentAllowed(
+  spaceSlug: string,
+  text: string,
+  context: string,
+): Promise<boolean> {
+  if (!text.trim()) return true;
+  const moderation = await checkContentWithAI(text, context);
+  if (!moderation.is_clean && moderation.risk_level === "high") {
+    redirect(
+      `/app/spaces/${spaceSlug}/materials?error=${encodeURIComponent(
+        "This content was flagged by the moderation filter — it must stay educational.",
+      )}`,
+    );
+    return false;
+  }
+  return true;
+}
 
 export async function createLinkMaterial(
   spaceSlug: string,
@@ -36,6 +56,9 @@ export async function createLinkMaterial(
 
   const membership = await getSpaceMembership(space.id, profile.id);
   if (!membership) return;
+
+  // AI moderation — keep community materials educational and on-topic.
+  if (!(await contentAllowed(spaceSlug, `${title}\n${url}\n${description}`, "study material (link)"))) return;
 
   const { error } = await supabase.from("study_materials").insert({
     space_id: space.id,
@@ -79,6 +102,9 @@ export async function createNoteMaterial(
 
   const membership = await getSpaceMembership(space.id, profile.id);
   if (!membership) return;
+
+  // AI moderation — notes are the largest free-text surface on the app.
+  if (!(await contentAllowed(spaceSlug, `${title}\n${content}`, "study note"))) return;
 
   const { error } = await supabase.from("study_materials").insert({
     space_id: space.id,
@@ -148,6 +174,10 @@ export async function createFlashcardMaterial(
   const membership = await getSpaceMembership(space.id, profile.id);
   if (!membership) return;
 
+  // AI moderation — scan the title plus every card's front/back text.
+  const deckText = `${title}\n${cards.map((c) => `${c.front} ${c.back}`).join("\n")}`;
+  if (!(await contentAllowed(spaceSlug, deckText, "flashcard deck"))) return;
+
   const { error } = await supabase.from("study_materials").insert({
     space_id: space.id,
     author_id: profile.id,
@@ -176,6 +206,9 @@ export async function uploadFileMaterial(
   const title = String(formData.get("title") ?? "").trim();
 
   if (!file || file.size === 0) return;
+
+  // AI moderation on the title (the file binary itself can't be scanned).
+  if (!(await contentAllowed(spaceSlug, title, "file upload"))) return;
   if (file.size > MAX_FILE_SIZE_BYTES) {
     return;
   }

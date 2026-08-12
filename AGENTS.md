@@ -8,6 +8,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — AI monitoring hardening (all creation surfaces)
+- `checkContentWithAI` prompt now also flags **promotional/advertising content** and mandates educational/on-topic content.
+- Wired AI checks into previously unmonitored actions: `createLinkMaterial`, `createNoteMaterial`, `createFlashcardMaterial`, `uploadFileMaterial` (title only), `createQuizMaterial` (questions/options), `postAnnouncement`, `createMeeting` — high risk → rejected (materials redirect with an `?error=` banner on the materials page; quiz/announcement/meeting return errors).
+- Room chat intentionally stays on the fast local profanity + escalation pipeline (no Groq per message); docs/MODERATION.md now has a coverage table.
+- Quality: 128/128 tests, tsc + lint clean, build compiles.
+
 ## 2026-08-12 — Mod dashboard + automod
 - **Migration** `20260812000014_mod_dashboard_automod.sql` (manual apply ⚠️): `spaces.automod_rules` jsonb; `moderation_actions.space_id` + index; space-mod log select policy; insert policy now allows `action='auto_flag'` self-logging (fixes silently-dropped AI/automod flags).
 - **Lib** `src/lib/automod.ts`: `AutomodRule` (name, comma keywords, scope thread/post/all, action flag/remove), `validateAutomodRules`, `checkAutomod` — 7 new unit tests (128 total).

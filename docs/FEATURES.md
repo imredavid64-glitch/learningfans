@@ -186,6 +186,19 @@ superpower of the Reddit-for-learners vision (see
   `meeting-reminder-notifier.tsx`.
 - **Actions:** `src/actions/meetings.ts`.
 
+## Moderation hardening (AI + educational coverage)
+
+- **Every learner-generated surface is AI-checked at creation** — threads,
+  replies (incl. nested), study notes, link materials, flashcard decks, quiz
+  questions/options, file upload titles, announcements, and meeting titles.
+  High-risk content is rejected with a clear message (notes/links/decks/upload
+  errors surface on the materials page banner).
+- The AI prompt now flags **promotional/advertising content** and explicitly
+  requires content to stay **educational and on-topic** (in addition to
+  profanity/hate/violence/spam). Room chat keeps the fast local
+  profanity + escalation pipeline (no AI round-trip per message).
+- See [docs/MODERATION.md](../docs/MODERATION.md) for the full coverage table.
+
 ## Study rooms (interactive collaboration)
 
 - **Routes:** `/app/study-rooms` (hub + create), `/app/study-rooms/[id]` (room).

@@ -21,13 +21,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MAX_FILE_SIZE_BYTES, USER_STORAGE_QUOTA_BYTES } from "@/lib/constants";
+import { AlertCircle } from "lucide-react";
 
 export default async function MaterialsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { slug } = await params;
+  const { error } = await searchParams;
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
@@ -79,6 +83,13 @@ export default async function MaterialsPage({
           </p>
         </div>
       </div>
+
+      {error && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>{error}</p>
+        </div>
+      )}
 
       <Tabs defaultValue="list">
         <TabsList>

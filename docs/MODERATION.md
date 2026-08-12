@@ -20,10 +20,13 @@ Excessive caps, repeated characters, >3 URLs, repeated phrases.
 ### 3. AI moderation (`src/lib/supabase/server.ts`)
 
 - `checkContentWithAI` — Groq (`llama3-8b-8192`) with a JSON-schema prompt
-  (profanity, hate, violence, spam, academic). Falls back to "allow" on API
-  errors, and the local checks run first so the AI isn't the gatekeeper.
+  (profanity, hate, violence, spam, inappropriate academic content, **and
+  promotional/advertising content** — the prompt explicitly requires content to
+  stay educational and on-topic). Falls back to "allow" on API errors, and the
+  local checks run first so the AI isn't the gatekeeper.
 - `checkProfanityWithEscalation(userId, content, contextType, contextId)` —
-  the pipeline used by posts, threads, materials, **and room chat**:
+  the local profanity/escalation pipeline used by posts, threads, materials,
+  **and room chat**:
 
 ```
 local profanity ──hit──> handle_profanity_escalation()  (DB ledger + tier)
@@ -73,6 +76,25 @@ State lives on `profiles` (restriction_level, counters) + `profanity_incidents`
   `check_update_rate` RPC.
 - **Secrets:** keys live only in Vercel env + `.env.local` (gitignored). Never
   commit `NEXT_PUBLIC_SUPABASE_ANON_KEY`-adjacent secrets or the service role key.
+
+## What is AI-monitored (creation-time coverage)
+
+| Surface | Check | High risk → |
+|---------|-------|-------------|
+| Threads | `checkContentWithAI` (title + body) | rejected + hidden |
+| Replies / posts (incl. nested) | `checkContentWithAI` (body) | rejected + hidden |
+| Study notes | `checkContentWithAI` (title + content) | rejected (error banner) |
+| Link materials | `checkContentWithAI` (title + URL + description) | rejected |
+| Flashcard decks | `checkContentWithAI` (title + every front/back) | rejected |
+| Quizzes | `checkContentWithAI` (title + questions/options/explanations) | rejected |
+| File uploads | `checkContentWithAI` (title only — binary can't be scanned) | rejected |
+| Announcements | `checkContentWithAI` (title + body) | rejected |
+| Meetings | `checkContentWithAI` (title + description) | rejected |
+| Room chat | `checkProfanityWithEscalation` (local + escalation — no Groq round-trip for latency/cost) | high-risk message rejected |
+| Automod rules | mod-defined keyword rules (see Mod dashboard) | remove = blocked, flag = hidden + logged |
+
+All AI-checked surfaces run the local profanity + spam pre-checks first, so
+obvious violations are caught instantly and the AI only decides nuanced cases.
 
 ## Study-room specific moderation
 
