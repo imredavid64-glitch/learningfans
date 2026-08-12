@@ -12,13 +12,19 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { Flag } from "lucide-react";
 
 export function ReportButton({
   targetType,
   targetId,
+  compact,
+  className,
 }: {
   targetType: string;
   targetId: string;
+  compact?: boolean;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
@@ -34,7 +40,21 @@ export function ReportButton({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        render={<Button variant="ghost" size="sm">Report</Button>}
+        render={
+          compact ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              title="Report this message"
+              className={cn("h-6 w-6", className)}
+            >
+              <Flag className="h-3.5 w-3.5" />
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm">Report</Button>
+          )
+        }
       />
       <DialogContent>
         <DialogHeader>

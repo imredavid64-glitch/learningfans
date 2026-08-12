@@ -8,6 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Per-message report button in room chat
+- **Migration** `20260812000016_message_reports.sql` (manual apply ⚠️): `report_target_type` gains `message` (`ADD VALUE IF NOT EXISTS`); app moderators can now read room chat (incl. space-linked rooms) so the mod queue can show the reported message.
+- **UI** `room-chat.tsx`: hover any message (own or others, even ended rooms) → compact 🚩 report button in the hover row opens the standard report dialog (`ReportButton` gained a `compact` icon-only variant); hidden messages show no report button.
+- **Actions** `submitReport`/`submitReportFromForm` accept `message` targets; `moderateContent` handles messages (hide/approve/reject map to `study_room_messages.hidden`).
+- **Mod queue** `/app/mod`: message reports render the reported message body (fetched via the new app-mod read policy).
+- Quality: 135/135 tests, tsc + lint clean, build compiles. `combined.sql` regenerated (26 migrations). Docs: MODERATION, DATABASE, FEATURES, LAUNCH_CHECKLIST.
+
 ## 2026-08-12 — Batched AI moderation for room chat
 - **Migration** `20260812000015_chat_moderation_queue.sql` (manual apply ⚠️): `chat_moderation_queue` (status pending/processing/processed/failed, attempts, message FK cascade) + `claim_chat_moderation_batch(p_limit)` RPC (atomic UPDATE…RETURNING claim — concurrent flushes never double-process) + `study_room_messages.hidden` (client shows a removal placeholder) + insert policy (user enqueues own).
 - **Send path** (`sendRoomMessage`): now uses `checkRoomMessageFast` (local profanity + spam + escalation only — **no Groq round-trip per message**), inserts, then best-effort enqueues for AI review and kicks `/api/moderation/chat` fire-and-forget via `after()` (Next 16) so sending stays instant. If the queue table is missing the message still sends.

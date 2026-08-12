@@ -15,6 +15,7 @@ import { hapticLight } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ReportButton } from "@/components/moderation/report-button";
 import { MessageSquare, Send, ShieldAlert, SmilePlus } from "lucide-react";
 
 export interface RoomMessage {
@@ -346,8 +347,7 @@ export function RoomChat({
                   </div>
                 </div>
 
-                {(msgReactions.length > 0 || !mine) && (
-                  <div className={cn("flex flex-wrap items-center gap-1 pl-9", mine && "pr-9")}>
+                <div className={cn("flex flex-wrap items-center gap-1 pl-9", mine && "pr-9")}>
                     {msgReactions.map((r) => (
                       <button
                         key={r.emoji}
@@ -390,8 +390,13 @@ export function RoomChat({
                         ))}
                       </span>
                     )}
-                  </div>
-                )}
+                  <ReportButton
+                    targetType="message"
+                    targetId={m.id}
+                    compact
+                    className="rounded-full border border-dashed border-border text-muted-foreground opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
+                  />
+                </div>
               </div>
             );
           })

@@ -111,7 +111,7 @@ export type ScheduleEvent = {
 export type Report = {
   id: string;
   reporter_id: string;
-  target_type: "thread" | "post" | "material" | "profile";
+  target_type: "thread" | "post" | "material" | "profile" | "message";
   target_id: string;
   reason: string;
   status: ReportStatus;

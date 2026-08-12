@@ -45,6 +45,20 @@ export default async function ModerationPage() {
     .order("created_at", { ascending: false })
     .limit(50);
 
+  // For message reports, surface the reported chat message so mods can
+  // review it without hunting through rooms (app mods can read all rooms).
+  const messageReportIds = (reports ?? [])
+    .filter((r) => r.target_type === "message")
+    .map((r) => r.target_id);
+  let messageBodies: Record<string, string> = {};
+  if (messageReportIds.length > 0) {
+    const { data: msgs } = await supabase
+      .from("study_room_messages")
+      .select("id, body")
+      .in("id", messageReportIds);
+    messageBodies = Object.fromEntries((msgs ?? []).map((m) => [m.id, m.body]));
+  }
+
   const isAdminUser = isAdmin(profile?.role);
 
   return (
@@ -167,6 +181,11 @@ export default async function ModerationPage() {
                               </span>
                             </div>
                             <p className="text-sm">{report.reason}</p>
+                            {report.target_type === "message" && messageBodies[report.target_id] && (
+                              <p className="mt-2 max-w-xl truncate rounded-md bg-muted px-3 py-2 text-xs italic text-muted-foreground">
+                                “{messageBodies[report.target_id]}”
+                              </p>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <Button variant="ghost" size="icon">

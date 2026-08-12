@@ -158,6 +158,7 @@ communities, skips no-activity weeks)
 | `20260812000013_weekly_digests.sql` | `send_weekly_digests()` RPC (per-user weekly activity counts + dedupe) for the `/api/cron/digest` cron |
 | `20260812000014_mod_dashboard_automod.sql` | `spaces.automod_rules` jsonb; `moderation_actions.space_id` + index; space-mod log read policy; `auto_flag` self-log insert policy |
 | `20260812000015_chat_moderation_queue.sql` | `chat_moderation_queue` (pending/processing/processed/failed, attempts) + `claim_chat_moderation_batch()` RPC; `study_room_messages.hidden`; insert policy (user enqueues own) |
+| `20260812000016_message_reports.sql` | `report_target_type` gains `message`; app moderators can read room chat (incl. space rooms) for the mod queue |
 | `combined.sql` | All of the above concatenated (one-shot fresh install) |
 
 > **Existing projects:** newer migrations (0001–0005, study_progress,

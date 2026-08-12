@@ -57,8 +57,10 @@ State lives on `profiles` (restriction_level, counters) + `profanity_incidents`
 
 ## Human moderation
 
-- **Reports** (`reports` table): users can report threads, posts, materials, and
-  profiles (`ReportButton`). Status flow: open → reviewing → resolved/dismissed.
+- **Reports** (`reports` table): users can report threads, posts, materials,
+  profiles, **and room chat messages** (`ReportButton` — a compact flag icon in
+  the chat hover row opens the same flow; the mod queue shows the reported
+  message body). Status flow: open → reviewing → resolved/dismissed.
 - **Mod queue** (`/app/mod`, gated by `isModerator`): resolve reports, apply
   **sanctions** (warn / mute / suspend with expiry), hide content, pin/lock
   threads. `moderation_actions` keeps an audit trail.
@@ -118,13 +120,19 @@ obvious violations are caught instantly and the AI only decides nuanced cases.
   user-owned (delete own only).
 - **End room** is creator-or-moderator only (RLS); ended rooms become read-only
   (board) and chat is disabled.
-- Space-linked rooms restrict visibility + mentions to **space members**.
+- Space-linked rooms restrict visibility + mentions to **space members**
+  (app moderators can read room chat for mod-queue review).
+- **Per-message report button** in the chat hover row — users can flag any
+  message (own included) via the standard report flow; message reports land in
+  the mod queue with the message body attached.
 
 ## QA spot checks (from the launch checklist)
 
 - Room chat: sending a message returns instantly (no AI round-trip on the send
   path); a flagged message is hidden within seconds via the batched flush and
   shows the removal placeholder for everyone in the room.
+- Reporting a chat message: hover a message → flag icon → reason → submit; the
+  report appears in the mod queue with the message text visible.
 
 - Non-member cannot read a private space (RLS).
 - Non-creator cannot end someone else's study room.

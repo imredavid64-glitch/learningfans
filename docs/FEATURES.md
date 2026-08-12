@@ -214,7 +214,9 @@ superpower of the Reddit-for-learners vision (see
     `create_notification`, type `mention`); **emoji reactions**
     (`study_room_message_reactions`, realtime); instant local profanity check on
     send, then **batched AI moderation** hides non-educational/promotional
-    messages after the fact (removal placeholder in the feed).
+    messages after the fact (removal placeholder in the feed); **per-message
+    report button** (flag icon in the hover row → standard report flow → mod
+    queue with the message body).
   - **Focus timer** — 25/5 pomodoro synced by broadcast (`endsAt`-based so
     everyone counts down together; pause/resume/skip/reset; auto focus→break;
     localStorage persistence).

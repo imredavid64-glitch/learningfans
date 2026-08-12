@@ -95,6 +95,8 @@ for cross-account checks.
 - [ ] AI moderation: post a borderline non-educational/promotional message → within
       seconds it's replaced by the "removed by moderators" placeholder for both users
       (batched flush via `/api/moderation/chat`)
+- [ ] Per-message report: hover a message → flag icon → reason → submit; the report
+      shows in `/app/mod` with the reported message body visible
 - [ ] Empty message can't be sent; 500-char cap enforced
 
 ### Mentions

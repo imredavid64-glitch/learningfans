@@ -8,7 +8,7 @@ import { logAudit } from "@/lib/audit";
 import { reportSchema, validateOrThrow } from "@/lib/validation";
 
 export async function submitReport(
-  targetType: "thread" | "post" | "material" | "profile",
+  targetType: "thread" | "post" | "material" | "profile" | "message",
   targetId: string,
   reason: string,
   description?: string,
@@ -48,7 +48,7 @@ export async function submitReport(
 export async function submitReportFromForm(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
-  const targetType = formData.get("targetType") as "thread" | "post" | "material" | "profile";
+  const targetType = formData.get("targetType") as "thread" | "post" | "material" | "profile" | "message";
   const targetId = formData.get("targetId") as string;
   const reason = formData.get("reason") as string;
   const description = formData.get("description") as string | undefined;
@@ -57,7 +57,7 @@ export async function submitReportFromForm(
     return { success: false, error: "Missing required fields" };
   }
 
-  const validTypes = ["thread", "post", "material", "profile"];
+  const validTypes = ["thread", "post", "material", "profile", "message"];
   if (!validTypes.includes(targetType)) {
     return { success: false, error: "Invalid target type" };
   }
@@ -66,7 +66,7 @@ export async function submitReportFromForm(
 }
 
 export async function moderateContent(
-  targetType: "thread" | "post" | "material" | "profile",
+  targetType: "thread" | "post" | "material" | "profile" | "message",
   targetId: string,
   action: "approve" | "reject" | "hide" | "strike",
   note?: string,
@@ -97,6 +97,9 @@ export async function moderateContent(
     case "material":
       targetTable = "study_materials";
       break;
+    case "message":
+      targetTable = "study_room_messages";
+      break;
     case "profile":
       targetTable = "profiles";
       break;
@@ -106,7 +109,8 @@ export async function moderateContent(
 
   switch (action) {
     case "approve":
-      updateFields = { is_hidden: false };
+      // Chat messages use `hidden`; other content uses `is_hidden`.
+      updateFields = targetType === "message" ? { hidden: false } : { is_hidden: false };
       if (targetType === "post") {
         await moderatePost(targetId);
       } else if (targetType === "profile") {
@@ -121,7 +125,7 @@ export async function moderateContent(
           created_by: profile.id,
         });
       } else {
-        updateFields = { is_hidden: true };
+        updateFields = targetType === "message" ? { hidden: true } : { is_hidden: true };
       }
       break;
     case "strike":
@@ -133,7 +137,7 @@ export async function moderateContent(
       });
       break;
     case "reject":
-      updateFields = { is_hidden: true };
+      updateFields = targetType === "message" ? { hidden: true } : { is_hidden: true };
       break;
   }
 
