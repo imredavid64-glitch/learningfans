@@ -35,4 +35,6 @@ union all
 select 'study_rooms', exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'study_rooms')
 union all
 select 'study_room_messages', exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'study_room_messages')
+union all
+select 'study_room_message_reactions', exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'study_room_message_reactions')
 order by object_name;

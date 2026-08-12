@@ -30,11 +30,15 @@ export function StudyRoom({
   userId,
   displayName,
   initialMessages,
+  mentionableUsers,
+  initialReactions,
 }: {
   room: StudyRoomData;
   userId: string;
   displayName: string;
   initialMessages: RoomMessage[];
+  mentionableUsers: { id: string; display_name: string }[];
+  initialReactions: { message_id: string; user_id: string; emoji: string }[];
 }) {
   const [copied, setCopied] = useState(false);
   const isCreator = room.created_by === userId;
@@ -131,6 +135,8 @@ export function StudyRoom({
               roomId={room.id}
               userId={userId}
               initialMessages={initialMessages}
+              mentionableUsers={mentionableUsers}
+              initialReactions={initialReactions}
               disabled={ended}
             />
           </div>

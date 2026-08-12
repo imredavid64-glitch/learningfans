@@ -12,6 +12,11 @@ import {
   studyRoomInviteUrl,
   WHITEBOARD_MAX_STROKES,
   WHITEBOARD_MAX_BYTES,
+  isAllowedReaction,
+  renderMentions,
+  mentionQuery,
+  filterMentionCandidates,
+  ALLOWED_REACTIONS,
   type WhiteboardStroke,
   type PomodoroState,
 } from "@/lib/study-room-utils";
@@ -135,6 +140,56 @@ describe("pomodoro", () => {
     expect(reset.mode).toBe("focus");
     expect(reset.remainingSeconds).toBe(1500);
     expect(reset.startedBy).toBeNull();
+  });
+});
+
+describe("mentions & reactions", () => {
+  it("flags @Name tokens for rendering and leaves the rest plain", () => {
+    const segments = renderMentions("hey @Ada, want to review @Lin?");
+    expect(segments).toEqual([
+      { text: "hey ", mention: false },
+      { text: "@Ada", mention: true },
+      { text: ", want to review ", mention: false },
+      { text: "@Lin", mention: true },
+      { text: "?", mention: false },
+    ]);
+  });
+
+  it("returns a single plain segment when there are no mentions", () => {
+    expect(renderMentions("just a normal message")).toEqual([
+      { text: "just a normal message", mention: false },
+    ]);
+  });
+
+  it("keeps an @ at the end of a word as plain text", () => {
+    const segments = renderMentions("email me at foo@bar");
+    expect(segments.every((s) => !s.mention)).toBe(true);
+  });
+
+  it("extracts the autocomplete query after the last @", () => {
+    expect(mentionQuery("review with @")).toBe("");
+    expect(mentionQuery("review with @Ada")).toBe("Ada");
+    expect(mentionQuery("review with @Ada now")).toBeNull();
+    expect(mentionQuery("no mention here")).toBeNull();
+  });
+
+  it("filters mention candidates by name, capping at six", () => {
+    const users = [
+      { id: "1", display_name: "Ada Lovelace" },
+      { id: "2", display_name: "Alan Turing" },
+      { id: "3", display_name: "Grace Hopper" },
+    ];
+    expect(filterMentionCandidates(users, "la").map((u) => u.id)).toEqual(["1", "2"]);
+    expect(filterMentionCandidates(users, "hopper").map((u) => u.id)).toEqual(["3"]);
+    expect(filterMentionCandidates(users, "zzz")).toEqual([]);
+  });
+
+  it("only allows the curated reaction set", () => {
+    for (const e of ALLOWED_REACTIONS) {
+      expect(isAllowedReaction(e)).toBe(true);
+    }
+    expect(isAllowedReaction("🚀")).toBe(false);
+    expect(isAllowedReaction("not an emoji")).toBe(false);
   });
 });
 

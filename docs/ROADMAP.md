@@ -3,23 +3,28 @@
 Living document. Everything below is a candidate, not a promise. Ideas are tagged
 by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 
-> Last updated: 2026-08-12 — right after **Interactive Study Rooms** shipped
-> (live whiteboard, room chat, shared pomodoro, presence, one-click video call).
+> Last updated: 2026-08-12 — after room chat got **@mentions** (bell notifications,
+> autocomplete) and **emoji reactions** (realtime). Interactive Study Rooms shipped
+> earlier the same day: live whiteboard, room chat, shared pomodoro, presence,
+> one-click video call.
 
 ---
 
 ## 1. Make communication even easier
 
-- **@mentions + notifications in rooms** (`S`): typing `@name` in room chat pings that
-  user with a notification (we already have the bell + `create_notification` RPC).
-  Parse mentions in `sendRoomMessage` and fire per-user notifications.
+- ✅ **@mentions + notifications in rooms** — shipped 2026-08-12: `@name`
+  autocomplete in the composer, highlighted mentions in messages, and a
+  `create_notification` ping through the existing bell (`mention` type, 👋).
+  Only space members are notified in space-linked rooms. Next step: parse plain
+  `@name` text (no picker) and notify by display name too.
+- ✅ **Reactions on messages** — shipped 2026-08-12: 👍 🎉 ❤️ 🔥 😄 🙏 on room
+  chat messages, realtime via `study_room_message_reactions` + postgres_changes.
+  Next step: per-user tooltips listing who reacted.
 - **Presence cursors on the whiteboard** (`M`): show a small colored dot with each
   person's name where their pointer is right now (realtime `presence` broadcast of
   `{x, y}` throttled to ~10 Hz). Makes collaboration feel alive.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
-- **Reactions on messages** (`S`): 👍 / 🚀 / 🔥 emoji picker per message, stored as
-  `jsonb` on `study_room_messages`. Cheap, fun, very sticky.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or
   Jitsi's audio-only mode, so people can hang out and talk while studying without
   booking a "meeting".
@@ -96,7 +101,13 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 
 ## Shipped recently (context)
 
-- **2026-08-12** — Interactive Study Rooms (this feature set): join live rooms,
+- **2026-08-12** — Room chat **@mentions + emoji reactions**: `@` autocomplete
+  against space members (or all profiles in open rooms), highlighted `@name`
+  rendering, bell notifications (`create_notification`, type `mention`), and
+  realtime reactions (👍 🎉 ❤️ 🔥 😄 🙏) stored in the new
+  `study_room_message_reactions` table (`20260812000005_study_room_reactions.sql`,
+  manual apply).
+- **2026-08-12** — Interactive Study Rooms: join live rooms,
   shared realtime whiteboard (pen/eraser/undo/clear, broadcast + debounced
   snapshot), persisted room chat (RLS + postgres_changes realtime), shared pomodoro
   focus timer (broadcast-synced, survives refresh via localStorage), live presence

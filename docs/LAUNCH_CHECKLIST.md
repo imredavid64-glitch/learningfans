@@ -87,6 +87,18 @@ for cross-account checks.
 - [ ] Profanity is filtered (try a blocked word → flagged, not posted)
 - [ ] Empty message can't be sent; 500-char cap enforced
 
+### Mentions
+- [ ] Typing `@` in the composer shows an autocomplete list of space members
+- [ ] Picking a name inserts `@Display Name` and sends a mention
+- [ ] The mentioned user sees the **bell ping** (👋) with the message preview
+- [ ] Clicking the notification opens the exact study room
+- [ ] Mentioning yourself or a non-member does **not** create a notification
+
+### Reactions
+- [ ] Reacting to a message shows the chip live in the other tab
+- [ ] Clicking your own chip removes the reaction (count decrements live)
+- [ ] Toggling off the reactions table migration shows the chat still works
+
 ### Focus timer
 - [ ] Start in A → countdown syncs in B (same remaining time, both ticking)
 - [ ] Pause in A → B pauses too; Resume continues from the frozen time (not full restart)

@@ -120,6 +120,7 @@ files (each is standalone; `verify_schema.sql` tells you which tables exist):
 
 | Feature | Migration |
 |---------|-----------|
+| Room chat reactions | `20260812000005_study_room_reactions.sql` |
 | Study rooms (whiteboard, chat) | `20260812000004_study_rooms.sql` |
 | Push subscriptions (web push) | `20260812000003_push_subscriptions.sql` |
 | Schedule event reminders | `20260812000002_schedule_event_reminders.sql` |

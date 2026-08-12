@@ -21,6 +21,7 @@ const TYPE_ICONS: Record<string, string> = {
   material: "📄",
   thread: "💬",
   reply: "↩️",
+  mention: "👋",
   meeting: "🎥",
   event: "📅",
   streak: "🔥",

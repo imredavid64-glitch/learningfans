@@ -23,6 +23,65 @@ export const ROOM_DESCRIPTION_MAX_LENGTH = 500;
 export const POMODORO_FOCUS_SECONDS = 25 * 60;
 export const POMODORO_BREAK_SECONDS = 5 * 60;
 
+export const ALLOWED_REACTIONS = ["👍", "🎉", "❤️", "🔥", "😄", "🙏"] as const;
+
+export function isAllowedReaction(emoji: string): boolean {
+  return (ALLOWED_REACTIONS as readonly string[]).includes(emoji);
+}
+
+export interface MentionSegment {
+  text: string;
+  mention: boolean;
+}
+
+/**
+ * Split message text into segments, flagging `@Name` tokens so the client can
+ * render them highlighted without dangerouslySetInnerHTML.
+ */
+export function renderMentions(text: string): MentionSegment[] {
+  const segments: MentionSegment[] = [];
+  // Only `@Name` at the start of the text or after whitespace counts as a
+  // mention (so `foo@bar` stays plain), and names may contain a space
+  // (e.g. the autocomplete inserts `@Ada Lovelace`). Trailing punctuation
+  // like `@Ada,` is left plain.
+  const re = /(^|\s)@[\p{L}\p{N}_]+(?: [\p{L}\p{N}_]+)*/gmu;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const leading = match[1].length; // 0 at line start, otherwise the whitespace char
+    if (match.index + leading > last) {
+      segments.push({ text: text.slice(last, match.index + leading), mention: false });
+    }
+    segments.push({ text: match[0].slice(leading), mention: true });
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) {
+    segments.push({ text: text.slice(last), mention: false });
+  }
+  return segments;
+}
+
+/** Text after the last `@` in the composer (for autocomplete), or null. */
+export function mentionQuery(text: string): string | null {
+  const idx = text.lastIndexOf("@");
+  if (idx === -1) return null;
+  const tail = text.slice(idx + 1);
+  if (/\s/.test(tail)) return null; // already past the token
+  return tail;
+}
+
+/** Filter mention candidates by an `@query`. */
+export function filterMentionCandidates(
+  users: { id: string; display_name: string }[],
+  query: string,
+): { id: string; display_name: string }[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return users.slice(0, 6);
+  return users
+    .filter((u) => u.display_name.toLowerCase().includes(q))
+    .slice(0, 6);
+}
+
 export type PomodoroMode = "focus" | "break";
 
 export interface PomodoroState {

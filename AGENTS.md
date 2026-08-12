@@ -8,6 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Room chat @mentions + emoji reactions
+- **@mentions**: `@` autocomplete in the room chat composer against space members (space-linked rooms) or all profiles (open rooms); picking a name inserts `@Display Name` and adds the id to a hidden mention set. `sendRoomMessage(roomId, body, mentionIds)` now fires `create_notification` (type `mention`, 👋) per mentioned user through the existing bell — self and non-members (in space rooms) are skipped, best-effort so a failed notification never blocks the message. `renderMentions()` splits text into safe segments for highlighted `@name` rendering (no dangerouslySetInnerHTML).
+- **Emoji reactions**: `study_room_message_reactions` table (PK message+user+emoji, denormalized `room_id` for realtime filtering) + RLS + realtime publication — `supabase/migrations/20260812000005_study_room_reactions.sql` (manual apply ⚠️). `toggleReaction` server action with optimistic client flips (reverted on error); live via postgres_changes INSERT/DELETE filtered per room. Curated set 👍 🎉 ❤️ 🔥 😄 🙏 (`ALLOWED_REACTIONS`), hover-smile picker per message.
+- **New pure helpers** in `study-room-utils.ts` (tested): `renderMentions`, `mentionQuery`, `filterMentionCandidates`, `isAllowedReaction` (+12 tests → 98/98).
+- **Wiring**: room page passes `mentionableUsers` + `initialReactions`; bell + notifications page got the `mention: 👋` icon; `combined.sql` regenerated (15 migrations), `verify_schema.sql` + README updated.
+- Verified: `tsc` clean, lint clean, 98/98 tests, `next build` compiles. Deployed to Vercel (alias `learningfans.vercel.app`).
+
 ## 2026-08-12 — Interactive Study Rooms (live whiteboard, chat, focus timer)
 - **Study rooms**: new feature — join live rooms at `/app/study-rooms` (hub) and `/app/study-rooms/[id]` (room). Room = shared realtime whiteboard + persisted room chat + broadcast-synced pomodoro + live presence avatars + one-click Jitsi video call + copy-invite. Entry points: desktop + mobile nav (Study Rooms), dashboard "Study together" quick actions, space pages ("Study room" → preselects the space).
 - **Whiteboard** (`src/components/study-rooms/whiteboard.tsx`): canvas with DPR scaling, pen/eraser/widths/colors, undo (last stroke), clear-all (confirm). Strokes broadcast over Supabase Realtime (`study-room-board-{roomId}`); snapshot persisted to `study_rooms.whiteboard` (jsonb) with a 2 s debounce via `saveWhiteboard` action. Caps: 600 strokes / 256 KB (`src/lib/study-room-utils.ts`, unit-tested).

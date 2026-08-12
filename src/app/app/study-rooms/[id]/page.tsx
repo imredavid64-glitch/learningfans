@@ -52,6 +52,32 @@ export default async function StudyRoomPage({
     .order("created_at", { ascending: true })
     .limit(100);
 
+  // People who can be @mentioned in this room: space members when linked to a
+  // space, otherwise anyone in the app (small-community scale).
+  let mentionableUsers: { id: string; display_name: string }[] = [];
+  if (room.space_id) {
+    const { data: mentionRows } = await supabase
+      .from("space_members")
+      .select("profiles(id, display_name)")
+      .eq("space_id", room.space_id)
+      .limit(200);
+    mentionableUsers = (mentionRows ?? [])
+      .map((r) => {
+        const raw = (r as { profiles: { id: string; display_name: string } | { id: string; display_name: string }[] }).profiles;
+        return (Array.isArray(raw) ? raw[0] : raw) ?? null;
+      })
+      .filter((u): u is { id: string; display_name: string } => Boolean(u));
+  } else {
+    const { data: mentionRows } = await supabase.from("profiles").select("id, display_name").limit(200);
+    mentionableUsers = (mentionRows ?? []) as { id: string; display_name: string }[];
+  }
+
+  const { data: reactionRows } = await supabase
+    .from("study_room_message_reactions")
+    .select("message_id, user_id, emoji")
+    .eq("room_id", id)
+    .limit(500);
+
   const roomData: StudyRoomData = {
     id: room.id,
     name: room.name,
@@ -86,6 +112,14 @@ export default async function StudyRoomPage({
         userId={profile.id}
         displayName={profile.display_name}
         initialMessages={chatMessages}
+        mentionableUsers={mentionableUsers}
+        initialReactions={
+          (reactionRows ?? []).map((r) => ({
+            message_id: r.message_id,
+            user_id: r.user_id,
+            emoji: r.emoji,
+          }))
+        }
       />
     </div>
   );

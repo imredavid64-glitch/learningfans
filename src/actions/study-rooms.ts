@@ -10,6 +10,7 @@ import {
   ROOM_MESSAGE_MAX_LENGTH,
   isValidWhiteboard,
   capStrokes,
+  isAllowedReaction,
 } from "@/lib/study-room-utils";
 
 export type ActionResult = { redirect?: string; error?: string };
@@ -139,7 +140,6 @@ export async function endStudyRoom(roomId: string): Promise<void> {
   redirect("/app/study-rooms");
 }
 
-/** Post a chat message (profanity-checked, same pipeline as discussion). */
 function isSchemaMissingError(message?: string): boolean {
   if (!message) return false;
   return (
@@ -154,6 +154,7 @@ function isSchemaMissingError(message?: string): boolean {
 export async function sendRoomMessage(
   roomId: string,
   body: string,
+  mentionIds: string[] = [],
 ): Promise<{ ok: boolean; error?: string }> {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -166,7 +167,7 @@ export async function sendRoomMessage(
 
   const { data: room } = await supabase
     .from("study_rooms")
-    .select("id, status")
+    .select("id, status, name, space_id")
     .eq("id", roomId)
     .single();
   if (!room) return { ok: false, error: "Room not found." };
@@ -185,5 +186,101 @@ export async function sendRoomMessage(
   });
 
   if (error) return { ok: false, error: error.message };
+
+  // Notify @mentioned users through the existing bell.
+  await notifyMentions(room, text, mentionIds, profile);
   return { ok: true };
+}
+
+async function notifyMentions(
+  room: { id: string; name: string; space_id: string | null },
+  text: string,
+  mentionIds: string[],
+  actor: { id: string; display_name: string },
+): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const ids = [...new Set(mentionIds.filter((id) => id && id !== actor.id))].slice(0, 10);
+    if (ids.length === 0) return;
+
+    const { data: targets } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", ids);
+    if (!targets?.length) return;
+
+    // In a space-linked room only members (who can actually see it) are notified.
+    let allowed = new Set(targets.map((t) => t.id));
+    if (room.space_id) {
+      const { data: members } = await supabase
+        .from("space_members")
+        .select("user_id")
+        .eq("space_id", room.space_id);
+      const memberIds = new Set((members ?? []).map((m) => m.user_id));
+      allowed = new Set(targets.filter((t) => memberIds.has(t.id)).map((t) => t.id));
+    }
+
+    const preview = text.length > 120 ? `${text.slice(0, 120)}…` : text;
+    for (const target of targets) {
+      if (!allowed.has(target.id)) continue;
+      await supabase.rpc("create_notification", {
+        p_user_id: target.id,
+        p_title: `${actor.display_name} mentioned you in ${room.name}`,
+        p_body: preview,
+        p_type: "mention",
+        p_link: `/app/study-rooms/${room.id}`,
+        p_actor_id: actor.id,
+      });
+    }
+  } catch {
+    // Mentions are best-effort — a failed notification never blocks the message.
+  }
+}
+
+/** Add or remove an emoji reaction on a room message. */
+export async function toggleReaction(
+  roomId: string,
+  messageId: string,
+  emoji: string,
+): Promise<{ ok: boolean; added?: boolean; error?: string }> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  if (!isAllowedReaction(emoji)) return { ok: false, error: "Unknown reaction." };
+
+  const { data: msg } = await supabase
+    .from("study_room_messages")
+    .select("id")
+    .eq("id", messageId)
+    .eq("room_id", roomId)
+    .single();
+  if (!msg) return { ok: false, error: "Message not found." };
+
+  const { data: existing } = await supabase
+    .from("study_room_message_reactions")
+    .select("message_id")
+    .eq("message_id", messageId)
+    .eq("user_id", profile.id)
+    .eq("emoji", emoji)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase
+      .from("study_room_message_reactions")
+      .delete()
+      .eq("message_id", messageId)
+      .eq("user_id", profile.id)
+      .eq("emoji", emoji);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, added: false };
+  }
+
+  const { error } = await supabase.from("study_room_message_reactions").insert({
+    message_id: messageId,
+    room_id: roomId,
+    user_id: profile.id,
+    emoji,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, added: true };
 }
