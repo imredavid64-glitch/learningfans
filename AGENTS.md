@@ -8,6 +8,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Quiz results → SM-2 review queue
+- `createQuizReviewDeck(quizId, missedIndices)` in `src/actions/quizzes.ts`: server builds flashcard_set cards (front = question, back = correct answer + 💡 explanation) from the quiz payload, validates indices, idempotent via `metadata.is_quiz_review` + `metadata.quiz_id` lookup; `getQuizReviewDeck` finds the existing deck across reloads. No migration.
+- `QuizPlayer` results screen: "Add to my review queue" button (hidden on perfect scores) → "Review deck" link to the new deck; deck flows through the existing SM-2 flashcard review + local progress tracking.
+- Quality: 121/121 tests, tsc + lint clean, build compiles. Cap cleared — deployed + aliased successfully.
+
 ## 2026-08-12 — PDF posts + image lightbox (Reddit Phase 3b)
 - **Preview route** `/app/spaces/[slug]/materials/[id]/preview/route.ts`: streams private-bucket bytes (signed URL fetched server-side) with `Content-Disposition: inline` — lets iframes/img render materials without a public bucket; gated by RLS on study_materials.
 - **Detail page** now handles `file` materials: PDFs get a 75vh inline preview pane + Download/Open-in-new-tab; images get a click-to-zoom large view + download.

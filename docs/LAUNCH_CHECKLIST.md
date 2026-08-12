@@ -124,6 +124,8 @@ for cross-account checks.
 - [ ] Taking it grades instantly; review shows correct answers + explanations
 - [ ] Retake records a new attempt; best score lands on the top-10 leaderboard (two accounts)
 - [ ] Skipping a question counts as wrong; submitting with unanswered questions is blocked
+- [ ] "Add to my review queue" creates a flashcard deck of missed questions; clicking again (or reloading) shows "Review deck" instead
+- [ ] Reviewing the deck works through the normal SM-2 flow (again/hard/good/easy, due counts)
 - [ ] Moderator adds flairs (label + color) → they save and show in the New thread form
 - [ ] Creating a thread with a flair shows the colored chip on the feed card and thread page
 - [ ] Author or moderator changes/clears the flair from the thread page; non-author non-mod cannot

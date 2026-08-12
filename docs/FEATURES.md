@@ -140,6 +140,12 @@ superpower of the Reddit-for-learners vision (see
 - **Leaderboard:** `QuizLeaderboard` — top 10 by best % (🥇🥈🥉), your own best
   highlighted; `quiz_attempts` keeps one row per user per quiz so the board stays
   lean on the free tier. New personal bests award +5 XP.
+- **Review queue:** on results, "Add to my review queue" builds a private-ish
+  SM-2 flashcard deck from the missed questions (front = question, back = correct
+  answer + explanation) — `createQuizReviewDeck` builds cards server-side from
+  the quiz payload, is idempotent (a second call returns the existing deck,
+  detected across reloads), and the deck flows through the normal flashcard
+  review system.
 - **Actions:** `src/actions/quizzes.ts`; **Files:** `quiz-builder.tsx`,
   `quiz-player.tsx`, `quiz-leaderboard.tsx`, `src/lib/quizzes.ts`.
 

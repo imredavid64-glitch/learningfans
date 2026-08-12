@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
-import { submitQuizResult, type SubmitQuizResponse } from "@/actions/quizzes";
+import { ArrowLeft, ArrowRight, CheckCircle2, ListPlus, RotateCcw, XCircle } from "lucide-react";
+import {
+  createQuizReviewDeck,
+  getQuizReviewDeck,
+  submitQuizResult,
+  type SubmitQuizResponse,
+} from "@/actions/quizzes";
 import type { QuizQuestion } from "@/lib/quizzes";
 import { QuizLeaderboard } from "@/components/materials/quiz-leaderboard";
 import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button-link";
 import { cn } from "@/lib/utils";
 
 type Phase = "intro" | "playing" | "done";
@@ -14,9 +20,11 @@ type Phase = "intro" | "playing" | "done";
 export function QuizPlayer({
   materialId,
   questions,
+  spaceSlug,
 }: {
   materialId: string;
   questions: QuizQuestion[];
+  spaceSlug: string;
 }) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [idx, setIdx] = useState(0);
@@ -25,6 +33,25 @@ export function QuizPlayer({
   );
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitQuizResponse | null>(null);
+  const [deckId, setDeckId] = useState<string | null>(null);
+  const [addingDeck, setAddingDeck] = useState(false);
+
+  const missedCount = questions.filter((q, i) => answers[i] !== q.answerIndex).length;
+
+  // On the results screen, detect an existing review deck so the button stays
+  // idempotent across reloads ("Review deck" instead of "Add").
+  useEffect(() => {
+    if (phase !== "done") return;
+    let active = true;
+    async function load() {
+      const res = await getQuizReviewDeck(materialId);
+      if (active && res.deckId) setDeckId(res.deckId);
+    }
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [phase, materialId]);
 
   const question = questions[idx];
   const answered = answers.every((a) => a !== null);
@@ -50,7 +77,24 @@ export function QuizPlayer({
     setAnswers(questions.map(() => null));
     setIdx(0);
     setResult(null);
+    setDeckId(null);
     setPhase("playing");
+  }
+
+  async function handleAddToReview() {
+    const missed = questions
+      .map((_, i) => i)
+      .filter((i) => answers[i] !== questions[i].answerIndex);
+    if (missed.length === 0) return;
+    setAddingDeck(true);
+    const res = await createQuizReviewDeck(materialId, missed);
+    setAddingDeck(false);
+    if (!res.ok || !res.deckId) {
+      toast.error(res.error ?? "Couldn't create the review deck.");
+      return;
+    }
+    setDeckId(res.deckId);
+    toast.success("Review deck created — your missed questions are now in your queue.");
   }
 
   return (
@@ -168,6 +212,38 @@ export function QuizPlayer({
                   <RotateCcw className="mr-1 h-3.5 w-3.5" /> Retake
                 </Button>
               </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <div className="min-w-0">
+                <p className="font-medium">Review what you missed</p>
+                <p className="text-sm text-muted-foreground">
+                  {missedCount === 0
+                    ? "Perfect score — nothing to review!"
+                    : `${missedCount} missed question${missedCount === 1 ? "" : "s"} → an SM-2 flashcard deck you can review anytime.`}
+                </p>
+              </div>
+              {deckId ? (
+                <ButtonLink
+                  href={`/app/spaces/${spaceSlug}/materials/${deckId}`}
+                  size="sm"
+                  className="gap-1"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> Review deck
+                </ButtonLink>
+              ) : (
+                missedCount > 0 && (
+                  <Button
+                    size="sm"
+                    className="gap-1"
+                    onClick={handleAddToReview}
+                    disabled={addingDeck}
+                  >
+                    <ListPlus className="h-3.5 w-3.5" />
+                    {addingDeck ? "Creating deck…" : "Add to my review queue"}
+                  </Button>
+                )
+              )}
             </div>
 
             <div className="space-y-3">

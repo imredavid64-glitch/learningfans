@@ -66,6 +66,7 @@ export default async function MaterialPage({
           questions={
             (material.metadata as { questions?: QuizQuestion[] })?.questions ?? []
           }
+          spaceSlug={slug}
         />
       ) : material.type === "flashcard_set" ? (
         <FlashcardReview

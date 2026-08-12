@@ -9,6 +9,11 @@ import {
   type QuizGrade,
   type QuizQuestion,
 } from "@/lib/quizzes";
+import {
+  MAX_FLASHCARDS_PER_SET,
+  MAX_CARD_TEXT_LENGTH,
+  MAX_DECK_METADATA_BYTES,
+} from "@/lib/constants";
 
 export type QuizResult = { ok: boolean; error?: string };
 
@@ -159,6 +164,116 @@ export async function submitQuizResult(
     bestPct: improved ? grade.pct : (existing?.best_score_pct ?? grade.pct),
     attempts,
   };
+}
+
+/**
+ * Create (or find) a personal SM-2 review deck from a quiz's missed questions.
+ * Cards are built server-side from the quiz payload (front = question, back =
+ * correct answer + explanation), so the client only supplies the indices of
+ * what it got wrong. Idempotent: a second call returns the existing deck.
+ */
+export async function createQuizReviewDeck(
+  quizId: string,
+  missedIndices: number[],
+): Promise<{ ok: boolean; error?: string; deckId?: string }> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const { data: material } = await supabase
+    .from("study_materials")
+    .select("space_id, title, metadata, is_hidden")
+    .eq("id", quizId)
+    .single();
+
+  if (!material || material.is_hidden) return { ok: false, error: "Quiz not found." };
+  if (!Array.isArray(material.metadata?.questions)) {
+    return { ok: false, error: "This material has no quiz questions." };
+  }
+  const questions = material.metadata.questions as QuizQuestion[];
+
+  // Idempotent: if the caller already has a review deck for this quiz, reuse it.
+  const { data: existing } = await supabase
+    .from("study_materials")
+    .select("id")
+    .eq("space_id", material.space_id)
+    .eq("author_id", profile.id)
+    .eq("type", "flashcard_set")
+    .eq("metadata->>is_quiz_review", "true")
+    .eq("metadata->>quiz_id", quizId)
+    .maybeSingle();
+  if (existing) return { ok: true, deckId: existing.id };
+
+  const unique = [...new Set(missedIndices)]
+    .filter((i) => Number.isInteger(i) && i >= 0 && i < questions.length)
+    .slice(0, MAX_FLASHCARDS_PER_SET);
+
+  if (unique.length === 0) return { ok: false, error: "Nothing to review — you aced it!" };
+
+  const cards = unique.map((i) => {
+    const q = questions[i];
+    const correct = q.options[q.answerIndex] ?? "";
+    const back = `Correct answer: ${correct}` + (q.explanation ? `\n\n💡 ${q.explanation}` : "");
+    return {
+      front: q.question.trim().slice(0, MAX_CARD_TEXT_LENGTH),
+      back: back.slice(0, MAX_CARD_TEXT_LENGTH),
+    };
+  });
+
+  if (Buffer.byteLength(JSON.stringify(cards), "utf8") > MAX_DECK_METADATA_BYTES) {
+    return { ok: false, error: "That deck is too large — trim questions or options." };
+  }
+
+  const deckTitle = `My quiz review — ${String(material.title).slice(0, 60)}`;
+
+  const { data: deck, error } = await supabase
+    .from("study_materials")
+    .insert({
+      space_id: material.space_id,
+      author_id: profile.id,
+      type: "flashcard_set",
+      title: deckTitle,
+      metadata: { cards, is_quiz_review: true, quiz_id: quizId },
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+
+  const { data: space } = await supabase
+    .from("spaces")
+    .select("slug")
+    .eq("id", material.space_id)
+    .single();
+  if (space) revalidatePath(`/app/spaces/${space.slug}/materials`);
+
+  return { ok: true, deckId: deck?.id };
+}
+
+/** Find the caller's existing review deck for a quiz (survives reloads). */
+export async function getQuizReviewDeck(
+  quizId: string,
+): Promise<{ deckId: string | null }> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const { data: material } = await supabase
+    .from("study_materials")
+    .select("space_id")
+    .eq("id", quizId)
+    .single();
+  if (!material) return { deckId: null };
+
+  const { data: deck } = await supabase
+    .from("study_materials")
+    .select("id")
+    .eq("space_id", material.space_id)
+    .eq("author_id", profile.id)
+    .eq("type", "flashcard_set")
+    .eq("metadata->>is_quiz_review", "true")
+    .eq("metadata->>quiz_id", quizId)
+    .maybeSingle();
+
+  return { deckId: deck?.id ?? null };
 }
 
 /** Community leaderboard for a quiz: top 10 + the caller's own best. */

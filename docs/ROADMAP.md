@@ -50,7 +50,10 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 - ✅ **PDF posts + image lightbox** — shipped 2026-08-12 (Phase 3b): PDF
   materials open an inline preview pane (proxy route streams private-bucket
   bytes with `Content-Disposition: inline`); image materials get thumbnails in
-  the feed and a fullscreen `ImageLightbox`. Next: nested comments, then the
+  the feed and a fullscreen `ImageLightbox`.
+- ✅ **Quiz results → review queue** — shipped 2026-08-12 (Phase 3a round 2):
+  "Add to my review queue" turns missed questions into an SM-2 flashcard deck
+  (server-built cards, idempotent, reload-safe). Next: nested comments, then the
   community home feed.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
