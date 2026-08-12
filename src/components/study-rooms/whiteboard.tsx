@@ -133,8 +133,13 @@ export function Whiteboard({ roomId, initialStrokes, readOnly }: WhiteboardProps
     saveTimerRef.current = setTimeout(() => {
       void (async () => {
         setSaving(true);
-        await saveWhiteboard(roomId, strokesRef.current);
-        setSaving(false);
+        try {
+          await saveWhiteboard(roomId, strokesRef.current);
+        } catch {
+          // Session expired or server hiccup — the next stroke re-saves.
+        } finally {
+          setSaving(false);
+        }
       })();
     }, 2000);
   }, [roomId]);

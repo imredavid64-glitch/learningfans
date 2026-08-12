@@ -34,7 +34,9 @@ npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-Or paste [`supabase/migrations/20260520100000_initial_schema.sql`](supabase/migrations/20260520100000_initial_schema.sql) into the SQL editor.
+Or, for a fresh install, paste the whole thing as one script:
+[`supabase/migrations/combined.sql`](supabase/migrations/combined.sql) (all 14 migrations
+concatenated in order — includes meetings, notifications, push, study rooms, etc.).
 
 5. Copy API keys from **Project Settings → API**.
 
@@ -110,6 +112,20 @@ Run [`supabase/verify_schema.sql`](supabase/verify_schema.sql) instead. If all t
 Only run [`supabase/migrations/20260528100000_profile_insert_policy_only.sql`](supabase/migrations/20260528100000_profile_insert_policy_only.sql) if you need the extra profile insert policy.
 
 Optional: install the [Supabase Vercel integration](https://vercel.com/integrations/supabase) to sync env vars.
+
+### Existing projects: newer feature migrations
+
+If you set the project up before a feature shipped, apply only the missing migration
+files (each is standalone; `verify_schema.sql` tells you which tables exist):
+
+| Feature | Migration |
+|---------|-----------|
+| Study rooms (whiteboard, chat) | `20260812000004_study_rooms.sql` |
+| Push subscriptions (web push) | `20260812000003_push_subscriptions.sql` |
+| Schedule event reminders | `20260812000002_schedule_event_reminders.sql` |
+| Reply notifications | `20260812000001_reply_notifications.sql` |
+| Streaks/XP + notification bell | `20260811000000_study_progress_notifications.sql` |
+| Profanity escalation | `20260807000000_profanity_escalation.sql` |
 
 ## Smoke test checklist
 
