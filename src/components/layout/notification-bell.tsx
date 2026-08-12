@@ -6,6 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Bell, CheckCheck, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { hapticLight } from "@/lib/haptics";
 import {
   getNotifications,
   getUnreadCount,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 const TYPE_ICONS: Record<string, string> = {
   material: "📄",
   thread: "💬",
+  reply: "↩️",
   meeting: "🎥",
   event: "📅",
   streak: "🔥",
@@ -60,6 +62,7 @@ export function NotificationBell({ userId }: { userId: string }) {
           if (!active) return;
           setItems((prev) => [n, ...prev].slice(0, 50));
           setUnread((u) => u + 1);
+          void hapticLight();
           toast(`${TYPE_ICONS[n.type] ?? "🔔"} ${n.title}`, { description: n.body || undefined });
         },
       )

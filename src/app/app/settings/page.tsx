@@ -12,6 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TimeLimitSetting } from "@/components/layout/time-limit-setting";
+import { ButtonLink } from "@/components/ui/button-link";
+import { PushNotificationSetting } from "@/components/settings/push-notification-setting";
 
 export default async function SettingsPage() {
   const profile = await getCurrentProfile();
@@ -71,6 +73,32 @@ export default async function SettingsPage() {
       </Card>
 
       <TimeLimitSetting />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Offline</CardTitle>
+          <CardDescription>
+            Flashcard decks saved on this device stay reviewable without a connection.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ButtonLink href="/app/offline" variant="outline" size="sm">
+            Manage offline decks
+          </ButtonLink>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Notifications</CardTitle>
+          <CardDescription>
+            Get notified even when the app isn&apos;t open. Works on installed apps and modern browsers.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PushNotificationSetting />
+        </CardContent>
+      </Card>
     </div>
   );
 }

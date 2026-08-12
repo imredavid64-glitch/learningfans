@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { updateMeetingStatus } from "@/actions/meetings";
+import { hapticLight, hapticMedium } from "@/lib/haptics";
 import {
   Video,
   VideoOff,
@@ -43,6 +44,7 @@ export function LiveCallRoom({
 
   const handleStartCall = async () => {
     setInCall(true);
+    void hapticMedium();
     if (isOrganizer && status === "scheduled") {
       await updateMeetingStatus(meetingId, "live");
     }
@@ -50,6 +52,7 @@ export function LiveCallRoom({
 
   const handleEndCall = async () => {
     setInCall(false);
+    void hapticLight();
     if (isOrganizer) {
       await updateMeetingStatus(meetingId, "completed");
     }

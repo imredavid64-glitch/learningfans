@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile, getSpaceMembership } from "@/lib/auth";
 import {
   ALLOWED_FILE_MIME_TYPES,
+  MAX_CARD_TEXT_LENGTH,
+  MAX_DECK_METADATA_BYTES,
   MAX_FILE_SIZE_BYTES,
   MAX_FLASHCARDS_PER_SET,
   MAX_NOTE_SIZE_BYTES,
@@ -113,9 +115,27 @@ export async function createFlashcardMaterial(
     return;
   }
 
+  if (!Array.isArray(cards)) return;
+
   if (cards.length > MAX_FLASHCARDS_PER_SET) {
     return;
   }
+
+  // Trim payload: strip whitespace and cap each side so decks stay lean in the DB.
+  const cleaned = cards
+    .filter((c) => c && typeof c === "object")
+    .map((c) => ({
+      front: String(c.front ?? "").trim().slice(0, MAX_CARD_TEXT_LENGTH),
+      back: String(c.back ?? "").trim().slice(0, MAX_CARD_TEXT_LENGTH),
+    }))
+    .filter((c) => c.front && c.back);
+
+  if (cleaned.length === 0) return;
+
+  if (Buffer.byteLength(JSON.stringify(cleaned), "utf8") > MAX_DECK_METADATA_BYTES) {
+    return;
+  }
+  cards = cleaned;
 
   const { data: space } = await supabase
     .from("spaces")

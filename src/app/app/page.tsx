@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { StudyStatsCard } from "@/components/gamification/study-stats-card";
+import { DeadlineRadar } from "@/components/schedule/deadline-radar";
 
 export default async function DashboardPage() {
   const profile = await getCurrentProfile();
@@ -60,6 +61,8 @@ export default async function DashboardPage() {
         initialStats={myStats}
         initialLeaderboard={leaderboard}
       />
+
+      <DeadlineRadar />
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-1">

@@ -334,27 +334,35 @@ export async function cancelMeeting(meetingId: string): Promise<void> {
   redirect("/app/meetings");
 }
 
-export async function getMeetingReminders(userId: string): Promise<{ id: string; text: string; meetingTitle: string; scheduledFor: string }[]> {
+export async function getMeetingReminders(): Promise<{
+  id: string;
+  text: string;
+  meetingTitle: string;
+  meetingId: string;
+  scheduledFor: string;
+}[]> {
+  const profile = await requireProfile();
   const supabase = await createClient();
 
   const now = new Date().toISOString();
 
   const { data } = await supabase
     .from("meeting_reminders")
-    .select("id, reminder_text, scheduled_for, meeting_id, meetings!inner(title)")
-    .eq("recipient_id", userId)
+    .select("id, reminder_text, scheduled_for, meeting_id, meetings!inner(id, title)")
+    .eq("recipient_id", profile.id)
     .lte("scheduled_for", now)
     .is("sent_at", null)
     .limit(10);
 
   if (!data) return [];
 
-  return (data as { id: string; reminder_text: string; scheduled_for: string; meetings: { title: string }[] | null }[]).map((r) => {
+  return (data as { id: string; reminder_text: string; scheduled_for: string; meeting_id: string; meetings: { id: string; title: string }[] | null }[]).map((r) => {
     const m = Array.isArray(r.meetings) ? r.meetings[0] : r.meetings;
     return {
       id: r.id,
       text: r.reminder_text,
       meetingTitle: m?.title || "Untitled Meeting",
+      meetingId: m?.id || r.meeting_id,
       scheduledFor: r.scheduled_for,
     };
   });

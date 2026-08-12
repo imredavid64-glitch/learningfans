@@ -6,6 +6,43 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { eventSchema, validateOrThrow } from "@/lib/validation";
 
+const DEFAULT_REMINDER_MINUTES = 30;
+
+function formatEventTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+async function scheduleEventReminders(
+  eventId: string,
+  title: string,
+  startsAt: string,
+  minutesBefore: number,
+  recipientIds: string[],
+): Promise<void> {
+  if (recipientIds.length === 0) return;
+  try {
+    const supabase = await createClient();
+    const scheduledFor = new Date(new Date(startsAt).getTime() - minutesBefore * 60_000);
+    const text = `Reminder: "${title}" starts ${formatEventTime(startsAt)}.`;
+    const rows = recipientIds.map((userId) => ({
+      event_id: eventId,
+      recipient_id: userId,
+      reminder_text: text,
+      scheduled_for: scheduledFor.toISOString(),
+    }));
+    await supabase.from("schedule_event_reminders").insert(rows);
+  } catch {
+    // Reminder table may not exist yet (migration not applied) — event still works.
+  }
+}
+
 export async function createEvent(formData: FormData): Promise<void> {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -56,7 +93,12 @@ export async function createEvent(formData: FormData): Promise<void> {
     ? await supabase.from("spaces").select("slug").eq("id", spaceId).single()
     : { data: null };
 
-  const { error } = await supabase
+  const reminderRaw = Number(formData.get("reminder") ?? "");
+  const reminderMinutesBefore = Number.isFinite(reminderRaw) && reminderRaw > 0
+    ? Math.min(Math.round(reminderRaw), 10080)
+    : DEFAULT_REMINDER_MINUTES;
+
+  const { data: inserted, error } = await supabase
     .from("schedule_events")
     .insert({
       space_id: spaceId || null,
@@ -68,18 +110,78 @@ export async function createEvent(formData: FormData): Promise<void> {
       all_day: allDay,
       timezone: "UTC",
       visibility: validVisibility,
+      reminder_minutes_before: reminderMinutesBefore,
       ...(room !== null && room !== "" ? { room } : {}),
-    });
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    redirect(`/app/schedule?error=${encodeURIComponent(error.message)}`);
+  if (error || !inserted) {
+    redirect(`/app/schedule?error=${encodeURIComponent(error.message ?? "Could not create event")}`);
   }
+
+  // Remind the owner, plus RSVP'd attendees for shared events.
+  const recipients: string[] = [profile.id];
+  if (validVisibility === "space" && spaceId) {
+    const { data: attendees } = await supabase
+      .from("event_attendees")
+      .select("user_id")
+      .eq("event_id", inserted.id)
+      .in("status", ["going", "maybe"]);
+    for (const a of attendees ?? []) {
+      if (a.user_id !== profile.id) recipients.push(a.user_id);
+    }
+  }
+  await scheduleEventReminders(inserted.id, title, startsAt, reminderMinutesBefore, recipients);
 
   if (space) {
     revalidatePath(`/app/classes/${space.slug}/schedule`);
   }
   revalidatePath("/app/schedule");
   redirect(`/app/schedule`);
+}
+
+export async function getDueEventReminders(): Promise<{
+  id: string;
+  text: string;
+  eventTitle: string;
+  eventId: string;
+  scheduledFor: string;
+}[]> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const now = new Date().toISOString();
+  const { data } = await supabase
+    .from("schedule_event_reminders")
+    .select("id, reminder_text, scheduled_for, event_id, schedule_events!inner(id, title)")
+    .eq("recipient_id", profile.id)
+    .lte("scheduled_for", now)
+    .is("sent_at", null)
+    .limit(10);
+
+  if (!data) return [];
+
+  return (data as { id: string; reminder_text: string; scheduled_for: string; event_id: string; schedule_events: { id: string; title: string }[] | null }[]).map((r) => {
+    const e = Array.isArray(r.schedule_events) ? r.schedule_events[0] : r.schedule_events;
+    return {
+      id: r.id,
+      text: r.reminder_text,
+      eventTitle: e?.title || "Untitled event",
+      eventId: e?.id || r.event_id,
+      scheduledFor: r.scheduled_for,
+    };
+  });
+}
+
+export async function dismissEventReminder(reminderId: string): Promise<void> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+  await supabase
+    .from("schedule_event_reminders")
+    .update({ sent_at: new Date().toISOString() })
+    .eq("id", reminderId)
+    .eq("recipient_id", profile.id);
 }
 
 export async function rsvpToEvent(eventId: string, status: "going" | "maybe"): Promise<void> {

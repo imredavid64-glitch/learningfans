@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Calendar, Flag, Home, Layers, ListOrdered, Settings, Shield, Video, GraduationCap } from "lucide-react";
+import { BookOpen, Calendar, Flag, Home, Layers, ListOrdered, Settings, Shield, Video, GraduationCap, Search } from "lucide-react";
 import { isModerator, isAdmin } from "@/lib/auth";
 import type { Profile } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,11 @@ export function AppNav({ profile }: { profile: Profile }) {
           <span className="hidden text-sm text-muted-foreground sm:inline">
             {profile.display_name}
           </span>
+          <Link href="/app/search" aria-label="Search">
+            <Button variant="ghost" size="icon">
+              <Search className="h-4 w-4" />
+            </Button>
+          </Link>
           <NotificationBell userId={profile.id} />
           <Link href="/app/settings">
             <Button variant="ghost" size="icon" aria-label="Settings">

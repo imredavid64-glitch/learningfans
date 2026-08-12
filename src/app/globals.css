@@ -128,3 +128,37 @@
     @apply font-sans;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Platform adaptation (data-* attributes set by PlatformAdapter)      */
+/* ------------------------------------------------------------------ */
+
+@layer utilities {
+  /* Home-indicator / notch safe areas (PWA standalone + native shells). */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Capacitor iOS/Android: feel native, not like a mobile browser page. */
+[data-native="true"] {
+  -webkit-tap-highlight-color: transparent;
+}
+[data-native="true"] body {
+  overscroll-behavior-y: none;
+}
+[data-native="true"] img,
+[data-native="true"] a {
+  -webkit-touch-callout: none;
+}
+
+/* Keep the sticky header under the notch on installed-PWA phones
+   (Capacitor insets its own webview, so skip it there). */
+@media (display-mode: standalone) {
+  [data-native="false"] header {
+    padding-top: env(safe-area-inset-top);
+  }
+}

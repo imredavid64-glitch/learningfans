@@ -5,6 +5,7 @@ import { Flame, Star, Trophy, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { dailyCheckIn } from "@/actions/gamification";
 import { xpToLevel, levelProgress } from "@/lib/gamification";
+import { hapticSuccess } from "@/lib/haptics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ export function StudyStatsCard({
     }
     const data = res.data;
     if (data) {
+      void hapticSuccess();
       setStats((prev) =>
         prev
           ? {

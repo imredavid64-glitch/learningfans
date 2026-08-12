@@ -1,3 +1,10 @@
 {
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/push/send",
+      "schedule": "0 8 * * *",
+      "Authorization": ["Bearer $PUSH_CRON_SECRET"]
+    }
+  ]
 }

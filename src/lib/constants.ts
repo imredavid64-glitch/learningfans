@@ -2,6 +2,10 @@ export const USER_STORAGE_QUOTA_BYTES = 25 * 1024 * 1024; // 25 MB per user
 export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB per file
 export const MAX_NOTE_SIZE_BYTES = 50 * 1024; // 50 KB
 export const MAX_FLASHCARDS_PER_SET = 100;
+// Spaced-repetition decks live in study_materials.metadata (jsonb). Caps keep a
+// single deck well under the row limit and the DB lean.
+export const MAX_CARD_TEXT_LENGTH = 1000; // chars per card side
+export const MAX_DECK_METADATA_BYTES = 150 * 1024; // ~150 KB per deck (incl. JSON overhead)
 
 export const ALLOWED_FILE_MIME_TYPES = [
   "application/pdf",
