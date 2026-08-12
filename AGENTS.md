@@ -8,6 +8,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Full documentation
+- Wrote a docs home + seven reference docs in `docs/`: `README.md` (index + repo map + route index), `ARCHITECTURE.md` (stack, runtime model, realtime primitives, data flow, free-tier guardrails), `DATABASE.md` (all 33 tables, RLS model + helpers, 26 RPCs, realtime publications, migration index), `FEATURES.md` (every feature area → routes/actions/components/behavior), `DEPLOYMENT.md` (env vars, deploy + alias, cron, native, PWA, releases, rollback), `DEVELOPMENT.md` (setup, scripts, conventions, testing), `MODERATION.md` (layered pipeline, escalation tiers, security model), `TROUBLESHOOTING.md` (common failures incl. GoTrue warnings, deploy quota, missing migrations). Root README now links `docs/README.md`.
+- Facts verified against the codebase: table/RPC/realtime inventory via grep across migrations, proxy headers, workflows, electron config.
+
 ## 2026-08-12 — Whiteboard presence cursors
 - **Live pointer cursors**: each user's pointer over the board shows to everyone else as a colored dot + name pill (overlay canvas, `pointer-events-none`, DPR-aware like the main canvas). Realtime **presence** on the board channel (`study-room-board-{roomId}` now has `presence.key = userId`): pointer positions tracked via `channel.track({x, y})` throttled to ~10 Hz (`CURSOR_TRACK_MS = 100`), `{x: null, y: null}` on pointer-leave to hide, auto-cleaned on disconnect (presence semantics — no ghost cursors). Per-user color: deterministic palette hash `cursorColor(userId)` in `study-room-utils.ts` (+1 test → 93/93).
 - Files: `src/components/study-rooms/whiteboard.tsx` (props + presence + overlay canvas + `sizeCanvas`/`drawCursor` helpers), `src/lib/study-room-utils.ts`, `src/lib/__tests__/study-room-utils.test.ts`, `src/components/study-rooms/study-room.tsx` (passes userId/displayName).

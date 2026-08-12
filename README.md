@@ -162,6 +162,12 @@ supabase/migrations/
 | `moderator` | + Mod queue, sanctions, hide content |
 | `admin` | + User roles, storage overview |
 
+## Documentation
+
+Full documentation lives in [`docs/`](docs/README.md): architecture, database
+schema, every feature area, deployment, development, moderation, and
+[troubleshooting](docs/TROUBLESHOOTING.md).
+
 ## Launching?
 
 Work through [`docs/LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md) — the ordered runbook
