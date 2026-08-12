@@ -8,6 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Mod dashboard + automod
+- **Migration** `20260812000014_mod_dashboard_automod.sql` (manual apply ⚠️): `spaces.automod_rules` jsonb; `moderation_actions.space_id` + index; space-mod log select policy; insert policy now allows `action='auto_flag'` self-logging (fixes silently-dropped AI/automod flags).
+- **Lib** `src/lib/automod.ts`: `AutomodRule` (name, comma keywords, scope thread/post/all, action flag/remove), `validateAutomodRules`, `checkAutomod` — 7 new unit tests (128 total).
+- **Enforcement** in `createThread`/`createPost`: remove → reject with rule name; flag → `is_hidden` + `moderation_actions` row (space_id, note). **Bug fix:** `createThread` resolved the bound slug as `space_id` (uuid FK) — thread creation from the community page was broken; now resolves id via `id.eq OR slug.eq`.
+- **Page** `/app/spaces/[slug]/moderation`: `AutomodEditor` (add/edit/remove rules, scope + action selects) + mod action history; linked from the space header for mods.
+- Quality: 128/128 tests, tsc + lint clean, build compiles. `combined.sql` regenerated (24 migrations).
+
 ## 2026-08-12 — Weekly community digest
 - **Migration** `20260812000013_weekly_digests.sql` (manual apply ⚠️): `send_weekly_digests()` RPC — per member-user, counts new threads/materials/replies in their communities over 7 days, dedupes to one `digest` notification per rolling week, skips no-activity weeks.
 - **Cron** `/api/cron/digest` (CRON_SECRET-guarded, mirrors `/api/push/send`); `vercel.json` adds `0 8 * * 1` (Monday 08:00 UTC) — Hobby plan has 2 cron slots.

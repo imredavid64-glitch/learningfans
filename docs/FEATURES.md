@@ -208,6 +208,24 @@ superpower of the Reddit-for-learners vision (see
 - **Entry points:** desktop + mobile nav, dashboard quick actions, space pages
   (`/app/study-rooms?space=…` preselects the space).
 
+## Mod dashboard + automod
+
+- **Route:** `/app/spaces/[slug]/moderation` (space mods + app mods; linked from
+  the space header).
+- **Automod rules:** mod-defined keyword rules (`spaces.automod_rules` jsonb,
+  migration 0014) — each has a name, comma-separated case-insensitive keywords,
+  a scope (threads / replies / both), and an action: **flag** (hide + log) or
+  **remove** (block outright). Enforced in `createThread` / `createPost` via the
+  pure `checkAutomod` helper (`src/lib/automod.ts`, unit-tested); flagged
+  content is logged to `moderation_actions` with `space_id`.
+- **Mod action history:** the community's log (automod + AI flags + manual mod
+  actions) with actor, action badge, and note. Migration 0014 also fixes two
+  latent issues: space mods couldn't read the log (new select policy), and
+  `auto_flag` inserts by non-app-mods silently failed (relaxed insert policy).
+- **Fix:** thread creation from the community page passed the *slug* as
+  `space_id` (uuid FK) — `createThread` now resolves the space id via
+  `id.eq OR slug.eq` before inserting.
+
 ## Weekly community digest
 
 - Every **Monday 08:00 UTC** the `send_weekly_digests` RPC (called by the

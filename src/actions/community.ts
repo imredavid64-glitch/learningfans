@@ -19,6 +19,7 @@ import {
   type CommunityAnnouncement,
   type CommunityFlair,
 } from "@/lib/community";
+import { validateAutomodRules } from "@/lib/automod";
 
 export type CommunityResult = { ok: boolean; error?: string };
 
@@ -135,6 +136,32 @@ export async function removeCommunityAsset(
   const { error } = await supabase
     .from("spaces")
     .update(kind === "icon" ? { icon_url: null } : { banner_url: null })
+    .eq("id", spaceId);
+
+  if (error) return { ok: false, error: error.message };
+  if (space) revalidatePath(`/app/spaces/${space.slug}`);
+  return { ok: true };
+}
+
+/** Replace the community's automod rules (moderators only). */
+export async function saveAutomodRules(
+  spaceId: string,
+  rules: unknown,
+): Promise<CommunityResult> {
+  await requireSpaceModerator(spaceId);
+  const supabase = await createClient();
+
+  const validation = validateAutomodRules(rules);
+  if (!validation.ok) return { ok: false, error: validation.error };
+
+  const { data: space } = await supabase
+    .from("spaces")
+    .select("slug")
+    .eq("id", spaceId)
+    .single();
+  const { error } = await supabase
+    .from("spaces")
+    .update({ automod_rules: validation.rules })
     .eq("id", spaceId);
 
   if (error) return { ok: false, error: error.message };

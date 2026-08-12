@@ -148,6 +148,11 @@ export default async function SpacePage({
           <ButtonLink href={`/app/schedule?space=${space.id}`} variant="outline">
             Space schedule
           </ButtonLink>
+          {isMod && (
+            <ButtonLink href={`/app/spaces/${slug}/moderation`} variant="outline">
+              Mod dashboard
+            </ButtonLink>
+          )}
           {membership && (
             <form action={leaveSpace.bind(null, space.id)}>
               <Button type="submit" variant="ghost" size="sm">

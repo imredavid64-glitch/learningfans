@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile, getSpaceMembership, isModerator } from "@/lib/auth";
 import type { CommunityFlair } from "@/lib/community";
+import { checkAutomod, type AutomodRule } from "@/lib/automod";
 import { checkContentWithAI, checkAndArchive } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
 import { threadSchema, postSchema, validateOrThrow } from "@/lib/validation";
@@ -101,6 +102,23 @@ export async function createPost(threadId: string, formData: FormData): Promise<
     redirect(`${threadPath(slug, threadId)}?error=Content%20violates%20community%20guidelines.%20Your%20account%20has%20been%20suspended.`);
   }
 
+  // Community automod rules (scope: post) — remove rejects outright.
+  const { data: spaceRow } = await supabase
+    .from("spaces")
+    .select("automod_rules")
+    .eq("id", thread.space_id)
+    .single();
+  const automodRules = Array.isArray(spaceRow?.automod_rules)
+    ? (spaceRow.automod_rules as AutomodRule[])
+    : [];
+  const automodMatch = checkAutomod(automodRules, body, "post");
+  if (automodMatch?.action === "remove") {
+    redirect(
+      `${threadPath(slug, threadId)}?error=${encodeURIComponent(`Removed by community rule: ${automodMatch.name}`)}`,
+    );
+  }
+  const automodFlagged = automodMatch?.action === "flag";
+
   const { data: post, error } = await supabase
     .from("posts")
     .insert({
@@ -108,7 +126,7 @@ export async function createPost(threadId: string, formData: FormData): Promise<
       author_id: profile.id,
       body,
       parent_id: parentId,
-      is_hidden: !moderation.is_clean,
+      is_hidden: !moderation.is_clean || Boolean(automodFlagged),
     })
     .select()
     .single();
@@ -122,12 +140,22 @@ export async function createPost(threadId: string, formData: FormData): Promise<
     .update({ updated_at: new Date().toISOString() })
     .eq("id", threadId);
 
-  if (!moderation.is_clean) {
+  if (automodFlagged) {
     await supabase.from("moderation_actions").insert({
       actor_id: profile.id,
       action: "auto_flag",
       target_type: "post",
       target_id: post.id,
+      space_id: thread.space_id,
+      note: `Automod: ${automodMatch?.name}`,
+    });
+  } else if (!moderation.is_clean) {
+    await supabase.from("moderation_actions").insert({
+      actor_id: profile.id,
+      action: "auto_flag",
+      target_type: "post",
+      target_id: post.id,
+      space_id: thread.space_id,
       note: `AI moderation flagged: ${moderation.violations.join(", ")}`,
     });
   }
@@ -153,15 +181,24 @@ export async function createThread(spaceId: string, formData: FormData): Promise
 
   const slug = await getSpaceSlug(supabase, spaceId);
 
-  // Optional post flair — must exist in this community's flair list.
+  // Resolve the community (bound as id or slug) — this also yields the
+  // automod rules and the flair list.
   const { data: spaceRow } = await supabase
     .from("spaces")
-    .select("flairs")
+    .select("id, flairs, automod_rules")
     .or(`id.eq.${spaceId},slug.eq.${spaceId}`)
     .single();
-  const spaceFlairs = Array.isArray(spaceRow?.flairs)
+  if (!spaceRow) {
+    redirect(`/app/classes/${slug}?error=${encodeURIComponent("Community not found.")}`);
+  }
+  const resolvedSpaceId = spaceRow.id as string;
+  const spaceFlairs = Array.isArray(spaceRow.flairs)
     ? (spaceRow.flairs as CommunityFlair[])
     : [];
+  const automodRules = Array.isArray(spaceRow.automod_rules)
+    ? (spaceRow.automod_rules as AutomodRule[])
+    : [];
+
   const flairId = String(formData.get("flair") ?? "").trim() || null;
   if (flairId && !spaceFlairs.some((f) => f.id === flairId)) {
     redirect(
@@ -183,7 +220,7 @@ export async function createThread(spaceId: string, formData: FormData): Promise
   const { data: membership } = await supabase
     .from("space_members")
     .select("role")
-    .eq("space_id", spaceId)
+    .eq("space_id", resolvedSpaceId)
     .eq("user_id", profile.id)
     .single();
 
@@ -192,6 +229,14 @@ export async function createThread(spaceId: string, formData: FormData): Promise
   }
 
   const moderation = await checkContentWithAI(`${title}\n${body}`, "class discussion thread");
+
+  // Community automod rules (scope: thread) — remove rejects outright.
+  const automodMatch = checkAutomod(automodRules, `${title}\n${body}`, "thread");
+  if (automodMatch?.action === "remove") {
+    redirect(
+      `/app/classes/${slug}?error=${encodeURIComponent(`Removed by community rule: ${automodMatch.name}`)}`,
+    );
+  }
 
   if (!moderation.is_clean && moderation.risk_level === "high") {
     await supabase.from("user_sanctions").insert({
@@ -202,15 +247,17 @@ export async function createThread(spaceId: string, formData: FormData): Promise
     redirect(`/app/classes/${slug}?error=Content%20violates%20community%20guidelines.%20Your%20account%20has%20been%20suspended.`);
   }
 
+  const automodFlagged = automodMatch?.action === "flag";
+
   const { data: thread, error } = await supabase
     .from("threads")
     .insert({
-      space_id: spaceId,
+      space_id: resolvedSpaceId,
       author_id: profile.id,
       title,
       body,
       flair_id: flairId,
-      is_hidden: !moderation.is_clean,
+      is_hidden: !moderation.is_clean || Boolean(automodFlagged),
     })
     .select()
     .single();
@@ -219,12 +266,22 @@ export async function createThread(spaceId: string, formData: FormData): Promise
     redirect(`/app/classes/${slug}?error=${encodeURIComponent(error.message)}`);
   }
 
-  if (!moderation.is_clean) {
+  if (automodFlagged) {
     await supabase.from("moderation_actions").insert({
       actor_id: profile.id,
       action: "auto_flag",
       target_type: "thread",
       target_id: thread.id,
+      space_id: resolvedSpaceId,
+      note: `Automod: ${automodMatch?.name}`,
+    });
+  } else if (!moderation.is_clean) {
+    await supabase.from("moderation_actions").insert({
+      actor_id: profile.id,
+      action: "auto_flag",
+      target_type: "thread",
+      target_id: thread.id,
+      space_id: resolvedSpaceId,
       note: `AI moderation flagged: ${moderation.violations.join(", ")}`,
     });
   }

@@ -155,6 +155,9 @@ for cross-account checks.
 - [ ] Reply to a reply → it nests under the parent; Reply buttons render the inline composer
 - [ ] Deep chains indent to a maximum of 3 levels but still thread correctly; parent author gets a bell ping
 - [ ] A forged parent_id pointing at another thread's post is rejected
+- [ ] Mod adds an automod rule with a remove action → posting matching content is blocked with the rule name
+- [ ] A flag rule hides matching content and logs it to the community mod log (visible to space mods)
+- [ ] Mod log shows automod/AI flags with actor + note; non-mod cannot open the mod dashboard
 - [ ] Upload a file, add a link, a note, and a flashcard set (5 MB / 25 MB caps enforced)
 - [ ] Review flashcards: SM-2 grading, mastered tracking, offline deck download
 - [ ] Upload a PDF → Preview opens the inline pane (iframes render in browser); Download works

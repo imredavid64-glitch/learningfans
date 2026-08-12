@@ -82,7 +82,7 @@ Patterns repeated across policies:
 | `push_subscriptions` | Web Push (VAPID) subscriptions; `push_sent_at` idempotency |
 | `reports` | Moderation reports (thread/post/material/profile) |
 | `user_sanctions` | warn / mute / suspend with expiry |
-| `moderation_actions` | Audit of moderator actions |
+| `moderation_actions` | Audit of moderator actions; `space_id` scopes per-community mod logs; automod/AI auto_flags are logged by the author (new insert policy) |
 | `profanity_incidents`, `profanity_notifications` | Profanity escalation ledger |
 | `audit_log` | Audit trail (class/moderator events) |
 | `storage_objects` | Storage metadata mirror |
@@ -156,6 +156,7 @@ communities, skips no-activity weeks)
 | `20260812000011_nested_replies.sql` | `posts.parent_id` (self-ref, cascade) + thread/parent index; `notify_new_post` also pings the parent comment author |
 | `20260812000012_saved_items.sql` | `saved_collections` + `saved_items` (user-owned RLS; polymorphic item_type thread/material; FK set-null on folder delete) |
 | `20260812000013_weekly_digests.sql` | `send_weekly_digests()` RPC (per-user weekly activity counts + dedupe) for the `/api/cron/digest` cron |
+| `20260812000014_mod_dashboard_automod.sql` | `spaces.automod_rules` jsonb; `moderation_actions.space_id` + index; space-mod log read policy; `auto_flag` self-log insert policy |
 | `combined.sql` | All of the above concatenated (one-shot fresh install) |
 
 > **Existing projects:** newer migrations (0001–0005, study_progress,
