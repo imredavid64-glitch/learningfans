@@ -125,7 +125,13 @@ export function StudyRoom({
       {/* Board + tools */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-h-[420px]">
-          <Whiteboard roomId={room.id} initialStrokes={room.whiteboard} readOnly={ended} />
+          <Whiteboard
+            roomId={room.id}
+            userId={userId}
+            displayName={displayName}
+            initialStrokes={room.whiteboard}
+            readOnly={ended}
+          />
         </div>
         <div className="flex min-h-0 flex-col gap-6">
           <PomodoroTimer roomId={room.id} userId={userId} disabled={ended} />

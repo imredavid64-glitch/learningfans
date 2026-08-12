@@ -71,6 +71,10 @@ for cross-account checks.
 ## 3. Study room deep QA (two accounts, two tabs/browsers)
 
 ### Whiteboard — the critical path
+- [ ] With two accounts in the room, each user's pointer shows as a **colored dot
+      + name pill** on the other user's board
+- [ ] Cursor follows movement smoothly (~10 Hz) and disappears on pointer-leave
+- [ ] When a user closes the tab, their cursor disappears within a few seconds
 - [ ] Draw in tab A → stroke appears live in tab B (within ~1s)
 - [ ] Different pen colors + widths render correctly on both sides
 - [ ] Eraser removes ink on both sides; undo removes the last stroke everywhere

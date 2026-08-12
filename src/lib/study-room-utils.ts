@@ -25,6 +25,27 @@ export const POMODORO_BREAK_SECONDS = 5 * 60;
 
 export const ALLOWED_REACTIONS = ["👍", "🎉", "❤️", "🔥", "😄", "🙏"] as const;
 
+/** Distinct per-user cursor colors on the whiteboard. */
+export const CURSOR_COLORS = [
+  "#ef4444",
+  "#3b82f6",
+  "#22c55e",
+  "#a855f7",
+  "#f97316",
+  "#06b6d4",
+  "#ec4899",
+  "#84cc16",
+] as const;
+
+/** Deterministic color for a user's whiteboard cursor. */
+export function cursorColor(userId: string): string {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
+  }
+  return CURSOR_COLORS[hash % CURSOR_COLORS.length];
+}
+
 export function isAllowedReaction(emoji: string): boolean {
   return (ALLOWED_REACTIONS as readonly string[]).includes(emoji);
 }

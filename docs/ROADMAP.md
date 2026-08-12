@@ -20,9 +20,11 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 - ✅ **Reactions on messages** — shipped 2026-08-12: 👍 🎉 ❤️ 🔥 😄 🙏 on room
   chat messages, realtime via `study_room_message_reactions` + postgres_changes.
   Next step: per-user tooltips listing who reacted.
-- **Presence cursors on the whiteboard** (`M`): show a small colored dot with each
-  person's name where their pointer is right now (realtime `presence` broadcast of
-  `{x, y}` throttled to ~10 Hz). Makes collaboration feel alive.
+- ✅ **Presence cursors on the whiteboard** — shipped 2026-08-12: each person in
+  the room sees the others' pointer as a colored dot + name pill on the board.
+  Powered by Realtime presence on the board channel (`{x, y}` tracked at ~10 Hz,
+  auto-cleaned when someone disconnects); per-user colors derived from a palette
+  hash (`cursorColor`). Next step: cursors in the chat + room canvas thumbnails.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or
@@ -101,6 +103,10 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 
 ## Shipped recently (context)
 
+- **2026-08-12** — Whiteboard **presence cursors**: live colored dots + name pills
+  for everyone currently in the room, synced via Realtime presence on the board
+  channel (`{x, y}` throttled to ~10 Hz, hidden on pointer-leave, auto-cleaned on
+  disconnect). Deterministic per-user color from `cursorColor(userId)`.
 - **2026-08-12** — Room chat **@mentions + emoji reactions**: `@` autocomplete
   against space members (or all profiles in open rooms), highlighted `@name`
   rendering, bell notifications (`create_notification`, type `mention`), and

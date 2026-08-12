@@ -17,6 +17,8 @@ import {
   mentionQuery,
   filterMentionCandidates,
   ALLOWED_REACTIONS,
+  cursorColor,
+  CURSOR_COLORS,
   type WhiteboardStroke,
   type PomodoroState,
 } from "@/lib/study-room-utils";
@@ -182,6 +184,16 @@ describe("mentions & reactions", () => {
     expect(filterMentionCandidates(users, "la").map((u) => u.id)).toEqual(["1", "2"]);
     expect(filterMentionCandidates(users, "hopper").map((u) => u.id)).toEqual(["3"]);
     expect(filterMentionCandidates(users, "zzz")).toEqual([]);
+  });
+
+  it("assigns deterministic in-palette cursor colors", () => {
+    const c1 = cursorColor("user-abc");
+    const c2 = cursorColor("user-abc");
+    expect(c1).toBe(c2);
+    expect(CURSOR_COLORS).toContain(c1);
+    expect(cursorColor("different-user")).not.toBe(c1);
+    const seen = new Set(Array.from({ length: 40 }, (_, i) => cursorColor(`u${i}`)));
+    expect(seen.size).toBeGreaterThan(1); // spreads across the palette
   });
 
   it("only allows the curated reaction set", () => {
