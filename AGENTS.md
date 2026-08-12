@@ -8,6 +8,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Room chat moderation backfill
+- **`supabase/backfill_chat_moderation.sql`** (one-off paste, idempotent): enqueues every `study_room_messages` row not already in `chat_moderation_queue` (NOT EXISTS dedupe, skips hidden) so old history gets AI-reviewed by the existing batched pipeline.
+- **Drain route** `/api/moderation/chat` accepts `?chunks=N` (1–50, default 3) to chew through a big backlog fast (N × 15 messages per call) after the backfill.
+- Quality: 135/135 tests, tsc + lint clean, build compiles. Docs: MODERATION.
+
 ## 2026-08-12 — Per-message report button in room chat
 - **Migration** `20260812000016_message_reports.sql` (manual apply ⚠️): `report_target_type` gains `message` (`ADD VALUE IF NOT EXISTS`); app moderators can now read room chat (incl. space-linked rooms) so the mod queue can show the reported message.
 - **UI** `room-chat.tsx`: hover any message (own or others, even ended rooms) → compact 🚩 report button in the hover row opens the standard report dialog (`ReportButton` gained a `compact` icon-only variant); hidden messages show no report button.

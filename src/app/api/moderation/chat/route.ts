@@ -9,6 +9,10 @@ export const runtime = "nodejs";
  * flagged. NOT a vercel.json cron (Hobby's two-cron limit is used by push +
  * digest) — it's triggered fire-and-forget after each chat send, and as a
  * safety net by the daily push cron.
+ *
+ * `?chunks=N` (1–50, default 3) raises the drain budget — used after the
+ * one-off backfill (`supabase/backfill_chat_moderation.sql`) to chew through
+ * a large history backlog quickly (N × 15 messages per call).
  */
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
@@ -16,8 +20,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const requestedChunks = Number(new URL(request.url).searchParams.get("chunks"));
+  const maxChunks = Number.isFinite(requestedChunks)
+    ? Math.min(Math.max(Math.floor(requestedChunks), 1), 50)
+    : 3;
+
   try {
-    const result = await drainChatModerationQueue();
+    const result = await drainChatModerationQueue({ maxChunks });
     return NextResponse.json(result);
   } catch (error) {
     console.error("Chat moderation flush failed:", error);

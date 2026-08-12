@@ -118,6 +118,11 @@ obvious violations are caught instantly and the AI only decides nuanced cases.
     `failed`.
 - Reactions are limited to a curated emoji set; reactions + messages are
   user-owned (delete own only).
+- **Backfilling existing history**: `supabase/backfill_chat_moderation.sql` (a
+  one-off paste) enqueues every message never AI-reviewed — idempotent
+  (`NOT EXISTS` dedupe), skips already-hidden messages. Processing then flows
+  through the normal flush; pass `?chunks=N` (1–50) to the
+  `/api/moderation/chat` route to drain a large backlog fast.
 - **End room** is creator-or-moderator only (RLS); ended rooms become read-only
   (board) and chat is disabled.
 - Space-linked rooms restrict visibility + mentions to **space members**
