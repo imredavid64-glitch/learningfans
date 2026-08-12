@@ -14,8 +14,10 @@ interface SubscriptionRow {
 }
 
 export async function GET(request: Request) {
+  // Vercel cron requests carry `Authorization: Bearer $CRON_SECRET` when the
+  // CRON_SECRET env var is set (Vercel's built-in cron auth convention).
   const auth = request.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.PUSH_CRON_SECRET}`) {
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

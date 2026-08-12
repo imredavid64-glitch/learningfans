@@ -94,7 +94,7 @@ Optional server-only keys (features degrade gracefully when absent):
 | `SUPABASE_ACCESS_TOKEN` | School provisioning via the Supabase management API |
 | `ARCHIVE_SUPABASE_URL` / `ARCHIVE_SUPABASE_SERVICE_KEY` | Archival to a second Supabase project when the DB nears its limit |
 | `VAPID_SUBJECT` / `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web push notifications (generate with `npx web-push generate-vapid-keys`) |
-| `PUSH_CRON_SECRET` | Protects the `/api/push/send` cron endpoint (any random string) |
+| `CRON_SECRET` | Protects the `/api/push/send` cron endpoint — Vercel sends it as `Authorization: Bearer` on cron requests (any random string) |
 
 4. Redeploy after saving env vars (Deployments → … → Redeploy).
 5. In Supabase → Authentication → URL Configuration, add:
