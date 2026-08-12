@@ -18,6 +18,7 @@ import type { MaterialPriority } from "@/lib/constants";
 import type { StudyMaterial } from "@/types/database";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ImageLightbox } from "@/components/materials/image-lightbox";
 import {
   MATERIAL_FILTERS as FILTERS,
   matchesMaterialFilter,
@@ -98,13 +99,33 @@ export function MaterialList({
       {filtered.map((m) => {
         const Icon = typeIcons[m.type];
         const isVip = m.metadata?.is_vip === true;
+        const isImage = matchesMaterialFilter(m, "image");
+        const isPdf = matchesMaterialFilter(m, "pdf");
+        const previewUrl = `/app/spaces/${spaceSlug}/materials/${m.id}/preview`;
         return (
           <li
             key={m.id}
             className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex gap-3">
-              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+              {isImage ? (
+                <ImageLightbox
+                  src={previewUrl}
+                  alt={m.title}
+                  title={m.title}
+                  triggerClassName="shrink-0"
+                  trigger={
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={previewUrl}
+                      alt={m.title}
+                      className="h-14 w-14 rounded-lg border border-border object-cover"
+                    />
+                  }
+                />
+              ) : (
+                <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+              )}
               <div>
                 <div className="flex items-center gap-2">
                   <p className="font-medium">{m.title}</p>
@@ -153,10 +174,14 @@ export function MaterialList({
                   <SelectItem value="low">Low</SelectItem>
                  </SelectContent>
                </Select>
-              {(m.type === "flashcard_set" || m.type === "quiz") && (
+              {(m.type === "flashcard_set" || m.type === "quiz" || isPdf) && (
                 <Link href={`/app/spaces/${spaceSlug}/materials/${m.id}`}>
                   <Button size="sm" variant="secondary">
-                    {m.type === "quiz" ? "Take quiz" : "Review"}
+                    {m.type === "quiz"
+                      ? "Take quiz"
+                      : m.type === "flashcard_set"
+                        ? "Review"
+                        : "Preview"}
                   </Button>
                 </Link>
               )}

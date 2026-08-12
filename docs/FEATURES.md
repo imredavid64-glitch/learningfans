@@ -65,6 +65,20 @@ Server actions live in `src/actions/*.ts`; components in `src/components/*`.
   `src/components/materials/flashcard-review.tsx`,
   `src/lib/srs.ts`, `src/lib/flashcard-storage.ts`, `src/lib/offline-decks.ts`.
 
+## PDF posts + image lightbox
+
+- **Inline preview:** file materials render on `/app/spaces/[slug]/materials/[id]`
+  — PDFs in an embedded **preview pane** (75vh iframe) with Download + open-in-
+  new-tab, images as a large view with click-to-zoom.
+- **Preview route:** `/app/spaces/[slug]/materials/[id]/preview` proxies the
+  private-bucket bytes with `Content-Disposition: inline` (signed URL
+  server-side, RLS-gated on `study_materials`), so browsers render PDFs in the
+  iframe and images as plain `<img>` — no public bucket needed.
+- **Lightbox:** `ImageLightbox` — fullscreen overlay, Escape/backdrop/X close,
+  body scroll lock. Used on the detail page and inline in the materials list,
+  where image materials show a thumbnail that opens the lightbox and PDFs get a
+  **Preview** button.
+
 ## Schedule
 
 - **Routes:** `/app/schedule`, `/app/classes/[slug]/schedule`.

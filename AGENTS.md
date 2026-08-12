@@ -8,6 +8,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — PDF posts + image lightbox (Reddit Phase 3b)
+- **Preview route** `/app/spaces/[slug]/materials/[id]/preview/route.ts`: streams private-bucket bytes (signed URL fetched server-side) with `Content-Disposition: inline` — lets iframes/img render materials without a public bucket; gated by RLS on study_materials.
+- **Detail page** now handles `file` materials: PDFs get a 75vh inline preview pane + Download/Open-in-new-tab; images get a click-to-zoom large view + download.
+- **`ImageLightbox`** client component (fullscreen overlay, Escape/backdrop/X close, body scroll lock); materials list shows image thumbnails that open it and a Preview button for PDFs.
+- Quality: 121/121 tests, tsc + lint clean (0 warnings), build compiles. No migration. Vercel cap still active — 11 verified commits queued.
+
 ## 2026-08-12 — Browse-by-flair on the community feed
 - `ThreadFeed` gains a color-coded flair chip row (All + each flair, toggle to clear) that filters the thread list before Hot/New/Top/Controversial ranking; empty state distinguishes "no threads" from "none with this flair". Client-only, no migration.
 - Quality: 121/121 tests, tsc + lint clean, build compiles. Vercel cap still active — 10 verified commits queued.

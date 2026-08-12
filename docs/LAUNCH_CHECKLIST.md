@@ -145,6 +145,9 @@ for cross-account checks.
 - [ ] Create thread + reply in a space (realtime post appears without refresh)
 - [ ] Upload a file, add a link, a note, and a flashcard set (5 MB / 25 MB caps enforced)
 - [ ] Review flashcards: SM-2 grading, mastered tracking, offline deck download
+- [ ] Upload a PDF → Preview opens the inline pane (iframes render in browser); Download works
+- [ ] Upload an image → thumbnail in the feed; clicking opens the fullscreen lightbox; Escape closes it
+- [ ] Preview route returns 404 for non-members and non-file types
 - [ ] Set material priority → visible on `/app/priorities` + Deadline Radar
 - [ ] Create a personal and a space schedule event; RSVP to a meeting
 - [ ] Live call room (Jitsi) opens from a scheduled meeting

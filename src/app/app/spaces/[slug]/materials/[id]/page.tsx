@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { Download, FileText } from "lucide-react";
 import { FlashcardReview } from "@/components/materials/flashcard-review";
 import { QuizPlayer } from "@/components/materials/quiz-player";
+import { ImageLightbox } from "@/components/materials/image-lightbox";
+import { ButtonLink } from "@/components/ui/button-link";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { QuizQuestion } from "@/lib/quizzes";
 
 export default async function MaterialPage({
@@ -73,9 +78,81 @@ export default async function MaterialPage({
           creatorAvatar={creator?.avatar_url}
           accentColor={accentColor}
         />
+      ) : material.type === "file" ? (
+        <FilePreview
+          materialId={material.id}
+          slug={slug}
+          title={material.title}
+          mime={(material.metadata as { mime?: string } | null)?.mime ?? ""}
+        />
       ) : (
         notFound()
       )}
     </div>
+  );
+}
+
+function FilePreview({
+  materialId,
+  slug,
+  title,
+  mime,
+}: {
+  materialId: string;
+  slug: string;
+  title: string;
+  mime: string;
+}) {
+  const previewUrl = `/app/spaces/${slug}/materials/${materialId}/preview`;
+  const downloadUrl = `/app/classes/${slug}/materials/${materialId}/download`;
+
+  if (mime.startsWith("image/")) {
+    return (
+      <div className="space-y-4">
+        <ImageLightbox
+          src={previewUrl}
+          alt={title}
+          title={title}
+          triggerClassName="block w-full"
+        />
+        <ButtonLink href={downloadUrl} variant="outline" size="sm" className="gap-1">
+          <Download className="h-3.5 w-3.5" /> Download image
+        </ButtonLink>
+      </div>
+    );
+  }
+
+  if (mime === "application/pdf") {
+    return (
+      <div className="space-y-4">
+        <div className="overflow-hidden rounded-xl border border-border bg-muted/30">
+          <iframe
+            src={previewUrl}
+            title={title}
+            className="h-[75vh] w-full"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ButtonLink href={downloadUrl} variant="outline" size="sm" className="gap-1">
+            <Download className="h-3.5 w-3.5" /> Download PDF
+          </ButtonLink>
+          <a
+            href={previewUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1")}
+          >
+            <FileText className="h-3.5 w-3.5" /> Open in new tab
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // Other file types: just offer the download.
+  return (
+    <ButtonLink href={downloadUrl} variant="outline" size="sm" className="gap-1">
+      <Download className="h-3.5 w-3.5" /> Download file
+    </ButtonLink>
   );
 }

@@ -45,10 +45,13 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   `src/lib/community.ts`); thread form select + author/mod change control;
   colored chips on feed cards and thread pages.
 - ✅ **Community branding + directory** — shipped 2026-08-12 (Phase 2b round 2):
-  mod-uploaded icon + banner images (public `community-assets` bucket, sharp
-  compression), banner/icon header on space pages, and a browsable, searchable
-  `/app/communities` directory (member + flair counts). Next: PDF posts with
-  in-feed preview + image lightboxes.
+  mod-uploaded icon + banner images (public `community-assets` bucket,  sharp compression), banner/icon header on space pages, and a browsable, searchable
+  `/app/communities` directory (member + flair counts).
+- ✅ **PDF posts + image lightbox** — shipped 2026-08-12 (Phase 3b): PDF
+  materials open an inline preview pane (proxy route streams private-bucket
+  bytes with `Content-Disposition: inline`); image materials get thumbnails in
+  the feed and a fullscreen `ImageLightbox`. Next: nested comments, then the
+  community home feed.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or
