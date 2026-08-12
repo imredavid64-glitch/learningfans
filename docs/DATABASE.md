@@ -86,6 +86,8 @@ Patterns repeated across policies:
 | `profanity_incidents`, `profanity_notifications` | Profanity escalation ledger |
 | `audit_log` | Audit trail (class/moderator events) |
 | `storage_objects` | Storage metadata mirror |
+| `saved_collections` | User bookmark folders (user-owned RLS) |
+| `saved_items` | Saved threads/materials (polymorphic `item_type`, PK user+type+item; folder FK set-null) |
 
 ## RPC functions (26)
 
@@ -149,6 +151,7 @@ warns → restricts → suspends based on repeat violations
 | `20260812000009_post_flairs.sql` | `spaces.flairs` jsonb + `threads.flair_id` (partial index); no new RLS (existing mod/author update policies) |
 | `20260812000010_community_branding.sql` | `spaces.icon_url`/`banner_url`; `community-assets` public storage bucket (mod-gated writes, uuid-folder guard) |
 | `20260812000011_nested_replies.sql` | `posts.parent_id` (self-ref, cascade) + thread/parent index; `notify_new_post` also pings the parent comment author |
+| `20260812000012_saved_items.sql` | `saved_collections` + `saved_items` (user-owned RLS; polymorphic item_type thread/material; FK set-null on folder delete) |
 | `combined.sql` | All of the above concatenated (one-shot fresh install) |
 
 > **Existing projects:** newer migrations (0001–0005, study_progress,

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { Home, Layers, Compass, ListOrdered, Calendar, Video, Zap, Users, BookOpen, Search, Download, Presentation, Newspaper } from "lucide-react";
+import { Bookmark, Home, Layers, Compass, ListOrdered, Calendar, Video, Zap, Users, BookOpen, Search, Download, Presentation, Newspaper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDemoMode } from "@/lib/demo-mode";
 
@@ -36,6 +36,7 @@ export function MobileNav() {
     { href: "/app/communities", icon: Compass, label: "Browse" },
     { href: "/app/study-rooms", icon: Presentation, label: "Study" },
     { href: "/app/priorities", icon: ListOrdered, label: "Priorities" },
+    { href: "/app/saved", icon: Bookmark, label: "Saved" },
     { href: "/app/schedule", icon: Calendar, label: "Schedule" },
     { href: "/app/meetings", icon: Video, label: "Meetings" },
     { href: "/app/search", icon: Search, label: "Search" },

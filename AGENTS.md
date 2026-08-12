@@ -8,6 +8,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Save / bookmark collections
+- **Migration** `20260812000012_saved_items.sql` (manual apply ⚠️): `saved_collections` (user-owned) + `saved_items` (PK user+type+item, polymorphic item_type thread/material, folder FK set-null), all RLS `auth.uid() = user_id`.
+- **Actions** (`src/actions/saved.ts`): `toggleSaveItem` (RLS-verified target, unsave via delete), `createSavedCollection` (form action), `deleteSavedCollection`, `moveSavedItem` (validates the folder is the caller's).
+- **UI**: `/app/saved` groups items into named folders + Uncategorized with per-item move/unsave; `SaveButton` bookmark toggle on thread pages and material cards (compact icon); graceful setup notice until the migration lands (page checks query errors, buttons toast).
+- Quality: 121/121 tests, tsc + lint clean, build compiles. `combined.sql` regenerated (22 migrations).
+
 ## 2026-08-12 — Community home feed (Reddit Phase 4)
 - **Route** `/app/feed` (nav, desktop + mobile): server page fetches recent threads + study_materials from my communities (memberships ∪ public spaces), RLS-scoped, 50 each, newest first.
 - **`CommunityFeed`** client component merges both into one chronological timeline (capped 60) with All/Discussions/Materials filter chips; thread cards show score; material cards use type icons and link to the detail page for flashcard_set/quiz/file, else the materials list.

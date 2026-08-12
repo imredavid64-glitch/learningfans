@@ -7,6 +7,7 @@ import { hideThread } from "@/actions/discussion";
 import { ThreadPosts } from "@/components/discussion/thread-posts";
 import { ReportButton } from "@/components/moderation/report-button";
 import { ThreadFlairControl } from "@/components/community/thread-flair-control";
+import { SaveButton } from "@/components/saved/save-button";
 import type { CommunityFlair } from "@/lib/community";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,15 @@ export default async function ThreadPage({
 
   const canMod = isModerator(profile!.role) || membership?.role === "moderator";
 
+  // Saved-state for the bookmark button (graceful until migration 0012 lands).
+  const { data: savedRow } = await supabase
+    .from("saved_items")
+    .select("user_id")
+    .eq("user_id", profile!.id)
+    .eq("item_type", "thread")
+    .eq("item_id", id)
+    .maybeSingle();
+
   return (
     <div className="space-y-6">
       <div>
@@ -80,7 +90,8 @@ export default async function ThreadPage({
             {thread.body}
           </p>
         )}
-        <div className="mt-2 flex gap-2">
+        <div className="mt-2 flex flex-wrap gap-2">
+          <SaveButton itemType="thread" itemId={id} initialSaved={Boolean(savedRow)} />
           <ReportButton targetType="thread" targetId={id} />
           {canMod && (
             <form action={hideThread.bind(null, id, true)}>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Calendar, Compass, Flag, Home, Layers, ListOrdered, Newspaper, Settings, Shield, Video, GraduationCap, Search, Presentation } from "lucide-react";
+import { Bookmark, BookOpen, Calendar, Compass, Flag, Home, Layers, ListOrdered, Newspaper, Settings, Shield, Video, GraduationCap, Search, Presentation } from "lucide-react";
 import { isModerator, isAdmin } from "@/lib/auth";
 import type { Profile } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ const links = [
   { href: "/app/meetings", label: "Meetings", icon: Video },
   { href: "/app/schedule", label: "Schedule", icon: Calendar },
   { href: "/app/priorities", label: "Priorities", icon: ListOrdered },
+  { href: "/app/saved", label: "Saved", icon: Bookmark },
 ];
 
 export function AppNav({ profile }: { profile: Profile }) {

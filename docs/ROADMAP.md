@@ -60,7 +60,10 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 - ✅ **Community home feed** — shipped 2026-08-12 (Phase 4): `/app/feed` — a
   combined chronological timeline of discussions + materials (quizzes,
   flashcards, files…) across your communities with All/Discussions/Materials
-  filters. Next: save/bookmark collections + weekly digests.
+  filters.
+- ✅ **Save / bookmark collections** — shipped 2026-08-12: bookmark threads,
+  materials, and quizzes; `/app/saved` groups them into named folders with
+  move-between-folder controls. Next: weekly digests, then karma/trophies.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or

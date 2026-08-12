@@ -19,6 +19,7 @@ import type { StudyMaterial } from "@/types/database";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ImageLightbox } from "@/components/materials/image-lightbox";
+import { SaveButton } from "@/components/saved/save-button";
 import {
   MATERIAL_FILTERS as FILTERS,
   matchesMaterialFilter,
@@ -50,10 +51,12 @@ export function MaterialList({
   materials,
   spaceSlug,
   userUpvotes,
+  savedIds = new Set<string>(),
 }: {
   materials: (StudyMaterial & { profiles?: { display_name: string } })[];
   spaceSlug: string;
   userUpvotes: Set<string>;
+  savedIds?: Set<string>;
 }) {
   const [filter, setFilter] = useState<MaterialFilter>("all");
   const handleLoadSample = () => {
@@ -154,6 +157,12 @@ export function MaterialList({
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">{m.type.replace("_", " ")}</Badge>
               <Badge variant="outline">{m.community_score} upvotes</Badge>
+              <SaveButton
+                itemType="material"
+                itemId={m.id}
+                initialSaved={savedIds.has(m.id)}
+                compact
+              />
               <form action={toggleUpvote.bind(null, m.id, spaceSlug)}>
                 <Button type="submit" size="sm" variant="outline">
                   {userUpvotes.has(m.id) ? "Remove upvote" : "Upvote"}

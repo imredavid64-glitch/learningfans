@@ -52,6 +52,13 @@ export default async function MaterialsPage({
     .eq("user_id", profile!.id);
 
   const userUpvotes = new Set(upvotes?.map((u) => u.material_id) ?? []);
+
+  const { data: savedRows } = await supabase
+    .from("saved_items")
+    .select("item_id")
+    .eq("user_id", profile!.id)
+    .eq("item_type", "material");
+  const savedIds = new Set(savedRows?.map((s) => s.item_id) ?? []);
   const storagePct = Math.round(
     (profile!.storage_used_bytes / USER_STORAGE_QUOTA_BYTES) * 100,
   );
@@ -86,6 +93,7 @@ export default async function MaterialsPage({
             materials={materials ?? []}
             spaceSlug={slug}
             userUpvotes={userUpvotes}
+            savedIds={savedIds}
           />
         </TabsContent>
         <TabsContent value="file" className="mt-4">

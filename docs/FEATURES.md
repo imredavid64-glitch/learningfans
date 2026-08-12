@@ -152,6 +152,18 @@ superpower of the Reddit-for-learners vision (see
 - **Actions:** `src/actions/quizzes.ts`; **Files:** `quiz-builder.tsx`,
   `quiz-player.tsx`, `quiz-leaderboard.tsx`, `src/lib/quizzes.ts`.
 
+## Save / bookmark collections
+
+- **Save:** bookmark icons on thread pages and material cards (incl. quizzes)
+  toggle `saved_items` — one row per user per item (`item_type` thread/material,
+  migration 0012, user-owned RLS).
+- **Folders:** `/app/saved` groups items into named folders (create via the
+  New folder form) plus an Uncategorized group; a per-item select moves items
+  between folders, and deleting a folder keeps its items (FK set-null).
+- **Actions:** `src/actions/saved.ts` (toggle, create/delete folder, move);
+  **Files:** `save-button.tsx`, `saved-item-actions.tsx`; graceful until the
+  migration is applied (page shows a setup notice, buttons toast errors).
+
 ## Community home feed
 
 - **Route:** `/app/feed` (nav: desktop + mobile).

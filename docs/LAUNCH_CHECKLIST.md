@@ -137,6 +137,9 @@ for cross-account checks.
 - [ ] `/app/communities` lists public spaces + memberships with member counts; search narrows the grid
 - [ ] `/app/feed` mixes recent threads + materials across joined and public communities, newest first
 - [ ] Feed filter chips (All/Discussions/Materials) narrow the timeline; links open the right pages
+- [ ] Bookmark a thread and a material → both appear under Uncategorized on /app/saved
+- [ ] New folder works; moving items between folders persists after refresh; unsave removes them
+- [ ] Deleting a folder keeps its items (they return to Uncategorized)
 
 ### Presence, calls, invites
 - [ ] Avatar count + names update as accounts join/leave (live presence)
