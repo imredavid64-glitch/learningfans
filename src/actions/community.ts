@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile, getSpaceMembership, isModerator } from "@/lib/auth";
+import sharp from "sharp";
 import {
   MAX_RULES,
   MAX_RULE_TITLE,
@@ -11,6 +12,8 @@ import {
   MAX_ANNOUNCEMENT_TITLE,
   MAX_ANNOUNCEMENT_BODY,
   MAX_FLAIRS,
+  MAX_BRANDING_IMAGE_BYTES,
+  ALLOWED_BRANDING_MIME_TYPES,
   validateFlairs,
   type CommunityRule,
   type CommunityAnnouncement,
@@ -57,6 +60,86 @@ function cleanRule(rule: CommunityRule): CommunityRule {
     title: rule.title.trim().slice(0, MAX_RULE_TITLE),
     body: (rule.body ?? "").trim().slice(0, MAX_RULE_BODY) || undefined,
   };
+}
+
+export type BrandingKind = "icon" | "banner";
+
+export type BrandingResult = { ok: boolean; error?: string; url?: string };
+
+/** Upload a community icon (square) or banner (wide) image. Moderators only. */
+export async function uploadCommunityAsset(
+  spaceId: string,
+  kind: BrandingKind,
+  formData: FormData,
+): Promise<BrandingResult> {
+  const profile = await requireSpaceModerator(spaceId);
+  const supabase = await createClient();
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { ok: false, error: "Choose an image file." };
+  if (file.size > MAX_BRANDING_IMAGE_BYTES) {
+    return { ok: false, error: "Images are limited to 5 MB." };
+  }
+  if (!ALLOWED_BRANDING_MIME_TYPES.includes(file.type as (typeof ALLOWED_BRANDING_MIME_TYPES)[number])) {
+    return { ok: false, error: "Only PNG, JPEG, or WebP images are supported." };
+  }
+
+  let buffer = Buffer.from(await file.arrayBuffer());
+  const contentType = "image/jpeg";
+  try {
+    const compressed = await (kind === "icon"
+      ? sharp(buffer).resize({ width: 256, height: 256, fit: "cover" }).jpeg({ quality: 85 }).toBuffer()
+      : sharp(buffer).resize({ width: 1600, height: 400, fit: "cover" }).jpeg({ quality: 80 }).toBuffer());
+    buffer = Buffer.from(compressed);
+  } catch {
+    return { ok: false, error: "That file isn't a readable image." };
+  }
+
+  const path = `${spaceId}/${kind}.jpg`;
+  const { error: uploadError } = await supabase.storage
+    .from("community-assets")
+    .upload(path, buffer, { contentType, upsert: true });
+  if (uploadError) return { ok: false, error: uploadError.message };
+
+  await supabase.from("storage_objects").insert({
+    user_id: profile.id,
+    bucket: "community-assets",
+    path,
+    size_bytes: buffer.length,
+  });
+
+  const publicUrl = supabase.storage.from("community-assets").getPublicUrl(path).data.publicUrl;
+  const { data: space } = await supabase.from("spaces").select("slug").eq("id", spaceId).single();
+  const { error } = await supabase
+    .from("spaces")
+    .update(kind === "icon" ? { icon_url: publicUrl } : { banner_url: publicUrl })
+    .eq("id", spaceId);
+
+  if (error) {
+    await supabase.storage.from("community-assets").remove([path]);
+    return { ok: false, error: error.message };
+  }
+  if (space) revalidatePath(`/app/spaces/${space.slug}`);
+  return { ok: true, url: publicUrl };
+}
+
+/** Remove a community icon/banner (moderators only). */
+export async function removeCommunityAsset(
+  spaceId: string,
+  kind: BrandingKind,
+): Promise<CommunityResult> {
+  await requireSpaceModerator(spaceId);
+  const supabase = await createClient();
+
+  const { data: space } = await supabase.from("spaces").select("slug").eq("id", spaceId).single();
+  const { error } = await supabase
+    .from("spaces")
+    .update(kind === "icon" ? { icon_url: null } : { banner_url: null })
+    .eq("id", spaceId);
+
+  if (error) return { ok: false, error: error.message };
+  if (space) revalidatePath(`/app/spaces/${space.slug}`);
+  return { ok: true };
 }
 
 /** Replace the community's post flairs (moderators only). */

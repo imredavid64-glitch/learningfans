@@ -45,6 +45,9 @@ export default async function SpacesPage() {
             Create or join spaces for your courses and study groups.
           </p>
         </div>
+        <ButtonLink href="/app/communities" variant="outline">
+          Browse communities
+        </ButtonLink>
       </div>
 
       <Card>

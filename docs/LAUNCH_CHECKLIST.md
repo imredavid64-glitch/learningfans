@@ -128,6 +128,10 @@ for cross-account checks.
 - [ ] Creating a thread with a flair shows the colored chip on the feed card and thread page
 - [ ] Author or moderator changes/clears the flair from the thread page; non-author non-mod cannot
 - [ ] A flair id not in the community's list is rejected (can't be forged via the form)
+- [ ] Moderator uploads an icon → it replaces the initial letter on the space page and in the directory
+- [ ] Moderator uploads a banner → it renders across the top of the space page
+- [ ] Replace/Remove work; non-mod cannot upload (storage policy blocks)
+- [ ] `/app/communities` lists public spaces + memberships with member counts; search narrows the grid
 
 ### Presence, calls, invites
 - [ ] Avatar count + names update as accounts join/leave (live presence)

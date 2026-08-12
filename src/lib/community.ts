@@ -28,6 +28,28 @@ export interface CommunityAnnouncement {
 export const MAX_FLAIRS = 15;
 export const MAX_FLAIR_LABEL = 40;
 
+// --- Community branding (icon + banner images) -------------------------------
+
+export const MAX_BRANDING_IMAGE_BYTES = 5 * 1024 * 1024; // matches bucket limit
+export const ALLOWED_BRANDING_MIME_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+] as const;
+export const MAX_ASSET_URL_LENGTH = 2048;
+
+/** Asset URLs are full https public storage URLs (stored on spaces.icon_url/banner_url). */
+export function isValidAssetUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (value.length === 0 || value.length > MAX_ASSET_URL_LENGTH) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 /** Fixed color palette — keys map to Tailwind classes below (static, safe). */
 export const FLAIR_COLORS = [
   { id: "blue", label: "Blue" },

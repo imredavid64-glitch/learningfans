@@ -20,11 +20,12 @@ import {
   type CommunityRule,
   type FlairColorId,
 } from "@/lib/community";
+import { BrandingUpload } from "@/components/community/branding-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Bookmark, Megaphone, Plus, Tag, Trash2 } from "lucide-react";
+import { Bookmark, Image as ImageIcon, Megaphone, Plus, Tag, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function CommunityAdmin({
@@ -32,11 +33,15 @@ export function CommunityAdmin({
   initialRules,
   initialAnnouncements,
   initialFlairs,
+  initialIconUrl,
+  initialBannerUrl,
 }: {
   spaceId: string;
   initialRules: CommunityRule[];
   initialAnnouncements: CommunityAnnouncement[];
   initialFlairs: CommunityFlair[];
+  initialIconUrl?: string | null;
+  initialBannerUrl?: string | null;
 }) {
   const router = useRouter();
   const [rules, setRules] = useState<CommunityRule[]>(initialRules);
@@ -132,6 +137,31 @@ export function CommunityAdmin({
 
   return (
     <div className="space-y-6">
+      {/* Branding (icon + banner) */}
+      <div className="rounded-xl border bg-card p-4">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <ImageIcon className="h-4 w-4 text-primary" /> Community branding
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <BrandingUpload
+            spaceId={spaceId}
+            kind="icon"
+            label="Community icon"
+            hint="Square image, shown next to the name and in the directory."
+            currentUrl={initialIconUrl ?? null}
+            aspectClass="aspect-square"
+          />
+          <BrandingUpload
+            spaceId={spaceId}
+            kind="banner"
+            label="Banner"
+            hint="Wide image, shown across the top of the community page."
+            currentUrl={initialBannerUrl ?? null}
+            aspectClass="aspect-[4/1]"
+          />
+        </div>
+      </div>
+
       {/* Post flairs editor */}
       <div className="rounded-xl border bg-card p-4">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">

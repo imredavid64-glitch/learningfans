@@ -43,8 +43,12 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 - ✅ **Post flairs** — shipped 2026-08-12 (Phase 2b): mod-defined color-coded
   labels per community (`spaces.flairs` jsonb, 8-color palette, validated in
   `src/lib/community.ts`); thread form select + author/mod change control;
-  colored chips on feed cards and thread pages. Next: community icons/banners +
-  directory.
+  colored chips on feed cards and thread pages.
+- ✅ **Community branding + directory** — shipped 2026-08-12 (Phase 2b round 2):
+  mod-uploaded icon + banner images (public `community-assets` bucket, sharp
+  compression), banner/icon header on space pages, and a browsable, searchable
+  `/app/communities` directory (member + flair counts). Next: PDF posts with
+  in-feed preview + image lightboxes.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or

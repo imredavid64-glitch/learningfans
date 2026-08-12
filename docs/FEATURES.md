@@ -95,6 +95,22 @@ superpower of the Reddit-for-learners vision (see
 - **Surface:** colored flair chips on thread cards in the feed (`ThreadFeed`)
   and on the thread detail page.
 
+## Community branding + directory
+
+- **Branding:** moderators upload a square **icon** (256×256, sharp-cropped) and a
+  wide **banner** (1600×400) from the admin panel — `BrandingUpload` compresses
+  client-server via sharp, uploads to the public `community-assets` bucket
+  (storage policies: public read, space-mod/app-mod writes), and stores the
+  public URL on `spaces.icon_url` / `banner_url` (migration 0010).
+- **Header:** the space page shows the banner across the top and the icon beside
+  the community name (initial-letter fallback).
+- **Directory:** `/app/communities` — browsable grid (icon, name, member count,
+  flair count, public/private badge) with live client-side search over
+  name/description/slug (`CommunityDirectory`). RLS already scopes it to public
+  spaces + your memberships; member counts come from `space_members`
+  (`can_read_space` policy). Linked from the desktop + mobile nav and the Spaces
+  page.
+
 ## Quiz posts (community quizzes)
 
 - **Create:** a member of a space posts a quiz from the materials page

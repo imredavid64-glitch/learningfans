@@ -8,6 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Community branding + directory (Reddit Phase 2b round 2)
+- **Migration** `20260812000010_community_branding.sql` (manual apply ⚠️): `spaces.icon_url`/`banner_url`; `community-assets` storage bucket (public 5MB, image mimes) with public-read + mod-write policies (path folder must be a valid space uuid, guards the cast).
+- **Actions** (`src/actions/community.ts`): `uploadCommunityAsset(spaceId, kind, formData)` — mod-gated, sharp-compresses icon 256×256 / banner 1600×400 → jpeg, upserts to `community-assets/{spaceId}/{kind}.jpg`, tracks `storage_objects`, stores public URL on the space; `removeCommunityAsset`.
+- **UI**: `BrandingUpload` client component (upload/replace/remove + preview); space page shows banner header + icon (initial fallback); new `/app/communities` directory (server page + `CommunityDirectory` client grid with live search); nav links (desktop + mobile) + Spaces page browse button.
+- **Quality**: 121/121 tests, tsc + lint clean (0 warnings), `next build` compiles. `combined.sql` regenerated (20 migrations).
+- **Blocked**: Vercel 100-deploys/day cap — 9 verified commits queued.
+
 ## 2026-08-12 — Post flairs (Reddit Phase 2b)
 - **Migration** `20260812000009_post_flairs.sql` (manual apply ⚠️): `spaces.flairs` jsonb (default `[]`) + `threads.flair_id` text + partial index. No new RLS — spaces updates are mod-gated (0006), threads updates already allow author + space/app mods.
 - **Lib**: `src/lib/community.ts` — `FLAIR_COLORS` (8 fixed Tailwind-safe colors), `FLAIR_COLOR_CLASSES`/`FLAIR_SWATCH_CLASSES`, `validateFlairs` (≤15 flairs, ≤40-char labels, unique ids, generated ids); 6 new unit tests (`community.test.ts`).

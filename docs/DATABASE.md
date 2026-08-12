@@ -147,6 +147,7 @@ warns → restricts → suspends based on repeat violations
 | `20260812000007_thread_votes.sql` | `threads.score/ups/downs` + `post_votes` table (RLS + realtime-less), `update_thread_score` trigger |
 | `20260812000008_quiz_posts.sql` | `material_type` gains `quiz`; `quiz_attempts` table (PK material+user, best-score RLS, leaderboard index) |
 | `20260812000009_post_flairs.sql` | `spaces.flairs` jsonb + `threads.flair_id` (partial index); no new RLS (existing mod/author update policies) |
+| `20260812000010_community_branding.sql` | `spaces.icon_url`/`banner_url`; `community-assets` public storage bucket (mod-gated writes, uuid-folder guard) |
 | `combined.sql` | All of the above concatenated (one-shot fresh install) |
 
 > **Existing projects:** newer migrations (0001–0005, study_progress,

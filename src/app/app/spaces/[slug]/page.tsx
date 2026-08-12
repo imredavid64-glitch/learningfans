@@ -102,16 +102,40 @@ export default async function SpacePage({
 
   return (
     <div className="space-y-6">
+      {space.banner_url && (
+        <div className="relative h-32 w-full overflow-hidden rounded-xl border border-border sm:h-44">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={space.banner_url}
+            alt={`${space.name} banner`}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{space.name}</h1>
-          <p className="text-muted-foreground">{space.description}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {space.is_public && <Badge>Public</Badge>}
-            <Badge variant="outline" className="gap-1">
-              <ShieldCheck className="h-3 w-3" />
-              {modNames.length} moderator{modNames.length === 1 ? "" : "s"}
-            </Badge>
+        <div className="flex items-start gap-3">
+          {space.icon_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={space.icon_url}
+              alt={`${space.name} icon`}
+              className="h-14 w-14 shrink-0 rounded-xl border border-border object-cover"
+            />
+          ) : (
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xl font-bold text-primary">
+              {(space.name ?? "?")[0]?.toUpperCase()}
+            </div>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold">{space.name}</h1>
+            <p className="text-muted-foreground">{space.description}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {space.is_public && <Badge>Public</Badge>}
+              <Badge variant="outline" className="gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                {modNames.length} moderator{modNames.length === 1 ? "" : "s"}
+              </Badge>
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -253,6 +277,8 @@ export default async function SpacePage({
               initialRules={rules}
               initialAnnouncements={announcements}
               initialFlairs={flairs}
+              initialIconUrl={space.icon_url}
+              initialBannerUrl={space.banner_url}
             />
           )}
         </div>
