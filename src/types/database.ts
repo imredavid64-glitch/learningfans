@@ -44,6 +44,9 @@ export type Thread = {
   is_pinned: boolean;
   is_locked: boolean;
   is_hidden: boolean;
+  score: number;
+  ups: number;
+  downs: number;
   created_at: string;
   updated_at: string;
 };

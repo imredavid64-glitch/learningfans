@@ -46,7 +46,8 @@ Patterns repeated across policies:
 
 | Table | Purpose |
 |-------|---------|
-| `threads` | Discussion threads; `is_pinned`, `is_locked`, `is_hidden` |
+| `threads` | Discussion threads; `is_pinned`, `is_locked`, `is_hidden`, cached vote counts `score` / `ups` / `downs` |
+| `post_votes` | Thread votes (PK post+user, `vote` 1/-1); maintains `threads.score/ups/downs` via the `update_thread_score` trigger |
 | `posts` | Thread replies; realtime publication |
 | `study_materials` | `type` = file/link/note/flashcard_set; `metadata` jsonb (deck payloads, due dates); `community_score` |
 | `user_material_rankings` | Per-user priority (`urgent/high/normal/low`), rank_score, due_at |
@@ -142,6 +143,7 @@ warns → restricts → suspends based on repeat violations
 | `20260812000004_study_rooms.sql` | Study rooms + chat |
 | `20260812000005_study_room_reactions.sql` | Message reactions |
 | `20260812000006_community_rules.sql` | `spaces.rules` + `spaces.announcements` jsonb columns; app-moderator space update policy |
+| `20260812000007_thread_votes.sql` | `threads.score/ups/downs` + `post_votes` table (RLS + realtime-less), `update_thread_score` trigger |
 | `combined.sql` | All of the above concatenated (one-shot fresh install) |
 
 > **Existing projects:** newer migrations (0001–0005, study_progress,

@@ -1,12 +1,11 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, isModerator } from "@/lib/auth";
-import { createThread, toggleThreadPin, toggleThreadLock } from "@/actions/discussion";
+import { createThread } from "@/actions/discussion";
 import { leaveSpace } from "@/actions/spaces";
-import { ReportButton } from "@/components/moderation/report-button";
 import { CommunityAdmin } from "@/components/community/community-admin";
+import { ThreadFeed, type FeedThread } from "@/components/community/thread-feed";
 import type { CommunityAnnouncement, CommunityRule } from "@/lib/community";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -65,6 +64,32 @@ export default async function SpacePage({
   const isMod = isModerator(profile!.role) || membership?.role === "moderator";
   const rules = (Array.isArray(space.rules) ? space.rules : []) as CommunityRule[];
   const announcements = (Array.isArray(space.announcements) ? space.announcements : []) as CommunityAnnouncement[];
+
+  // The current user's votes on the visible threads (Reddit-style voting).
+  const threadIds = (threads ?? []).map((t) => t.id);
+  const { data: myVotes } = threadIds.length
+    ? await supabase
+        .from("post_votes")
+        .select("post_id, vote")
+        .eq("user_id", profile!.id)
+        .in("post_id", threadIds)
+    : { data: null };
+  const userVotes: Record<string, 1 | -1 | 0> = {};
+  for (const v of myVotes ?? []) {
+    userVotes[v.post_id] = v.vote;
+  }
+
+  const feedThreads: FeedThread[] = (threads ?? []).map((t) => ({
+    id: t.id,
+    title: t.title,
+    is_pinned: t.is_pinned,
+    is_locked: t.is_locked,
+    score: t.score ?? 0,
+    ups: t.ups ?? 0,
+    downs: t.downs ?? 0,
+    created_at: t.created_at,
+    profiles: (t.profiles as { display_name: string } | null) ?? null,
+  }));
   const modNames = (moderators ?? [])
     .map((m) => {
       const raw = m.profiles;
@@ -135,57 +160,13 @@ export default async function SpacePage({
               <TabsTrigger value="discussion">Discussion</TabsTrigger>
               <TabsTrigger value="new">New thread</TabsTrigger>
             </TabsList>
-            <TabsContent value="discussion" className="mt-4 space-y-3">
-              {threads?.map((t) => (
-                <Card key={t.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-base">
-                        <Link
-                          href={`/app/spaces/${slug}/threads/${t.id}`}
-                          className="hover:underline"
-                        >
-                          {t.title}
-                        </Link>
-                      </CardTitle>
-                      <div className="flex gap-1">
-                        {t.is_pinned && <Badge>Pinned</Badge>}
-                        {t.is_locked && <Badge variant="outline">Locked</Badge>}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>
-                      {(t.profiles as { display_name: string })?.display_name} ·{" "}
-                      {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}
-                    </span>
-                    <div className="flex gap-2">
-                      <ReportButton targetType="thread" targetId={t.id} />
-                      {isMod && (
-                        <>
-                          <form
-                            action={toggleThreadPin.bind(null, t.id, !t.is_pinned)}
-                          >
-                            <Button type="submit" variant="ghost" size="sm">
-                              {t.is_pinned ? "Unpin" : "Pin"}
-                            </Button>
-                          </form>
-                          <form
-                            action={toggleThreadLock.bind(null, t.id, !t.is_locked)}
-                          >
-                            <Button type="submit" variant="ghost" size="sm">
-                              {t.is_locked ? "Unlock" : "Lock"}
-                            </Button>
-                          </form>
-                        </>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {!threads?.length && (
-                <p className="text-sm text-muted-foreground">No threads yet. Start one!</p>
-              )}
+            <TabsContent value="discussion" className="mt-4">
+              <ThreadFeed
+                threads={feedThreads}
+                userVotes={userVotes}
+                slug={slug}
+                isMod={isMod}
+              />
             </TabsContent>
             <TabsContent value="new" className="mt-4">
               <Card>

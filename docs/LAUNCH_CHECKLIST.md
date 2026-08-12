@@ -116,6 +116,10 @@ for cross-account checks.
 - [ ] Moderator posts an announcement → 📌 card appears above the discussion
 - [ ] Announcement persists after refresh; deleted by the moderator
 - [ ] Materials feed filter chips (PDFs/Images/Notes/Quizzes) return correct items
+- [ ] Upvote a thread → score +1 and arrow highlights; downvote → score −1
+- [ ] Re-click toggles the vote off; refresh keeps your vote state
+- [ ] Two accounts: scores stay consistent (trigger-maintained) across both
+- [ ] Hot/New/Top/Controversial tabs reorder the feed; pinned threads stay on top
 
 ### Presence, calls, invites
 - [ ] Avatar count + names update as accounts join/leave (live presence)

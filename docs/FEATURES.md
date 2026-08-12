@@ -40,6 +40,11 @@ Server actions live in `src/actions/*.ts`; components in `src/components/*`.
   `postgres_changes` on `posts` (same pattern as thread posts — see
   `src/components/discussion/thread-posts.tsx`). Replies auto-notify the thread
   author (migration 0001).
+- **Voting & sorting (Reddit-style):** thread cards show an up/down vote cluster
+  (`post_votes` table, one row per user; `threads.score/ups/downs` cached by the
+  `update_thread_score` trigger) and the feed sorts by **Hot / New / Top /
+  Controversial** with pinned threads always on top
+  (`src/components/community/thread-feed.tsx`, `src/lib/thread-ranking.ts`).
 - **Actions:** `src/actions/spaces.ts`, `src/actions/discussion.ts`, `src/actions/community.ts`.
 
 ## Study materials & priorities

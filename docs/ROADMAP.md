@@ -30,6 +30,11 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   About sidebar (mod-editable), 📌 `spaces.announcements` pinned cards, and
   All/PDFs/Images/Files/Links/Notes/Quizzes filter chips on the materials feed.
   Full blueprint in `docs/REDDIT_FOR_LEARNERS.md`.
+- ✅ **Thread voting + Hot/New/Top/Controversial sorting** — shipped 2026-08-12
+  (Phase 2a): up/down vote clusters on thread cards (`post_votes` table,
+  `threads.score/ups/downs` cached by trigger), feed sorts with pinned threads
+  always on top (`src/lib/thread-ranking.ts`, unit-tested). Next: flairs, then
+  community directory.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or

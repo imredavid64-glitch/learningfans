@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, getSpaceMembership } from "@/lib/auth";
 import { checkContentWithAI, checkAndArchive } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
 import { threadSchema, postSchema, validateOrThrow } from "@/lib/validation";
+import type { VoteValue } from "@/lib/thread-ranking";
 
 function checkBot(formData: FormData): boolean {
   const honeypot = formData.get("website") as string;
@@ -203,6 +204,58 @@ export async function createThread(spaceId: string, formData: FormData): Promise
   checkAndArchive();
   revalidatePath(`/app/classes/${slug}`);
   redirect(threadPath(slug, thread.id));
+}
+
+/** Upvote / downvote / unvote a thread (Reddit-style). */
+export async function voteOnThread(
+  threadId: string,
+  vote: VoteValue,
+): Promise<{ ok: boolean; error?: string }> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("space_id, is_hidden")
+    .eq("id", threadId)
+    .single();
+  if (!thread || thread.is_hidden) return { ok: false, error: "Thread not found." };
+
+  // Readers of the space may vote (public spaces open to everyone, private to members).
+  const { data: space } = await supabase
+    .from("spaces")
+    .select("is_public")
+    .eq("id", thread.space_id)
+    .single();
+  const membership = await getSpaceMembership(thread.space_id, profile.id);
+  if (!space || (!space.is_public && !membership)) {
+    return { ok: false, error: "You can't vote in this community." };
+  }
+
+  if (vote === 0) {
+    const { error } = await supabase
+      .from("post_votes")
+      .delete()
+      .eq("post_id", threadId)
+      .eq("user_id", profile.id);
+    if (error) return { ok: false, error: error.message };
+  } else {
+    const { error } = await supabase.from("post_votes").upsert(
+      {
+        post_id: threadId,
+        user_id: profile.id,
+        vote,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "post_id,user_id" },
+    );
+    if (error) return { ok: false, error: error.message };
+  }
+
+  const slug = await getSpaceSlug(supabase, thread.space_id);
+  revalidatePath(`/app/spaces/${slug}`);
+  revalidatePath(`/app/spaces/${slug}/threads/${threadId}`);
+  return { ok: true };
 }
 
 async function getModActionSlug(supabase: Awaited<ReturnType<typeof createClient>>, threadId: string): Promise<string | null> {

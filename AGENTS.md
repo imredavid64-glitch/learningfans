@@ -8,6 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Thread voting + feed sorting (Reddit Phase 2a)
+- **Votes**: `post_votes` table (PK post+user, vote 1/-1) + `threads.score/ups/downs` cached columns, maintained by the `update_thread_score` trigger (recompute on insert/update/delete — idempotent, race-safe) — migration `20260812000007_thread_votes.sql` (manual apply ⚠️). RLS mirrors thread readability (`can_read_space`), votes owned per user.
+- **Action**: `voteOnThread(threadId, vote)` in `src/actions/discussion.ts` (upsert/delete + revalidate space + thread pages).
+- **Feed**: `src/components/community/thread-feed.tsx` — Reddit-style vote cluster (▲ score ▼) with highlighted active vote + **Hot / New / Top / Controversial** sort tabs; `src/lib/thread-ranking.ts` pure ranking (hot = score/(hours+2)^1.5, controversial = min(ups,downs)·(1+total/1000), pinned always on top) — 9 new unit tests → 107/107.
+- **Page**: space page now fetches the user's votes and renders ThreadFeed (thread cards moved out of the server component).
+- Verified: `tsc` clean, lint clean, 107/107 tests, `next build` compiles.
+
 ## 2026-08-12 — Community layer (Reddit-for-learners Phase 1)
 - **Community rules + announcements**: `spaces.rules` and `spaces.announcements` jsonb columns (migration `20260812000006_community_rules.sql`, manual apply) + new "App moderators can update spaces" RLS policy. New `src/actions/community.ts` (saveCommunityRules / postAnnouncement / deleteAnnouncement, gated by space-or-app moderator). Space page restructured into a Reddit-style layout: 📌 announcement cards on top, main discussion column, right sidebar with About / moderators / numbered rules, and a mod-only `CommunityAdmin` panel (inline rules editor + announcement composer/delete with router.refresh).
 - **Content filter chips**: materials feed now filters by All / PDFs / Images / Files / Links / Notes / Quizzes (MIME-aware — `uploadFileMaterial` now stores `metadata.mime`).
