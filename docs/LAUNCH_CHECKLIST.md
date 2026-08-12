@@ -158,6 +158,7 @@ for cross-account checks.
 - [ ] Mod adds an automod rule with a remove action → posting matching content is blocked with the rule name
 - [ ] A flag rule hides matching content and logs it to the community mod log (visible to space mods)
 - [ ] Mod log shows automod/AI flags with actor + note; non-mod cannot open the mod dashboard
+- [ ] Leaderboard ranks members by XP (level + streak) and toggles to contributions; medals + (you) highlight
 - [ ] Upload a file, add a link, a note, and a flashcard set (5 MB / 25 MB caps enforced)
 - [ ] Review flashcards: SM-2 grading, mastered tracking, offline deck download
 - [ ] Upload a PDF → Preview opens the inline pane (iframes render in browser); Download works

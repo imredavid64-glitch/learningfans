@@ -75,7 +75,10 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 - ✅ **AI coverage hardening** — shipped 2026-08-12: AI moderation extended to
   every creation surface (notes, links, flashcard decks, quizzes, file titles,
   announcements, meetings) with a prompt that now also flags promotional
-  content and requires content to stay educational. Next: karma/trophies.
+  content and requires content to stay educational.
+- ✅ **Community leaderboard** — shipped 2026-08-12: per-community rankings by
+  XP (level + streak) or contributions (threads/materials/replies), medals +
+  mod badges, caller highlighted. Next: karma/trophies.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or

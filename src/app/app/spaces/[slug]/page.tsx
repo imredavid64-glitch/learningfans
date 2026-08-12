@@ -148,6 +148,9 @@ export default async function SpacePage({
           <ButtonLink href={`/app/schedule?space=${space.id}`} variant="outline">
             Space schedule
           </ButtonLink>
+          <ButtonLink href={`/app/spaces/${slug}/leaderboard`} variant="outline">
+            Leaderboard
+          </ButtonLink>
           {isMod && (
             <ButtonLink href={`/app/spaces/${slug}/moderation`} variant="outline">
               Mod dashboard

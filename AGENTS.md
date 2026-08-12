@@ -8,6 +8,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Community leaderboard
+- **Route** `/app/spaces/[slug]/leaderboard` (header link, visible to readers): ranks members by XP (level = floor(xp/100)+1, streak from `user_stats`) or contributions (threads + materials + replies in that community, counted via per-author group queries).
+- **UI** `community-leaderboard.tsx`: XP/Contributions sort chips, 🥇🥈🥉 medals, Mod badge, (you) highlight, streak flame.
+- Quality: 128/128 tests, tsc + lint clean, build compiles. No migration.
+
 ## 2026-08-12 — AI monitoring hardening (all creation surfaces)
 - `checkContentWithAI` prompt now also flags **promotional/advertising content** and mandates educational/on-topic content.
 - Wired AI checks into previously unmonitored actions: `createLinkMaterial`, `createNoteMaterial`, `createFlashcardMaterial`, `uploadFileMaterial` (title only), `createQuizMaterial` (questions/options), `postAnnouncement`, `createMeeting` — high risk → rejected (materials redirect with an `?error=` banner on the materials page; quiz/announcement/meeting return errors).

@@ -221,6 +221,16 @@ superpower of the Reddit-for-learners vision (see
 - **Entry points:** desktop + mobile nav, dashboard quick actions, space pages
   (`/app/study-rooms?space=…` preselects the space).
 
+## Community leaderboard
+
+- **Route:** `/app/spaces/[slug]/leaderboard` (linked from the space header,
+  visible to any reader of the community — like a subreddit sidebar).
+- Ranks the community's members by **XP** (with level + streak from
+  `user_stats`) or **contributions** (threads + materials + replies within that
+  community), with 🥇🥈🥉 medals, moderator badges, and the caller highlighted.
+  Server page aggregates `space_members` + `user_stats` + per-author counts;
+  sorting lives in `src/components/community/community-leaderboard.tsx`.
+
 ## Mod dashboard + automod
 
 - **Route:** `/app/spaces/[slug]/moderation` (space mods + app mods; linked from
