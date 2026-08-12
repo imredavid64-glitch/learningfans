@@ -25,6 +25,7 @@ const TYPE_ICONS: Record<string, string> = {
   meeting: "🎥",
   event: "📅",
   streak: "🔥",
+  digest: "📬",
   system: "🔔",
 };
 

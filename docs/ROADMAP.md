@@ -63,7 +63,11 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   filters.
 - ✅ **Save / bookmark collections** — shipped 2026-08-12: bookmark threads,
   materials, and quizzes; `/app/saved` groups them into named folders with
-  move-between-folder controls. Next: weekly digests, then karma/trophies.
+  move-between-folder controls.
+- ✅ **Weekly community digest** — shipped 2026-08-12: a `digest` notification
+  every Monday (cron `/api/cron/digest`) summarizing new discussions,
+  materials, and replies across your communities, linking to `/app/feed`.
+  Next: karma/trophies, then mod dashboards + automod.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or

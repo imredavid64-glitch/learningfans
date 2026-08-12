@@ -48,14 +48,16 @@ npx vercel alias set <deployment-url> learningfans.vercel.app
 - Unauthenticated `/app/*` redirects to `/login?redirect=…`.
 - Supabase Auth URL config still lists `https://learningfans.vercel.app/auth/callback`.
 - Any new migrations were applied in the SQL editor (see [Database](DATABASE.md)).
-- Vercel → Cron logs show a successful `/api/push/send` run (daily 08:00 UTC).
+- Vercel → Cron logs show a successful `/api/push/send` run (daily 08:00 UTC)
+  and `/api/cron/digest` (weekly Monday 08:00 UTC).
 
 ## Cron
 
-`vercel.json` schedules `GET /api/push/send` at `0 8 * * *` (one daily cron on the
-Hobby plan). The endpoint is guarded by `CRON_SECRET` (Vercel's built-in cron
-auth convention); if the secret or the `push_subscriptions` table is missing it
-fails safe (401/503).
+`vercel.json` schedules `GET /api/push/send` at `0 8 * * *` (daily) and
+`GET /api/cron/digest` at `0 8 * * 1` (weekly Monday) — two of the Hobby plan's
+cron slots. Both endpoints are guarded by `CRON_SECRET` (Vercel's built-in cron
+auth convention) and fail safe (401) when the secret or their tables/functions
+are missing.
 
 ## Native apps
 

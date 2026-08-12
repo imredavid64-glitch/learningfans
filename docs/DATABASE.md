@@ -115,7 +115,10 @@ warns → restricts → suspends based on repeat violations
 
 ### Misc
 `get_db_size` — free-tier DB size probe (drives archival) ·
-`update_storage_used` · `update_material_upvote_score` · `handle_new_user`
+`update_storage_used` · `update_material_upvote_score` · `handle_new_user` ·
+`send_weekly_digests` — one `digest` notification per user per week from the
+`/api/cron/digest` cron (counts new threads/materials/replies in their
+communities, skips no-activity weeks)
 
 ## Realtime publication
 
@@ -152,6 +155,7 @@ warns → restricts → suspends based on repeat violations
 | `20260812000010_community_branding.sql` | `spaces.icon_url`/`banner_url`; `community-assets` public storage bucket (mod-gated writes, uuid-folder guard) |
 | `20260812000011_nested_replies.sql` | `posts.parent_id` (self-ref, cascade) + thread/parent index; `notify_new_post` also pings the parent comment author |
 | `20260812000012_saved_items.sql` | `saved_collections` + `saved_items` (user-owned RLS; polymorphic item_type thread/material; FK set-null on folder delete) |
+| `20260812000013_weekly_digests.sql` | `send_weekly_digests()` RPC (per-user weekly activity counts + dedupe) for the `/api/cron/digest` cron |
 | `combined.sql` | All of the above concatenated (one-shot fresh install) |
 
 > **Existing projects:** newer migrations (0001–0005, study_progress,

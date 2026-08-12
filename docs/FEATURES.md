@@ -208,6 +208,17 @@ superpower of the Reddit-for-learners vision (see
 - **Entry points:** desktop + mobile nav, dashboard quick actions, space pages
   (`/app/study-rooms?space=…` preselects the space).
 
+## Weekly community digest
+
+- Every **Monday 08:00 UTC** the `send_weekly_digests` RPC (called by the
+  `/api/cron/digest` cron, guarded by `CRON_SECRET` like the push cron) inserts
+  a `digest` notification for each user whose communities had activity in the
+  past 7 days: "N new discussions · M new materials · K new replies across C
+  communities" → links to `/app/feed`. At most one digest per rolling week; no
+  activity → no digest (migration 0013).
+- Digest notifications render with the 📬 icon in the bell + notifications page
+  and flow through the existing push pipeline.
+
 ## Gamification
 
 - XP hooks: flashcard mastered (+10), material upload (+15), new thread (+5),

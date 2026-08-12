@@ -8,6 +8,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Weekly community digest
+- **Migration** `20260812000013_weekly_digests.sql` (manual apply ⚠️): `send_weekly_digests()` RPC — per member-user, counts new threads/materials/replies in their communities over 7 days, dedupes to one `digest` notification per rolling week, skips no-activity weeks.
+- **Cron** `/api/cron/digest` (CRON_SECRET-guarded, mirrors `/api/push/send`); `vercel.json` adds `0 8 * * 1` (Monday 08:00 UTC) — Hobby plan has 2 cron slots.
+- Bell + notifications page render `digest` with 📬; digests link to `/app/feed` and flow through push.
+- Quality: 121/121 tests, tsc + lint clean, build compiles. `combined.sql` regenerated (23 migrations).
+
 ## 2026-08-12 — Save / bookmark collections
 - **Migration** `20260812000012_saved_items.sql` (manual apply ⚠️): `saved_collections` (user-owned) + `saved_items` (PK user+type+item, polymorphic item_type thread/material, folder FK set-null), all RLS `auth.uid() = user_id`.
 - **Actions** (`src/actions/saved.ts`): `toggleSaveItem` (RLS-verified target, unsave via delete), `createSavedCollection` (form action), `deleteSavedCollection`, `moveSavedItem` (validates the folder is the caller's).

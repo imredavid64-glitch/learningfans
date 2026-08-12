@@ -29,8 +29,10 @@ public launch. Companion docs: [README](../README.md) (setup/deploy),
       `VAPID_SUBJECT` / `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`, `CRON_SECRET`
 - [ ] Deployment aliased: `https://learningfans.vercel.app` → latest production deployment
       (run `npx vercel alias set <deployment-url> learningfans.vercel.app` after every deploy)
-- [ ] Cron check: `vercel.json` schedules `GET /api/push/send` at `0 8 * * *` — confirm one
-      successful run in Vercel → Cron logs after launch day
+- [ ] Cron check: `vercel.json` schedules `GET /api/push/send` at `0 8 * * *` and
+      `GET /api/cron/digest` at `0 8 * * 1` — confirm a successful run of each in
+      Vercel → Cron logs after launch day
+- [ ] After a week of activity, a digest notification arrives (📬) summarizing the week, linking to /app/feed
 
 ### Communications & monitoring
 - [ ] Vercel team has access to project logs (Deployment → Functions → Logs)
