@@ -8,6 +8,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Community layer (Reddit-for-learners Phase 1)
+- **Community rules + announcements**: `spaces.rules` and `spaces.announcements` jsonb columns (migration `20260812000006_community_rules.sql`, manual apply) + new "App moderators can update spaces" RLS policy. New `src/actions/community.ts` (saveCommunityRules / postAnnouncement / deleteAnnouncement, gated by space-or-app moderator). Space page restructured into a Reddit-style layout: 📌 announcement cards on top, main discussion column, right sidebar with About / moderators / numbered rules, and a mod-only `CommunityAdmin` panel (inline rules editor + announcement composer/delete with router.refresh).
+- **Content filter chips**: materials feed now filters by All / PDFs / Images / Files / Links / Notes / Quizzes (MIME-aware — `uploadFileMaterial` now stores `metadata.mime`).
+- **Blueprint**: `docs/REDDIT_FOR_LEARNERS.md` — phased brainstorm for making the app "a Reddit for learners" (voting/ranking, flairs, quiz/PDF posts, nested comments, automod, karma, home feed). Phase 1 shipped; phases 2–4 scoped.
+- Verified: `tsc` clean, lint clean, 93/93 tests, `next build` compiles.
+
 ## 2026-08-12 — Full documentation
 - Wrote a docs home + seven reference docs in `docs/`: `README.md` (index + repo map + route index), `ARCHITECTURE.md` (stack, runtime model, realtime primitives, data flow, free-tier guardrails), `DATABASE.md` (all 33 tables, RLS model + helpers, 26 RPCs, realtime publications, migration index), `FEATURES.md` (every feature area → routes/actions/components/behavior), `DEPLOYMENT.md` (env vars, deploy + alias, cron, native, PWA, releases, rollback), `DEVELOPMENT.md` (setup, scripts, conventions, testing), `MODERATION.md` (layered pipeline, escalation tiers, security model), `TROUBLESHOOTING.md` (common failures incl. GoTrue warnings, deploy quota, missing migrations). Root README now links `docs/README.md`.
 - Facts verified against the codebase: table/RPC/realtime inventory via grep across migrations, proxy headers, workflows, electron config.

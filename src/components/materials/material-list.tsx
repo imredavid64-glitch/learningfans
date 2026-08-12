@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ExternalLink, FileText, Layers, StickyNote, Zap, Sparkles } from "lucide-react";
 import { toggleUpvote, setMaterialPriority } from "@/actions/materials";
@@ -16,6 +17,12 @@ import {
 import type { MaterialPriority } from "@/lib/constants";
 import type { StudyMaterial } from "@/types/database";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import {
+  MATERIAL_FILTERS as FILTERS,
+  matchesMaterialFilter,
+  type MaterialFilter,
+} from "@/lib/material-filters";
 
 const typeIcons = {
   file: FileText,
@@ -46,6 +53,7 @@ export function MaterialList({
   spaceSlug: string;
   userUpvotes: Set<string>;
 }) {
+  const [filter, setFilter] = useState<MaterialFilter>("all");
   const handleLoadSample = () => {
     toast.success("Sample creator study feed loaded!");
     // In a real implementation, this would populate the state
@@ -56,9 +64,37 @@ export function MaterialList({
     return <LoadSampleMaterialsButton onLoad={handleLoadSample} />;
   }
 
+  const filtered =
+    filter === "all" ? materials : materials.filter((m) => matchesMaterialFilter(m, filter));
+
   return (
-    <ul className="space-y-3">
-      {materials.map((m) => {
+    <div className="space-y-3">
+      {/* Reddit-style content filters: find PDFs, images, quizzes… */}
+      <div className="flex flex-wrap gap-1.5">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setFilter(f.id)}
+            className={cn(
+              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              filter === f.id
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:bg-accent",
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          Nothing here yet — be the first to share one in this community.
+        </p>
+      ) : (
+        <ul className="space-y-3">
+      {filtered.map((m) => {
         const Icon = typeIcons[m.type];
         const isVip = m.metadata?.is_vip === true;
         return (
@@ -127,6 +163,8 @@ export function MaterialList({
           </li>
         );
       })}
-    </ul>
+        </ul>
+      )}
+    </div>
   );
 }

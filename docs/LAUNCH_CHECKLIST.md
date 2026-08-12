@@ -110,6 +110,13 @@ for cross-account checks.
 - [ ] Refresh B mid-run → countdown continues (localStorage) and re-syncs on next event
 - [ ] Timer reaching 0 auto-transitions focus → break (beep + haptic on native)
 
+### Community (subreddit) features
+- [ ] Moderator adds 3 rules → they appear numbered in the About sidebar
+- [ ] Non-moderator cannot see the edit panel or change rules (RLS)
+- [ ] Moderator posts an announcement → 📌 card appears above the discussion
+- [ ] Announcement persists after refresh; deleted by the moderator
+- [ ] Materials feed filter chips (PDFs/Images/Notes/Quizzes) return correct items
+
 ### Presence, calls, invites
 - [ ] Avatar count + names update as accounts join/leave (live presence)
 - [ ] Copy invite → paste in a second browser → link opens the same room

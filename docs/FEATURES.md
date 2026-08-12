@@ -30,11 +30,17 @@ Server actions live in `src/actions/*.ts`; components in `src/components/*`.
   `threads/[id]`).
 - **Spaces:** create (name, slug, description, public toggle, optional password),
   join, leave. Public spaces are browsable; private ones require membership.
+- **Community layer (Reddit-style):** each space shows an **About** sidebar with
+  the moderator list and numbered **community rules** (`spaces.rules`, jsonb);
+  moderators manage rules inline and post 📌 **announcements**
+  (`spaces.announcements`, jsonb) that pin to the top of the community
+  (`src/actions/community.ts`, `src/components/community/community-admin.tsx`).
+  Space moderators + app moderators are gated by a dedicated RLS policy.
 - **Discussion:** threads (pin/lock/hide by mods), posts with **realtime** via
   `postgres_changes` on `posts` (same pattern as thread posts — see
   `src/components/discussion/thread-posts.tsx`). Replies auto-notify the thread
   author (migration 0001).
-- **Actions:** `src/actions/spaces.ts`, `src/actions/discussion.ts`.
+- **Actions:** `src/actions/spaces.ts`, `src/actions/discussion.ts`, `src/actions/community.ts`.
 
 ## Study materials & priorities
 
@@ -43,10 +49,11 @@ Server actions live in `src/actions/*.ts`; components in `src/components/*`.
   compressed via sharp); stored as signed URLs. Notes are text. Links are URLs.
 - **Flashcards:** local-first SM-2 spaced repetition. Deck payloads live in
   `study_materials.metadata` (capped ~150 KB, 1000 chars/side, max 100 cards);
-  **review progress lives in localStorage** (`lf-flashcard-progress`) so it never
+  **  review progress lives in localStorage** (`lf-flashcard-progress`) so it never
   touches the DB. Grading (again/good/easy/hard), mastery, haptics, and a
   per-deck **study room presence** strip showing who's studying the same deck.
   Offline decks cache to localStorage (`lf-offline-decks`) with `/app/offline`.
+  Uploads now record `metadata.mime` so the feed can filter by type.
 - **Priorities:** `user_material_rankings` — urgent/high/normal/low with rank
   score; surfaced on `/app/priorities` and the dashboard.
 - **Actions:** `src/actions/materials.ts`; **Files:**
@@ -61,6 +68,14 @@ Server actions live in `src/actions/*.ts`; components in `src/components/*`.
   click-to-open details), **event reminders** (migration 0002) delivered as toasts
   by `src/components/schedule/schedule-reminder-notifier.tsx`.
 - **Actions:** `src/actions/schedule.ts`.
+
+## Materials feed filters
+
+Reddit-style chip row on the materials page: **All / PDFs / Images / Files /
+Links / Notes / Quizzes** (`src/components/materials/material-list.tsx` — MIME
+aware, thanks to `metadata.mime` on uploads). This is the "find a PDF / quiz"
+superpower of the Reddit-for-learners vision (see
+[docs/REDDIT_FOR_LEARNERS.md](../docs/REDDIT_FOR_LEARNERS.md)).
 
 ## Meetings & live calls
 

@@ -23,6 +23,7 @@ tier and deployed on **Vercel**.
 | [Moderation & trust & safety](MODERATION.md) | Profanity pipeline, escalation, reports, sanctions, RLS security model |
 | [Troubleshooting](TROUBLESHOOTING.md) | Common failures and how to fix them |
 | [Launch checklist](LAUNCH_CHECKLIST.md) | Pre-flight → QA → post-launch runbook |
+| [Reddit for learners](REDDIT_FOR_LEARNERS.md) | Blueprint + brainstorm for turning communities into subreddits with learning-first posts |
 | [Roadmap / brainstorm](ROADMAP.md) | Living feature ideas, tagged by effort & impact |
 | [Supabase setup](SUPABASE_SETUP.md) | One-time Supabase project configuration |
 

@@ -248,7 +248,7 @@ export async function uploadFileMaterial(
 
   await supabase
     .from("study_materials")
-    .update({ storage_path: path })
+    .update({ storage_path: path, metadata: { mime: contentType } })
     .eq("id", material.id);
 
   revalidatePath(`/app/spaces/${spaceSlug}/materials`);

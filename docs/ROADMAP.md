@@ -25,6 +25,11 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   Powered by Realtime presence on the board channel (`{x, y}` tracked at ~10 Hz,
   auto-cleaned when someone disconnects); per-user colors derived from a palette
   hash (`cursorColor`). Next step: cursors in the chat + room canvas thumbnails.
+- ✅ **Community rules + mod announcements + content filters** — shipped
+  2026-08-12 (Reddit-for-learners Phase 1): numbered `spaces.rules` in the
+  About sidebar (mod-editable), 📌 `spaces.announcements` pinned cards, and
+  All/PDFs/Images/Files/Links/Notes/Quizzes filter chips on the materials feed.
+  Full blueprint in `docs/REDDIT_FOR_LEARNERS.md`.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or

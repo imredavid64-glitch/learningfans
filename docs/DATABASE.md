@@ -38,7 +38,7 @@ Patterns repeated across policies:
 | Table | Purpose |
 |-------|---------|
 | `profiles` | Users. `role` (`student`/`moderator`/`admin`), display_name, avatar, storage_used_bytes, restriction_level + profanity counters (escalation), school fields |
-| `spaces` | Study groups/courses. `name`, `slug`, `is_public`, `join_password_hash` (optional password), description |
+| `spaces` | Study groups/courses. `name`, `slug`, `is_public`, `join_password_hash` (optional password), description, **`rules` jsonb** (community rules, mod-editable), **`announcements` jsonb** (moderator announcements) |
 | `space_members` | Membership + role (`member`/`moderator`) |
 | `schools`, `class_enrollments`, `grades` | School-tenant provisioning (multi-tenant migrations) |
 
@@ -141,6 +141,7 @@ warns → restricts → suspends based on repeat violations
 | `20260812000003_push_subscriptions.sql` | Web push subscriptions |
 | `20260812000004_study_rooms.sql` | Study rooms + chat |
 | `20260812000005_study_room_reactions.sql` | Message reactions |
+| `20260812000006_community_rules.sql` | `spaces.rules` + `spaces.announcements` jsonb columns; app-moderator space update policy |
 | `combined.sql` | All of the above concatenated (one-shot fresh install) |
 
 > **Existing projects:** newer migrations (0001–0005, study_progress,
