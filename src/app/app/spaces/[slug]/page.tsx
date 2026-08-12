@@ -67,6 +67,9 @@ export default async function SpacePage({
           <ButtonLink href={`/app/spaces/${slug}/materials`} variant="outline">
             Materials
           </ButtonLink>
+          <ButtonLink href={`/app/study-rooms?space=${space.id}`} variant="outline">
+            Study room
+          </ButtonLink>
           <ButtonLink href={`/app/schedule?space=${space.id}`} variant="outline">
             Space schedule
           </ButtonLink>

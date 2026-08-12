@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { StudyStatsCard } from "@/components/gamification/study-stats-card";
 import { DeadlineRadar } from "@/components/schedule/deadline-radar";
+import { Presentation, Video, CalendarDays, Users } from "lucide-react";
 
 export default async function DashboardPage() {
   const profile = await getCurrentProfile();
@@ -61,6 +62,33 @@ export default async function DashboardPage() {
         initialStats={myStats}
         initialLeaderboard={leaderboard}
       />
+
+      {/* Study together — quick actions */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-3 py-4">
+          <div className="flex items-center gap-2 pr-2">
+            <Users className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-sm font-semibold">Study together</p>
+              <p className="text-xs text-muted-foreground">Grab a room, share a board, stay focused</p>
+            </div>
+          </div>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <ButtonLink href="/app/study-rooms" className="gap-1.5">
+              <Presentation className="h-4 w-4" />
+              Open a study room
+            </ButtonLink>
+            <ButtonLink href="/app/meetings/new" variant="outline" className="gap-1.5">
+              <Video className="h-4 w-4" />
+              Schedule a call
+            </ButtonLink>
+            <ButtonLink href="/app/schedule" variant="outline" className="gap-1.5">
+              <CalendarDays className="h-4 w-4" />
+              Schedule
+            </ButtonLink>
+          </div>
+        </CardContent>
+      </Card>
 
       <DeadlineRadar />
 

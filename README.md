@@ -1,6 +1,6 @@
 # LearningFans
 
-A student study community app: discuss in spaces, share study materials (files, links, notes, flashcards), prioritize what to study, and manage personal + shared schedules — with moderation tools. Built for the **Supabase Free** tier and deployed on **Vercel**.
+A student study community app: discuss in spaces, share study materials (files, links, notes, flashcards), prioritize what to study, and manage personal + shared schedules — with moderation tools. **Interactive study rooms** let people join live rooms with a shared realtime whiteboard, room chat, a synced focus timer and one-click video calls. Built for the **Supabase Free** tier and deployed on **Vercel**.
 
 ## Stack
 
@@ -117,6 +117,10 @@ Optional: install the [Supabase Vercel integration](https://vercel.com/integrati
 - [ ] Create a public space
 - [ ] Join a space from another account
 - [ ] Create thread and reply (realtime on thread page)
+- [ ] Create a study room from `/app/study-rooms`; join it from a second account
+- [ ] Draw on the whiteboard in one tab and see strokes appear in the other
+- [ ] Send room chat messages (appear live via realtime)
+- [ ] Start the shared pomodoro; see the countdown sync across tabs
 - [ ] Upload a file, add link, note, flashcards
 - [ ] Set material priority; view `/app/priorities`
 - [ ] Create personal and shared schedule events
@@ -137,6 +141,10 @@ supabase/migrations/
 
 | Role | Access |
 |------|--------|
-| `student` | Spaces, discussion, materials, schedule |
+| `student` | Spaces, discussion, materials, schedule, study rooms |
 | `moderator` | + Mod queue, sanctions, hide content |
 | `admin` | + User roles, storage overview |
+
+## Feature brainstorm
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the living feature brainstorm (communication, streamlining, study tools, gamification, native, trust & safety).
