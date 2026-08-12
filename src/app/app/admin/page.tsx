@@ -2,11 +2,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, isAdmin } from "@/lib/auth";
+import { getDbUsageReport } from "@/lib/archive";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Users, TrendingUp, Database, Settings, Shield, Plus, Search, MoreVertical, Building2 } from "lucide-react";
+
+function formatBytes(bytes: number): string {
+  if (!bytes || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  return `${(bytes / 1024 ** i).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
 
 export default async function AdminPage() {
   const profile = await getCurrentProfile();
@@ -30,11 +38,14 @@ export default async function AdminPage() {
     .from("spaces")
     .select("*", { count: "exact", head: true });
 
-  const { count: totalStorage } = await supabase
-    .from("profiles")
-    .select("storage_used_bytes", { count: "exact", head: true });
-
-  const storageMB = totalStorage ? (totalStorage / 1024 / 1024).toFixed(1) : "0.0";
+  const [usage, tableSizes] = await Promise.all([
+    getDbUsageReport(),
+    supabase
+      .rpc("get_table_sizes")
+      .then(({ data }) =>
+        ((data ?? []) as { table_name: string; size_bytes: number; row_count: number }[]),
+      ),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -75,8 +86,12 @@ export default async function AdminPage() {
               <Database className="h-6 w-6 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{storageMB} MB</p>
-              <p className="text-sm text-muted-foreground">Total Storage</p>
+              <p className="text-2xl font-bold">
+                {usage.totalBytes ? formatBytes(usage.totalBytes) : "—"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                DB usage · {(usage.usagePercent * 100).toFixed(1)}% of 500 MB
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -96,6 +111,92 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Database health */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Database health</CardTitle>
+          <CardDescription>
+            Free-tier budget (500 MB database) — daily retention + archival keep it in check
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div>
+            <div className="mb-1.5 flex items-center justify-between text-sm">
+              <span className="font-medium">Database usage</span>
+              <span className="text-muted-foreground">
+                {formatBytes(usage.totalBytes)} of 500 MB ·{" "}
+                {(usage.usagePercent * 100).toFixed(1)}%
+              </span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={"h-full rounded-full " + (
+                  usage.usagePercent >= 0.8
+                    ? "bg-red-500"
+                    : usage.usagePercent >= 0.6
+                      ? "bg-amber-500"
+                      : "bg-green-500"
+                )}
+                style={{ width: `${Math.min(100, usage.usagePercent * 100)}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <Badge variant={usage.archiveConfigured ? "default" : "destructive"}>
+              {usage.archiveConfigured ? "Archive DB connected" : "Archive DB not configured"}
+            </Badge>
+            {usage.archiveConfigured && (
+              <span className="text-muted-foreground">
+                {usage.archiveCount.toLocaleString()} records archived
+              </span>
+            )}
+            {usage.needsArchive && !usage.archiveConfigured && (
+              <span className="font-medium text-red-600">
+                Over 80% used with no archive — old rows are NOT being archived
+              </span>
+            )}
+          </div>
+
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            <li>
+              • Daily cron archives moderation logs (30d) and chat history (90d) to the
+              archive project, then deletes from main.
+            </li>
+            <li>
+              • Daily cron prunes consumed moderation-queue rows (7d), read notifications
+              (30d), and sent meeting reminders (30d).
+            </li>
+          </ul>
+
+          {tableSizes.length > 0 && (
+            <div>
+              <p className="mb-2 text-sm font-medium">Largest tables</p>
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="p-2.5 font-medium">Table</th>
+                      <th className="p-2.5 font-medium">Size</th>
+                      <th className="p-2.5 font-medium">Rows</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableSizes.slice(0, 8).map((t) => (
+                      <tr key={t.table_name} className="border-b last:border-0">
+                        <td className="p-2.5 font-mono text-xs">{t.table_name}</td>
+                        <td className="p-2.5">{formatBytes(t.size_bytes)}</td>
+                        <td className="p-2.5 tabular-nums">{t.row_count.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Users Table */}
       <Card>

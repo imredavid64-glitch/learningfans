@@ -95,19 +95,22 @@ export async function archiveOldData(): Promise<{ archived: number; deleted: num
   let archived = 0;
   let deleted = 0;
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
+  // Per-table retention: logs/reports go after 30 days; chat history after 90
+  // (rooms keep a longer window, and old messages are preserved in the
+  // archive project rather than destroyed).
   const tables = [
-    { table: "moderation_actions", dateCol: "created_at" },
-    { table: "audit_log", dateCol: "created_at" },
-    { table: "reports", dateCol: "created_at", extraCondition: "status.eq.resolved" },
+    { table: "moderation_actions", dateCol: "created_at", olderThanDays: 30 },
+    { table: "audit_log", dateCol: "created_at", olderThanDays: 30 },
+    { table: "reports", dateCol: "created_at", extraCondition: "status.eq.resolved", olderThanDays: 30 },
+    { table: "study_room_messages", dateCol: "created_at", olderThanDays: 90 },
   ];
 
-  for (const { table, dateCol, extraCondition } of tables) {
+  for (const { table, dateCol, extraCondition, olderThanDays } of tables) {
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
     let query = supabase
       .from(table)
       .select("*")
-      .lt(dateCol, thirtyDaysAgo)
+      .lt(dateCol, cutoff)
       .limit(500);
 
     if (extraCondition) {
@@ -159,6 +162,25 @@ export async function getStorageStatus(): Promise<{
   return {
     mainUsagePercent: Math.round(usagePercent * 100),
     archiveCount,
+    needsArchive: usagePercent >= STORAGE_THRESHOLD,
+  };
+}
+
+export async function getDbUsageReport(): Promise<{
+  totalBytes: number;
+  usagePercent: number;
+  archiveConfigured: boolean;
+  archiveCount: number;
+  needsArchive: boolean;
+}> {
+  const { totalBytes, usagePercent } = await getDatabaseSize();
+  return {
+    totalBytes,
+    usagePercent,
+    archiveConfigured: Boolean(
+      process.env.ARCHIVE_SUPABASE_URL && process.env.ARCHIVE_SUPABASE_SERVICE_KEY,
+    ),
+    archiveCount: await getArchiveCount(),
     needsArchive: usagePercent >= STORAGE_THRESHOLD,
   };
 }

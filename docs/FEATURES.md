@@ -327,5 +327,10 @@ superpower of the Reddit-for-learners vision (see
   marketing/demo.
 - **Haptics** (`src/lib/haptics.ts`): Capacitor haptics on native, no-op on web —
   wired into flashcard grading, check-in, room joins, notifications, whiteboard.
-- **Archival** (`src/lib/archive.ts`): when `get_db_size` nears the free-tier
-  cap, old data moves to a second Supabase project (`ARCHIVE_SUPABASE_*`).
+- **Database management** (free-tier 500 MB cap): `src/lib/archive.ts`
+  archives moderation logs (30d) and chat history (90d) to a second Supabase
+  project (`ARCHIVE_SUPABASE_*`) before deleting from main; a daily retention
+  pass on the push cron prunes consumed moderation-queue rows (7d), read
+  notifications (30d), and sent meeting reminders (30d) via
+  `run_housekeeping`; the admin dashboard shows live usage, archive status,
+  and the largest tables via `get_table_sizes`.

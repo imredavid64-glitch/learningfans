@@ -3,6 +3,7 @@ import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildPushPayload, getVapidConfig } from "@/lib/push";
 import { drainChatModerationQueue } from "@/lib/chat-moderation";
+import { checkAndArchive } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -32,10 +33,20 @@ export async function GET(request: Request) {
   const now = new Date().toISOString();
   const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
 
-  // Safety net for batched chat moderation: any message still awaiting AI
-  // review gets drained even if no one has sent a message since (the queue is
-  // normally flushed fire-and-forget right after each send).
+  // Daily database housekeeping (free-tier 500 MB cap):
+  // 1. Drain any chat messages still awaiting AI review (safety net — the
+  //    queue is normally flushed right after each send).
+  // 2. Archive old rows (moderation logs after 30d, chat history after 90d)
+  //    to the archive project, then delete them from the main DB.
+  // 3. Prune consumed moderation-queue rows, read notifications, and sent
+  //    meeting reminders via the retention RPC.
   await drainChatModerationQueue({ maxChunks: 1 }).catch(() => undefined);
+  await checkAndArchive().catch(() => undefined);
+  try {
+    await admin.rpc("run_housekeeping");
+  } catch {
+    // Non-fatal — housekeeping is best-effort; the cron continues.
+  }
 
   const { data: notifications } = await admin
     .from("notifications")

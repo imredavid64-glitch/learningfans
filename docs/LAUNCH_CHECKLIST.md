@@ -38,6 +38,12 @@ public launch. Companion docs: [README](../README.md) (setup/deploy),
 - [ ] Vercel team has access to project logs (Deployment → Functions → Logs)
 - [ ] Supabase dashboard monitored: database size, storage, egress vs. Free-tier caps
       (500 MB DB / 1 GB storage / 5 GB egress / 50k MAU)
+- [ ] In-app **Database health** section (admin dashboard) reads green: usage bar under
+      60%, "Archive DB connected", largest tables listed; `ARCHIVE_SUPABASE_URL` +
+      `ARCHIVE_SUPABASE_SERVICE_KEY` set in Vercel env (without them archival no-ops
+      and history grows unbounded)
+- [ ] After a few days: `/app/admin` usage shows stable/declining usage — daily cron
+      (push route) archived logs + pruned queue rows/read notifications/reminders
 - [ ] Designate launch owner + on-call; agree on rollback = "Redeploy previous deployment"
 
 ---

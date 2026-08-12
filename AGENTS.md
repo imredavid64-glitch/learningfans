@@ -8,6 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Database management (free-tier 500 MB cap)
+- **Migration** `20260812000017_database_housekeeping.sql` (manual apply ⚠️): `get_table_sizes()` (per-table size + row count) and `run_housekeeping(p_queue_days=7, p_notification_days=30, p_reminder_days=30)` retention pruning (consumed queue rows, read notifications, sent meeting reminders).
+- **`src/lib/archive.ts`**: per-table retention days — moderation_actions/audit_log/reports 30d, **`study_room_messages` 90d** (chat history was the biggest unmanaged growth source) — archived to the archive project before deletion; `getDbUsageReport()` exported for the dashboard.
+- **Daily maintenance** on the existing push cron (cron slots are full): drain chat moderation → `checkAndArchive()` → `run_housekeeping`. Archival no-ops safely when `ARCHIVE_SUPABASE_*` isn't configured.
+- **Admin dashboard** `/app/admin`: new "Database health" card — usage bar vs 500 MB, archive status (red warning when >80% with no archive), retention summary, top-8 largest tables. Also fixed the old "Total Storage" stat which displayed a row count as MB.
+- Quality: 135/135 tests, tsc + lint clean, build compiles. `combined.sql` regenerated (27 migrations). Docs: DATABASE, FEATURES, LAUNCH_CHECKLIST.
+
 ## 2026-08-12 — Room chat moderation backfill
 - **`supabase/backfill_chat_moderation.sql`** (one-off paste, idempotent): enqueues every `study_room_messages` row not already in `chat_moderation_queue` (NOT EXISTS dedupe, skips hidden) so old history gets AI-reviewed by the existing batched pipeline.
 - **Drain route** `/api/moderation/chat` accepts `?chunks=N` (1–50, default 3) to chew through a big backlog fast (N × 15 messages per call) after the backfill.

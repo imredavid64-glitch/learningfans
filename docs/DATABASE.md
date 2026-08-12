@@ -115,6 +115,9 @@ warns → restricts → suspends based on repeat violations
 
 ### Misc
 `get_db_size` — free-tier DB size probe (drives archival) ·
+`get_table_sizes` — per-table size + row-count report (admin dashboard) ·
+`run_housekeeping` — retention pruning (consumed moderation-queue rows 7d,
+read notifications 30d, sent meeting reminders 30d; called by the daily cron) ·
 `update_storage_used` · `update_material_upvote_score` · `handle_new_user` ·
 `send_weekly_digests` — one `digest` notification per user per week from the
 `/api/cron/digest` cron (counts new threads/materials/replies in their
@@ -159,6 +162,7 @@ communities, skips no-activity weeks)
 | `20260812000014_mod_dashboard_automod.sql` | `spaces.automod_rules` jsonb; `moderation_actions.space_id` + index; space-mod log read policy; `auto_flag` self-log insert policy |
 | `20260812000015_chat_moderation_queue.sql` | `chat_moderation_queue` (pending/processing/processed/failed, attempts) + `claim_chat_moderation_batch()` RPC; `study_room_messages.hidden`; insert policy (user enqueues own) |
 | `20260812000016_message_reports.sql` | `report_target_type` gains `message`; app moderators can read room chat (incl. space rooms) for the mod queue |
+| `20260812000017_database_housekeeping.sql` | `get_table_sizes()` (per-table size/rows); `run_housekeeping()` retention pruning (queue 7d, read notifications 30d, sent reminders 30d) |
 | `combined.sql` | All of the above concatenated (one-shot fresh install) |
 
 > **Existing projects:** newer migrations (0001–0005, study_progress,
