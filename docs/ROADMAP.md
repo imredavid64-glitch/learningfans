@@ -40,6 +40,11 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   server-side grading + per-question review, best score lands on a top-10
   community leaderboard (`quiz_attempts`, one row per user per quiz). Next from
   the blueprint: PDF posts with in-feed preview + image lightboxes.
+- ✅ **Post flairs** — shipped 2026-08-12 (Phase 2b): mod-defined color-coded
+  labels per community (`spaces.flairs` jsonb, 8-color palette, validated in
+  `src/lib/community.ts`); thread form select + author/mod change control;
+  colored chips on feed cards and thread pages. Next: community icons/banners +
+  directory.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or

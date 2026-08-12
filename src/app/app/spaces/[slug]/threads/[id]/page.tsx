@@ -6,6 +6,8 @@ import { getCurrentProfile, isModerator } from "@/lib/auth";
 import { hideThread } from "@/actions/discussion";
 import { ThreadPosts } from "@/components/discussion/thread-posts";
 import { ReportButton } from "@/components/moderation/report-button";
+import { ThreadFlairControl } from "@/components/community/thread-flair-control";
+import type { CommunityFlair } from "@/lib/community";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -33,7 +35,21 @@ export default async function ThreadPage({
     .eq("is_hidden", false)
     .order("created_at", { ascending: true });
 
-  const canMod = isModerator(profile!.role);
+  const { data: membership } = await supabase
+    .from("space_members")
+    .select("role")
+    .eq("space_id", thread.space_id)
+    .eq("user_id", profile!.id)
+    .maybeSingle();
+
+  const { data: spaceRow } = await supabase
+    .from("spaces")
+    .select("flairs")
+    .eq("id", thread.space_id)
+    .single();
+  const flairs = (Array.isArray(spaceRow?.flairs) ? spaceRow.flairs : []) as CommunityFlair[];
+
+  const canMod = isModerator(profile!.role) || membership?.role === "moderator";
 
   return (
     <div className="space-y-6">
@@ -51,6 +67,12 @@ export default async function ThreadPage({
           <time>
             {formatDistanceToNow(new Date(thread.created_at), { addSuffix: true })}
           </time>
+          <ThreadFlairControl
+            threadId={thread.id}
+            currentFlairId={thread.flair_id ?? null}
+            flairs={flairs}
+            canEdit={canMod || thread.author_id === profile!.id}
+          />
           {thread.is_locked && <Badge variant="outline">Locked</Badge>}
         </div>
         {thread.body && (

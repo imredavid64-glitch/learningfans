@@ -5,28 +5,38 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   saveCommunityRules,
+  saveCommunityFlairs,
   postAnnouncement,
   deleteAnnouncement,
 } from "@/actions/community";
 import {
   MAX_RULES,
+  MAX_FLAIRS,
+  MAX_FLAIR_LABEL,
+  FLAIR_COLORS,
+  FLAIR_SWATCH_CLASSES,
   type CommunityAnnouncement,
+  type CommunityFlair,
   type CommunityRule,
+  type FlairColorId,
 } from "@/lib/community";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Bookmark, Megaphone, Plus, Trash2 } from "lucide-react";
+import { Bookmark, Megaphone, Plus, Tag, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function CommunityAdmin({
   spaceId,
   initialRules,
   initialAnnouncements,
+  initialFlairs,
 }: {
   spaceId: string;
   initialRules: CommunityRule[];
   initialAnnouncements: CommunityAnnouncement[];
+  initialFlairs: CommunityFlair[];
 }) {
   const router = useRouter();
   const [rules, setRules] = useState<CommunityRule[]>(initialRules);
@@ -36,6 +46,10 @@ export function CommunityAdmin({
   const [annTitle, setAnnTitle] = useState("");
   const [annBody, setAnnBody] = useState("");
   const [posting, setPosting] = useState(false);
+  const [flairs, setFlairs] = useState<CommunityFlair[]>(initialFlairs);
+  const [savingFlairs, setSavingFlairs] = useState(false);
+  const [newFlairLabel, setNewFlairLabel] = useState("");
+  const [newFlairColor, setNewFlairColor] = useState<FlairColorId>("blue");
 
   async function handleSaveRules() {
     setSavingRules(true);
@@ -90,8 +104,131 @@ export function CommunityAdmin({
     router.refresh();
   }
 
+  async function handleSaveFlairs() {
+    setSavingFlairs(true);
+    const res = await saveCommunityFlairs(spaceId, flairs);
+    setSavingFlairs(false);
+    if (!res.ok) {
+      toast.error(res.error ?? "Couldn't save flairs.");
+      return;
+    }
+    toast.success("Post flairs saved.");
+    router.refresh();
+  }
+
+  function addFlair() {
+    const label = newFlairLabel.trim();
+    if (!label) return;
+    setFlairs((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), label, color: newFlairColor },
+    ]);
+    setNewFlairLabel("");
+  }
+
+  function updateFlair(id: string, patch: Partial<CommunityFlair>) {
+    setFlairs((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  }
+
   return (
     <div className="space-y-6">
+      {/* Post flairs editor */}
+      <div className="rounded-xl border bg-card p-4">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <Tag className="h-4 w-4 text-primary" /> Post flairs
+        </h3>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Color-coded labels members can tag their posts with — like Homework
+          help, Exam prep, or Resource.
+        </p>
+        {flairs.length === 0 && (
+          <p className="mb-3 text-sm text-muted-foreground">
+            No flairs yet — add a few so members can label their posts.
+          </p>
+        )}
+        <div className="space-y-2">
+          {flairs.map((flair) => (
+            <div key={flair.id} className="flex items-center gap-2">
+              <Input
+                value={flair.label}
+                maxLength={MAX_FLAIR_LABEL}
+                onChange={(e) => updateFlair(flair.id, { label: e.target.value })}
+                className="h-8 flex-1 text-sm"
+                placeholder="Flair label"
+              />
+              <div className="flex items-center gap-1">
+                {FLAIR_COLORS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => updateFlair(flair.id, { color: c.id })}
+                    title={c.label}
+                    aria-label={`Set color to ${c.label}`}
+                    className={cn(
+                      "h-4 w-4 rounded-full transition-transform",
+                      FLAIR_SWATCH_CLASSES[c.id],
+                      flair.color === c.id
+                        ? "ring-2 ring-ring ring-offset-1"
+                        : "opacity-60 hover:opacity-100",
+                    )}
+                  />
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-destructive"
+                onClick={() => setFlairs((prev) => prev.filter((f) => f.id !== flair.id))}
+                title="Remove flair"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+        {flairs.length < MAX_FLAIRS && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-3">
+            <Input
+              value={newFlairLabel}
+              maxLength={MAX_FLAIR_LABEL}
+              onChange={(e) => setNewFlairLabel(e.target.value)}
+              className="h-8 flex-1 min-w-40 text-sm"
+              placeholder="New flair label, e.g. Homework help"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addFlair();
+                }
+              }}
+            />
+            <div className="flex items-center gap-1">
+              {FLAIR_COLORS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setNewFlairColor(c.id)}
+                  title={c.label}
+                  aria-label={`Choose ${c.label}`}
+                  className={cn(
+                    "h-5 w-5 rounded-full transition-transform",
+                    FLAIR_SWATCH_CLASSES[c.id],
+                    newFlairColor === c.id
+                      ? "ring-2 ring-ring ring-offset-1"
+                      : "opacity-60 hover:opacity-100",
+                  )}
+                />
+              ))}
+            </div>
+            <Button size="sm" variant="outline" className="h-8 gap-1" onClick={addFlair}>
+              <Plus className="h-3.5 w-3.5" /> Add
+            </Button>
+          </div>
+        )}
+        <Button size="sm" className="mt-3" onClick={handleSaveFlairs} disabled={savingFlairs}>
+          {savingFlairs ? "Saving…" : "Save flairs"}
+        </Button>
+      </div>
+
       {/* Rules editor */}
       <div className="rounded-xl border bg-card p-4">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">

@@ -6,7 +6,7 @@ import { createThread } from "@/actions/discussion";
 import { leaveSpace } from "@/actions/spaces";
 import { CommunityAdmin } from "@/components/community/community-admin";
 import { ThreadFeed, type FeedThread } from "@/components/community/thread-feed";
-import type { CommunityAnnouncement, CommunityRule } from "@/lib/community";
+import type { CommunityAnnouncement, CommunityFlair, CommunityRule } from "@/lib/community";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -64,6 +64,7 @@ export default async function SpacePage({
   const isMod = isModerator(profile!.role) || membership?.role === "moderator";
   const rules = (Array.isArray(space.rules) ? space.rules : []) as CommunityRule[];
   const announcements = (Array.isArray(space.announcements) ? space.announcements : []) as CommunityAnnouncement[];
+  const flairs = (Array.isArray(space.flairs) ? space.flairs : []) as CommunityFlair[];
 
   // The current user's votes on the visible threads (Reddit-style voting).
   const threadIds = (threads ?? []).map((t) => t.id);
@@ -82,6 +83,7 @@ export default async function SpacePage({
   const feedThreads: FeedThread[] = (threads ?? []).map((t) => ({
     id: t.id,
     title: t.title,
+    flair_id: t.flair_id ?? null,
     is_pinned: t.is_pinned,
     is_locked: t.is_locked,
     score: t.score ?? 0,
@@ -166,6 +168,7 @@ export default async function SpacePage({
                 userVotes={userVotes}
                 slug={slug}
                 isMod={isMod}
+                flairs={flairs}
               />
             </TabsContent>
             <TabsContent value="new" className="mt-4">
@@ -176,6 +179,24 @@ export default async function SpacePage({
                       <Label htmlFor="title">Title</Label>
                       <Input id="title" name="title" required />
                     </div>
+                    {flairs.length > 0 && (
+                      <div className="space-y-2">
+                        <Label htmlFor="flair">Flair</Label>
+                        <select
+                          id="flair"
+                          name="flair"
+                          defaultValue=""
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="">No flair</option>
+                          {flairs.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="body">First post</Label>
                       <Textarea id="body" name="body" rows={4} />
@@ -231,6 +252,7 @@ export default async function SpacePage({
               spaceId={space.id}
               initialRules={rules}
               initialAnnouncements={announcements}
+              initialFlairs={flairs}
             />
           )}
         </div>

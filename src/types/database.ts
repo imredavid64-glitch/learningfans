@@ -26,6 +26,10 @@ export type Space = {
   is_public: boolean;
   created_by: string;
   created_at: string;
+  /** Community rules/announcements/flairs live as jsonb (see migrations 0006/0009). */
+  rules?: unknown;
+  announcements?: unknown;
+  flairs?: unknown;
 };
 
 export type SpaceMember = {
@@ -47,6 +51,8 @@ export type Thread = {
   score: number;
   ups: number;
   downs: number;
+  /** References a flair id from the space's flairs jsonb list. */
+  flair_id?: string | null;
   created_at: string;
   updated_at: string;
 };

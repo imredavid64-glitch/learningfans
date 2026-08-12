@@ -124,6 +124,10 @@ for cross-account checks.
 - [ ] Taking it grades instantly; review shows correct answers + explanations
 - [ ] Retake records a new attempt; best score lands on the top-10 leaderboard (two accounts)
 - [ ] Skipping a question counts as wrong; submitting with unanswered questions is blocked
+- [ ] Moderator adds flairs (label + color) → they save and show in the New thread form
+- [ ] Creating a thread with a flair shows the colored chip on the feed card and thread page
+- [ ] Author or moderator changes/clears the flair from the thread page; non-author non-mod cannot
+- [ ] A flair id not in the community's list is rejected (can't be forged via the form)
 
 ### Presence, calls, invites
 - [ ] Avatar count + names update as accounts join/leave (live presence)

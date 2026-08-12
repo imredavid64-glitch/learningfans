@@ -10,13 +10,22 @@ import {
   MAX_ANNOUNCEMENTS,
   MAX_ANNOUNCEMENT_TITLE,
   MAX_ANNOUNCEMENT_BODY,
+  MAX_FLAIRS,
+  validateFlairs,
   type CommunityRule,
   type CommunityAnnouncement,
+  type CommunityFlair,
 } from "@/lib/community";
 
 export type CommunityResult = { ok: boolean; error?: string };
 
-export { MAX_RULES, type CommunityRule, type CommunityAnnouncement };
+export {
+  MAX_RULES,
+  MAX_FLAIRS,
+  type CommunityRule,
+  type CommunityAnnouncement,
+  type CommunityFlair,
+};
 
 /** Gate: space moderator (space_members.role = 'moderator') or app moderator. */
 async function requireSpaceModerator(spaceId: string) {
@@ -48,6 +57,32 @@ function cleanRule(rule: CommunityRule): CommunityRule {
     title: rule.title.trim().slice(0, MAX_RULE_TITLE),
     body: (rule.body ?? "").trim().slice(0, MAX_RULE_BODY) || undefined,
   };
+}
+
+/** Replace the community's post flairs (moderators only). */
+export async function saveCommunityFlairs(
+  spaceId: string,
+  flairs: unknown,
+): Promise<CommunityResult> {
+  await requireSpaceModerator(spaceId);
+  const supabase = await createClient();
+
+  const validation = validateFlairs(flairs);
+  if (!validation.ok) return { ok: false, error: validation.error };
+
+  const { data: space } = await supabase
+    .from("spaces")
+    .select("slug")
+    .eq("id", spaceId)
+    .single();
+  const { error } = await supabase
+    .from("spaces")
+    .update({ flairs: validation.flairs })
+    .eq("id", spaceId);
+
+  if (error) return { ok: false, error: error.message };
+  if (space) revalidatePath(`/app/spaces/${space.slug}`);
+  return { ok: true };
 }
 
 /** Replace the community rules (moderators only). */

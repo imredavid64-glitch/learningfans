@@ -8,6 +8,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Post flairs (Reddit Phase 2b)
+- **Migration** `20260812000009_post_flairs.sql` (manual apply ⚠️): `spaces.flairs` jsonb (default `[]`) + `threads.flair_id` text + partial index. No new RLS — spaces updates are mod-gated (0006), threads updates already allow author + space/app mods.
+- **Lib**: `src/lib/community.ts` — `FLAIR_COLORS` (8 fixed Tailwind-safe colors), `FLAIR_COLOR_CLASSES`/`FLAIR_SWATCH_CLASSES`, `validateFlairs` (≤15 flairs, ≤40-char labels, unique ids, generated ids); 6 new unit tests (`community.test.ts`).
+- **Actions**: `saveCommunityFlairs` in `src/actions/community.ts` (mod-gated); `createThread` reads an optional `flair` field validated against the space's flairs (space rows resolved by id OR slug via `.or()`), `setThreadFlair(threadId, flairId|null)` gated to author/mods.
+- **UI**: `CommunityAdmin` gains a flairs editor (label input + 8-color swatch picker per flair); New-thread form gets a flair `<select>`; `ThreadFeed` renders colored chips on cards; new `ThreadFlairControl` on the thread page (badge for everyone, change select for author/mods).
+- **Quality**: 121/121 tests, tsc + lint clean, `next build` compiles. `combined.sql` regenerated (19 migrations).
+- **Blocked**: Vercel 100-deploys/day cap still active — 8 verified commits queued (mentions/reactions → cursors → docs → community → voting → quizzes → flairs).
+
 ## 2026-08-12 — Quiz posts + community leaderboard (Reddit Phase 3a)
 - **Migration** `20260812000008_quiz_posts.sql` (manual apply ⚠️): `material_type` gains `quiz`; `quiz_attempts` table (PK material+user, best_score_pct/correct/total/attempts, RLS via `can_read_space` + hidden-material guard, leaderboard index).
 - **Lib**: `src/lib/quizzes.ts` — payload validation (≤20 Q, 2–6 options, byte cap) + authoritative `gradeQuiz`; 8 new unit tests.

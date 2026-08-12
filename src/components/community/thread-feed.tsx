@@ -17,6 +17,7 @@ import {
   type VoteValue,
 } from "@/lib/thread-ranking";
 import { cn } from "@/lib/utils";
+import { FLAIR_COLOR_CLASSES, type CommunityFlair } from "@/lib/community";
 import { ArrowDown, ArrowUp } from "lucide-react";
 
 const SORTS: { id: ThreadSort; label: string }[] = [
@@ -29,6 +30,7 @@ const SORTS: { id: ThreadSort; label: string }[] = [
 export interface FeedThread {
   id: string;
   title: string;
+  flair_id?: string | null;
   is_pinned: boolean;
   is_locked: boolean;
   score: number;
@@ -43,12 +45,15 @@ export function ThreadFeed({
   userVotes,
   slug,
   isMod,
+  flairs = [],
 }: {
   threads: FeedThread[];
   userVotes: Record<string, VoteValue>;
   slug: string;
   isMod: boolean;
+  flairs?: CommunityFlair[];
 }) {
+  const flairMap = new Map(flairs.map((f) => [f.id, f]));
   const router = useRouter();
   const [sort, setSort] = useState<ThreadSort>("hot");
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -145,6 +150,18 @@ export function ThreadFeed({
                       </Link>
                     </CardTitle>
                     <div className="flex gap-1">
+                      {t.flair_id && flairMap.has(t.flair_id) && (
+                        <span
+                          className={cn(
+                            "rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                            FLAIR_COLOR_CLASSES[
+                              (flairMap.get(t.flair_id)?.color ?? "blue") as keyof typeof FLAIR_COLOR_CLASSES
+                            ],
+                          )}
+                        >
+                          {flairMap.get(t.flair_id)?.label}
+                        </span>
+                      )}
                       {t.is_pinned && <Badge>Pinned</Badge>}
                       {t.is_locked && <Badge variant="outline">Locked</Badge>}
                     </div>

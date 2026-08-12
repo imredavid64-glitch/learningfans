@@ -82,6 +82,19 @@ aware, thanks to `metadata.mime` on uploads). This is the "find a PDF / quiz"
 superpower of the Reddit-for-learners vision (see
 [docs/REDDIT_FOR_LEARNERS.md](../docs/REDDIT_FOR_LEARNERS.md)).
 
+## Post flairs (color-coded labels)
+
+- **Define:** moderators manage a community's flair list in the admin panel
+  (`CommunityAdmin` — up to 15, each a label + one of 8 fixed colors; palette and
+  validation in `src/lib/community.ts`, unit-tested). Stored as `spaces.flairs`
+  jsonb (migration 0009), same pattern as rules/announcements.
+- **Apply:** the New thread form shows a flair select when the community has
+  flairs; authors and moderators can change a thread's flair from its page
+  (`ThreadFlairControl`). `flair_id` is validated against the community's list
+  server-side (`createThread` / `setThreadFlair` in `src/actions/discussion.ts`).
+- **Surface:** colored flair chips on thread cards in the feed (`ThreadFeed`)
+  and on the thread detail page.
+
 ## Quiz posts (community quizzes)
 
 - **Create:** a member of a space posts a quiz from the materials page

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile, getSpaceMembership } from "@/lib/auth";
+import { requireProfile, getSpaceMembership, isModerator } from "@/lib/auth";
+import type { CommunityFlair } from "@/lib/community";
 import { checkContentWithAI, checkAndArchive } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
 import { threadSchema, postSchema, validateOrThrow } from "@/lib/validation";
@@ -134,6 +135,22 @@ export async function createThread(spaceId: string, formData: FormData): Promise
 
   const slug = await getSpaceSlug(supabase, spaceId);
 
+  // Optional post flair — must exist in this community's flair list.
+  const { data: spaceRow } = await supabase
+    .from("spaces")
+    .select("flairs")
+    .or(`id.eq.${spaceId},slug.eq.${spaceId}`)
+    .single();
+  const spaceFlairs = Array.isArray(spaceRow?.flairs)
+    ? (spaceRow.flairs as CommunityFlair[])
+    : [];
+  const flairId = String(formData.get("flair") ?? "").trim() || null;
+  if (flairId && !spaceFlairs.some((f) => f.id === flairId)) {
+    redirect(
+      `/app/classes/${slug}?error=${encodeURIComponent("That flair doesn't exist in this community.")}`,
+    );
+  }
+
   let title: string;
   let body: string;
   try {
@@ -174,6 +191,7 @@ export async function createThread(spaceId: string, formData: FormData): Promise
       author_id: profile.id,
       title,
       body,
+      flair_id: flairId,
       is_hidden: !moderation.is_clean,
     })
     .select()
@@ -204,6 +222,62 @@ export async function createThread(spaceId: string, formData: FormData): Promise
   checkAndArchive();
   revalidatePath(`/app/classes/${slug}`);
   redirect(threadPath(slug, thread.id));
+}
+
+/** Set (or clear) a thread's flair — authors and moderators only. */
+export async function setThreadFlair(
+  threadId: string,
+  flairId: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("id, author_id, space_id")
+    .eq("id", threadId)
+    .single();
+  if (!thread) return { ok: false, error: "Thread not found." };
+
+  const membership = await getSpaceMembership(thread.space_id, profile.id);
+  const canEdit =
+    thread.author_id === profile.id ||
+    membership?.role === "moderator" ||
+    isModerator(profile.role);
+  if (!canEdit) {
+    return { ok: false, error: "Only the author or a moderator can set the flair." };
+  }
+
+  let next: string | null = null;
+  if (flairId) {
+    const { data: space } = await supabase
+      .from("spaces")
+      .select("flairs")
+      .eq("id", thread.space_id)
+      .single();
+    const flairs = Array.isArray(space?.flairs) ? (space.flairs as CommunityFlair[]) : [];
+    if (!flairs.some((f) => f.id === flairId)) {
+      return { ok: false, error: "That flair doesn't exist in this community." };
+    }
+    next = flairId;
+  }
+
+  const { error } = await supabase
+    .from("threads")
+    .update({ flair_id: next })
+    .eq("id", threadId);
+  if (error) return { ok: false, error: error.message };
+
+  const { data: space } = await supabase
+    .from("spaces")
+    .select("slug")
+    .eq("id", thread.space_id)
+    .single();
+  if (space) {
+    revalidatePath(`/app/spaces/${space.slug}`);
+    revalidatePath(`/app/spaces/${space.slug}/threads/${threadId}`);
+  }
+  return { ok: true };
 }
 
 /** Upvote / downvote / unvote a thread (Reddit-style). */

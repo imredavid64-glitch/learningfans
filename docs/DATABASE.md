@@ -46,7 +46,7 @@ Patterns repeated across policies:
 
 | Table | Purpose |
 |-------|---------|
-| `threads` | Discussion threads; `is_pinned`, `is_locked`, `is_hidden`, cached vote counts `score` / `ups` / `downs` |
+| `threads` | Discussion threads; `is_pinned`, `is_locked`, `is_hidden`, `flair_id` (references a flair from the space's flairs), cached vote counts `score` / `ups` / `downs` |
 | `post_votes` | Thread votes (PK post+user, `vote` 1/-1); maintains `threads.score/ups/downs` via the `update_thread_score` trigger |
 | `posts` | Thread replies; realtime publication |
 | `study_materials` | `type` = file/link/note/flashcard_set/quiz; `metadata` jsonb (deck payloads, quiz questions, due dates); `community_score` |
@@ -146,6 +146,7 @@ warns → restricts → suspends based on repeat violations
 | `20260812000006_community_rules.sql` | `spaces.rules` + `spaces.announcements` jsonb columns; app-moderator space update policy |
 | `20260812000007_thread_votes.sql` | `threads.score/ups/downs` + `post_votes` table (RLS + realtime-less), `update_thread_score` trigger |
 | `20260812000008_quiz_posts.sql` | `material_type` gains `quiz`; `quiz_attempts` table (PK material+user, best-score RLS, leaderboard index) |
+| `20260812000009_post_flairs.sql` | `spaces.flairs` jsonb + `threads.flair_id` (partial index); no new RLS (existing mod/author update policies) |
 | `combined.sql` | All of the above concatenated (one-shot fresh install) |
 
 > **Existing projects:** newer migrations (0001–0005, study_progress,
