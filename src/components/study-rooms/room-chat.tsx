@@ -15,7 +15,7 @@ import { hapticLight } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageSquare, Send, SmilePlus } from "lucide-react";
+import { MessageSquare, Send, ShieldAlert, SmilePlus } from "lucide-react";
 
 export interface RoomMessage {
   id: string;
@@ -23,6 +23,7 @@ export interface RoomMessage {
   user_id: string;
   body: string;
   created_at: string;
+  hidden?: boolean;
   profiles: { display_name: string; avatar_url?: string | null } | null;
 }
 
@@ -123,7 +124,13 @@ export function RoomChat({
           filter: `room_id=eq.${roomId}`,
         },
         async (payload) => {
-          const row = payload.new as { id: string; user_id: string; body: string; created_at: string };
+          const row = payload.new as {
+            id: string;
+            user_id: string;
+            body: string;
+            created_at: string;
+            hidden?: boolean;
+          };
           let profile = profileCacheRef.current.get(row.user_id);
           if (!profile) {
             const { data } = await supabase
@@ -136,7 +143,10 @@ export function RoomChat({
           }
           setMessages((prev) => {
             if (prev.some((m) => m.id === row.id)) return prev;
-            return [...prev, { ...row, room_id: roomId, profiles: profile }];
+            return [
+              ...prev,
+              { ...row, room_id: roomId, hidden: row.hidden ?? false, profiles: profile },
+            ];
           });
           if (row.user_id !== userId) void hapticLight();
         },
@@ -291,6 +301,20 @@ export function RoomChat({
             const mine = m.user_id === userId;
             const segments = renderMentions(m.body);
             const msgReactions = reactions.get(m.id) ?? [];
+            if (m.hidden) {
+              return (
+                <div
+                  key={m.id}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs italic text-muted-foreground",
+                    mine ? "ml-auto max-w-[80%]" : "mr-auto max-w-[80%]",
+                  )}
+                >
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                  Message removed by moderators for violating community guidelines
+                </div>
+              );
+            }
             return (
               <div key={m.id} className={cn("group flex flex-col gap-1", mine ? "items-end" : "items-start")}>
                 <div className={cn("flex gap-2", mine && "flex-row-reverse")}>

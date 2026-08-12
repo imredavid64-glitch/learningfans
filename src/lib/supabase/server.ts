@@ -126,12 +126,18 @@ export async function checkContentWithAI(content: string, context?: string): Pro
   };
 }
 
-export async function checkProfanityWithEscalation(
+/**
+ * Fast local checks only (profanity + spam) with the same escalation tiers as
+ * the full pipeline. Returns null when the content passes both, so callers
+ * can decide whether to run the slower AI pass (posts/threads/materials) or
+ * enqueue it for batched AI review (room chat).
+ */
+async function runLocalChecks(
   userId: string,
   content: string,
   contextType: "post" | "thread" | "material" | "message",
   contextId?: string
-): Promise<ProfanityCheckResult> {
+): Promise<ProfanityCheckResult | null> {
   const supabase = await createClient();
   
   // Get user's current profanity status
@@ -190,6 +196,28 @@ export async function checkProfanityWithEscalation(
       escalationTier: "none",
     };
   }
+
+  return null;
+}
+
+/** Full pipeline: local checks, then a blocking Groq call for nuanced cases. */
+export async function checkProfanityWithEscalation(
+  userId: string,
+  content: string,
+  contextType: "post" | "thread" | "material" | "message",
+  contextId?: string
+): Promise<ProfanityCheckResult> {
+  const local = await runLocalChecks(userId, content, contextType, contextId);
+  if (local) return local;
+
+  // Re-fetch for the AI escalation branch below (local checks own their own
+  // client + profile lookup).
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("restriction_level")
+    .eq("id", userId)
+    .single();
 
   // Groq AI moderation (second pass for nuanced content)
   try {
@@ -293,6 +321,26 @@ export async function checkProfanityWithEscalation(
     suggestedAction: "allow",
     escalationTier: "none",
   };
+}
+
+/**
+ * Room-chat path: local checks only (instant) — no Groq round-trip on the
+ * send path. Nuanced content is enqueued and AI-reviewed in batches instead.
+ */
+export async function checkRoomMessageFast(
+  userId: string,
+  content: string,
+  contextId?: string
+): Promise<ProfanityCheckResult> {
+  return (
+    (await runLocalChecks(userId, content, "message", contextId)) ?? {
+      isClean: true,
+      riskLevel: "none",
+      violations: [],
+      suggestedAction: "allow",
+      escalationTier: "none",
+    }
+  );
 }
 
 export async function checkAndArchive(): Promise<{ archived: number; deleted: number } | null> {

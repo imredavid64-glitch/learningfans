@@ -8,6 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Batched AI moderation for room chat
+- **Migration** `20260812000015_chat_moderation_queue.sql` (manual apply ⚠️): `chat_moderation_queue` (status pending/processing/processed/failed, attempts, message FK cascade) + `claim_chat_moderation_batch(p_limit)` RPC (atomic UPDATE…RETURNING claim — concurrent flushes never double-process) + `study_room_messages.hidden` (client shows a removal placeholder) + insert policy (user enqueues own).
+- **Send path** (`sendRoomMessage`): now uses `checkRoomMessageFast` (local profanity + spam + escalation only — **no Groq round-trip per message**), inserts, then best-effort enqueues for AI review and kicks `/api/moderation/chat` fire-and-forget via `after()` (Next 16) so sending stays instant. If the queue table is missing the message still sends.
+- **Lib** `src/lib/chat-moderation.ts`: `moderateChatBatch` sends up to 15 messages to Groq in **one batched request**; `parseChatBatchResponse` maps `{index → verdict}` safely (7 new unit tests → 135 total); `isFlagged` = unclean + medium/high; `applyChatModerationResults` marks processed, hides flagged messages, logs `moderation_actions` rows (space-scoped), and escalates via `handle_profanity_escalation`; retries up to 5 attempts then `failed`.
+- **Route** `/api/moderation/chat` (CRON_SECRET-guarded, GET+POST): drains the queue in up to 3 chunks. **Not a vercel.json cron** (Hobby's 2-cron limit is full) — the daily push cron drains 1 chunk as a safety net so a dead-quiet room still gets reviewed.
+- Quality: 135/135 tests, tsc + lint clean, build compiles. `combined.sql` regenerated (25 migrations). Docs: MODERATION (coverage table + study-room section), DATABASE, FEATURES, ROADMAP.
+
 ## 2026-08-12 — Community leaderboard
 - **Route** `/app/spaces/[slug]/leaderboard` (header link, visible to readers): ranks members by XP (level = floor(xp/100)+1, streak from `user_stats`) or contributions (threads + materials + replies in that community, counted via per-author group queries).
 - **UI** `community-leaderboard.tsx`: XP/Contributions sort chips, 🥇🥈🥉 medals, Mod badge, (you) highlight, streak flame.
@@ -16,7 +23,7 @@ Append a dated entry after every meaningful change. Keep each entry short (what 
 ## 2026-08-12 — AI monitoring hardening (all creation surfaces)
 - `checkContentWithAI` prompt now also flags **promotional/advertising content** and mandates educational/on-topic content.
 - Wired AI checks into previously unmonitored actions: `createLinkMaterial`, `createNoteMaterial`, `createFlashcardMaterial`, `uploadFileMaterial` (title only), `createQuizMaterial` (questions/options), `postAnnouncement`, `createMeeting` — high risk → rejected (materials redirect with an `?error=` banner on the materials page; quiz/announcement/meeting return errors).
-- Room chat intentionally stays on the fast local profanity + escalation pipeline (no Groq per message); docs/MODERATION.md now has a coverage table.
+- Room chat keeps the fast local pipeline on the send path and AI-reviews messages **in batches** (`/api/moderation/chat`, migration 0015); docs/MODERATION.md now has a coverage table.
 - Quality: 128/128 tests, tsc + lint clean, build compiles.
 
 ## 2026-08-12 — Mod dashboard + automod

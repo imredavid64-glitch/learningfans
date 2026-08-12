@@ -195,8 +195,10 @@ superpower of the Reddit-for-learners vision (see
   errors surface on the materials page banner).
 - The AI prompt now flags **promotional/advertising content** and explicitly
   requires content to stay **educational and on-topic** (in addition to
-  profanity/hate/violence/spam). Room chat keeps the fast local
-  profanity + escalation pipeline (no AI round-trip per message).
+  profanity/hate/violence/spam). Room chat runs fast local checks on the send
+  path, then AI-reviews messages **in batches** (one Groq request per 15) via
+  `/api/moderation/chat` — flagged messages are hidden and logged without any
+  per-message latency.
 - See [docs/MODERATION.md](../docs/MODERATION.md) for the full coverage table.
 
 ## Study rooms (interactive collaboration)
@@ -210,7 +212,9 @@ superpower of the Reddit-for-learners vision (see
   - **Room chat** — persisted, realtime via `postgres_changes`; **@mentions**
     (autocomplete against space members or app profiles; pings via
     `create_notification`, type `mention`); **emoji reactions**
-    (`study_room_message_reactions`, realtime); profanity-checked.
+    (`study_room_message_reactions`, realtime); instant local profanity check on
+    send, then **batched AI moderation** hides non-educational/promotional
+    messages after the fact (removal placeholder in the feed).
   - **Focus timer** — 25/5 pomodoro synced by broadcast (`endsAt`-based so
     everyone counts down together; pause/resume/skip/reset; auto focus→break;
     localStorage persistence).

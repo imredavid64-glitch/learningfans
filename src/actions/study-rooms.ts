@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient, checkProfanityWithEscalation } from "@/lib/supabase/server";
+import { after } from "next/server";
+import { createClient, checkRoomMessageFast } from "@/lib/supabase/server";
 import { requireProfile, getSpaceMembership } from "@/lib/auth";
+import { getAppUrl } from "@/lib/app-url";
 import {
   ROOM_NAME_MAX_LENGTH,
   ROOM_DESCRIPTION_MAX_LENGTH,
@@ -173,23 +175,64 @@ export async function sendRoomMessage(
   if (!room) return { ok: false, error: "Room not found." };
   if (room.status !== "active") return { ok: false, error: "This room has ended." };
 
-  // Same moderation pipeline as posts/threads/materials.
-  const moderation = await checkProfanityWithEscalation(profile.id, text, "message", roomId);
+  // Fast local checks only (profanity + spam) — no Groq round-trip on the
+  // send path. Nuanced content is enqueued and AI-reviewed in batches.
+  const moderation = await checkRoomMessageFast(profile.id, text, roomId);
   if (!moderation.isClean && moderation.riskLevel === "high") {
     return { ok: false, error: "This message was flagged by the moderation filter." };
   }
 
-  const { error } = await supabase.from("study_room_messages").insert({
-    room_id: roomId,
-    user_id: profile.id,
-    body: text.slice(0, ROOM_MESSAGE_MAX_LENGTH),
-  });
+  const messageText = text.slice(0, ROOM_MESSAGE_MAX_LENGTH);
+  const { data: inserted, error } = await supabase
+    .from("study_room_messages")
+    .insert({ room_id: roomId, user_id: profile.id, body: messageText })
+    .select("id")
+    .single();
 
   if (error) return { ok: false, error: error.message };
+
+  // Enqueue for batched AI review (best-effort — if the queue table doesn't
+  // exist yet the message still sends and only local checks apply).
+  const enqueued = await enqueueForModeration(roomId, profile.id, inserted.id, messageText);
+
+  // Kick a non-blocking flush after the response is sent, so sending stays
+  // instant even when the queue has a backlog.
+  if (enqueued) {
+    after(() => {
+      void fetch(`${getAppUrl()}/api/moderation/chat`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${process.env.CRON_SECRET ?? ""}` },
+      }).catch(() => undefined);
+    });
+  }
 
   // Notify @mentioned users through the existing bell.
   await notifyMentions(room, text, mentionIds, profile);
   return { ok: true };
+}
+
+async function enqueueForModeration(
+  roomId: string,
+  userId: string,
+  messageId: string,
+  body: string,
+): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.from("chat_moderation_queue").insert({
+      room_id: roomId,
+      user_id: userId,
+      message_id: messageId,
+      content: body,
+    });
+    if (error) {
+      console.error("Enqueue chat moderation failed:", error.message);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function notifyMentions(

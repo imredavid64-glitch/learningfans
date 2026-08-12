@@ -91,6 +91,10 @@ for cross-account checks.
 - [ ] Own messages render right-aligned; incoming left-aligned
 - [ ] Refresh → last ~100 messages reload from the DB
 - [ ] Profanity is filtered (try a blocked word → flagged, not posted)
+- [ ] Sending feels instant — no AI round-trip on the send path (local checks only)
+- [ ] AI moderation: post a borderline non-educational/promotional message → within
+      seconds it's replaced by the "removed by moderators" placeholder for both users
+      (batched flush via `/api/moderation/chat`)
 - [ ] Empty message can't be sent; 500-char cap enforced
 
 ### Mentions

@@ -90,7 +90,7 @@ State lives on `profiles` (restriction_level, counters) + `profanity_incidents`
 | File uploads | `checkContentWithAI` (title only — binary can't be scanned) | rejected |
 | Announcements | `checkContentWithAI` (title + body) | rejected |
 | Meetings | `checkContentWithAI` (title + description) | rejected |
-| Room chat | `checkProfanityWithEscalation` (local + escalation — no Groq round-trip for latency/cost) | high-risk message rejected |
+| Room chat | fast local checks (`checkRoomMessageFast`) + **batched AI review** (`/api/moderation/chat` — see below) | high-risk local = rejected; AI-flagged = hidden after the fact |
 | Automod rules | mod-defined keyword rules (see Mod dashboard) | remove = blocked, flag = hidden + logged |
 
 All AI-checked surfaces run the local profanity + spam pre-checks first, so
@@ -98,8 +98,22 @@ obvious violations are caught instantly and the AI only decides nuanced cases.
 
 ## Study-room specific moderation
 
-- Room chat messages run the **full** `checkProfanityWithEscalation` pipeline
-  before insert; high-risk messages are rejected.
+- Room chat messages run **fast local checks** (`checkRoomMessageFast` —
+  profanity + spam + escalation) on the send path, so obvious violations are
+  rejected instantly **without a Groq round-trip per message**.
+- Everything that passes local checks is **enqueued** (`chat_moderation_queue`)
+  and AI-reviewed in **batches** (`/api/moderation/chat`):
+  - The flush claims up to 15 pending rows atomically (SQL `UPDATE … RETURNING`,
+    so concurrent flushes never double-process) and sends them to Groq in **one
+    batched request**.
+  - Flagged messages (medium/high risk, non-educational, promotional, …) are
+    **hidden** (`study_room_messages.hidden` → the client renders a "removed by
+    moderators" placeholder), logged to `moderation_actions` (space-scoped), and
+    escalated via `handle_profanity_escalation` exactly like the inline path.
+  - The flush is kicked **fire-and-forget after the send response** (Next
+    `after()`), so sending stays instant; the daily push cron drains the queue
+    as a safety net; rows that fail API calls retry up to 5 times then go
+    `failed`.
 - Reactions are limited to a curated emoji set; reactions + messages are
   user-owned (delete own only).
 - **End room** is creator-or-moderator only (RLS); ended rooms become read-only
@@ -107,6 +121,10 @@ obvious violations are caught instantly and the AI only decides nuanced cases.
 - Space-linked rooms restrict visibility + mentions to **space members**.
 
 ## QA spot checks (from the launch checklist)
+
+- Room chat: sending a message returns instantly (no AI round-trip on the send
+  path); a flagged message is hidden within seconds via the batched flush and
+  shows the removal placeholder for everyone in the room.
 
 - Non-member cannot read a private space (RLS).
 - Non-creator cannot end someone else's study room.

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildPushPayload, getVapidConfig } from "@/lib/push";
+import { drainChatModerationQueue } from "@/lib/chat-moderation";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,11 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const now = new Date().toISOString();
   const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
+
+  // Safety net for batched chat moderation: any message still awaiting AI
+  // review gets drained even if no one has sent a message since (the queue is
+  // normally flushed fire-and-forget right after each send).
+  await drainChatModerationQueue({ maxChunks: 1 }).catch(() => undefined);
 
   const { data: notifications } = await admin
     .from("notifications")

@@ -157,6 +157,13 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 
 ## Shipped recently (context)
 
+- **2026-08-12** — **Batched AI moderation for room chat**: the send path now
+  runs only fast local checks (no Groq round-trip per message); each message is
+  enqueued in `chat_moderation_queue` and AI-reviewed in batches of 15 via
+  `/api/moderation/chat` (atomic SQL claim, one Groq request per batch,  hidden +
+  logged + escalated when flagged). Flush is kicked fire-and-forget after the
+  send (`after()`) with the daily push cron as a safety net; migration
+  `20260812000015_chat_moderation_queue.sql` (manual apply).
 - **2026-08-12** — Whiteboard **presence cursors**: live colored dots + name pills
   for everyone currently in the room, synced via Realtime presence on the board
   channel (`{x, y}` throttled to ~10 Hz, hidden on pointer-leave, auto-cleaned on

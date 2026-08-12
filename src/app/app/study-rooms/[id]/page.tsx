@@ -96,6 +96,7 @@ export default async function StudyRoomPage({
     room_id: id,
     user_id: m.user_id,
     body: m.body,
+    hidden: (m as { hidden?: boolean }).hidden ?? false,
     created_at: m.created_at,
     profiles: (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) ?? null,
   }));
