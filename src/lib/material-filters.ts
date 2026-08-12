@@ -32,6 +32,6 @@ export function matchesMaterialFilter(
     case "note":
       return m.type === "note";
     case "quiz":
-      return m.type === "flashcard_set";
+      return m.type === "quiz" || m.type === "flashcard_set";
   }
 }

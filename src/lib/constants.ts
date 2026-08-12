@@ -25,7 +25,7 @@ export const PRIORITY_WEIGHTS = {
 
 export type ProfileRole = "student" | "moderator" | "admin";
 export type SpaceMemberRole = "member" | "moderator";
-export type MaterialType = "file" | "link" | "note" | "flashcard_set";
+export type MaterialType = "file" | "link" | "note" | "flashcard_set" | "quiz";
 export type MaterialPriority = "urgent" | "high" | "normal" | "low";
 export type ReportStatus = "open" | "reviewing" | "resolved" | "dismissed";
 export type SanctionType = "warn" | "mute" | "suspend";

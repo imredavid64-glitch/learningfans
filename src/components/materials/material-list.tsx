@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ExternalLink, FileText, Layers, StickyNote, Zap, Sparkles } from "lucide-react";
+import { ExternalLink, FileText, Layers, StickyNote, Zap, Sparkles, CircleHelp } from "lucide-react";
 import { toggleUpvote, setMaterialPriority } from "@/actions/materials";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ const typeIcons = {
   link: ExternalLink,
   note: StickyNote,
   flashcard_set: Layers,
+  quiz: CircleHelp,
 };
 
 function LoadSampleMaterialsButton({ onLoad }: { onLoad: () => void }) {
@@ -152,10 +153,10 @@ export function MaterialList({
                   <SelectItem value="low">Low</SelectItem>
                  </SelectContent>
                </Select>
-              {m.type === "flashcard_set" && (
+              {(m.type === "flashcard_set" || m.type === "quiz") && (
                 <Link href={`/app/spaces/${spaceSlug}/materials/${m.id}`}>
                   <Button size="sm" variant="secondary">
-                    Review
+                    {m.type === "quiz" ? "Take quiz" : "Review"}
                   </Button>
                 </Link>
               )}

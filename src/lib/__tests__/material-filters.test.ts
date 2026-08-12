@@ -36,6 +36,7 @@ describe("matchesMaterialFilter (materials feed)", () => {
   it("link, note and quiz filters map to their types", () => {
     expect(matchesMaterialFilter(material({ type: "link" }), "link")).toBe(true);
     expect(matchesMaterialFilter(material({ type: "note" }), "note")).toBe(true);
+    expect(matchesMaterialFilter(material({ type: "quiz" }), "quiz")).toBe(true);
     expect(matchesMaterialFilter(material({ type: "flashcard_set" }), "quiz")).toBe(true);
     expect(matchesMaterialFilter(material({ type: "file", mime: "image/png" }), "quiz")).toBe(false);
   });

@@ -8,6 +8,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-12 — Quiz posts + community leaderboard (Reddit Phase 3a)
+- **Migration** `20260812000008_quiz_posts.sql` (manual apply ⚠️): `material_type` gains `quiz`; `quiz_attempts` table (PK material+user, best_score_pct/correct/total/attempts, RLS via `can_read_space` + hidden-material guard, leaderboard index).
+- **Lib**: `src/lib/quizzes.ts` — payload validation (≤20 Q, 2–6 options, byte cap) + authoritative `gradeQuiz`; 8 new unit tests.
+- **Actions**: `src/actions/quizzes.ts` — `createQuizMaterial` (members only, +15 XP), `submitQuizResult` (grades server-side, upserts best attempt, +5 XP on personal best), `getQuizLeaderboard` (top 10 + caller's best).
+- **UI**: `QuizBuilder` (inline composer on materials page), `QuizPlayer` (intro → one-at-a-time → instant grade + per-question review with explanations), `QuizLeaderboard` (🥇🥈🥉 top 10). Materials list gains a quiz icon, `Take quiz` button, and the existing Quizzes filter chip now matches the real `quiz` type.
+- **Quality**: 115/115 tests, tsc + lint clean, `next build` compiles. `combined.sql` regenerated (18 migrations).
+- **Blocked**: Vercel 100-deploys/day cap still active — 6 verified commits queued (mentions/reactions → cursors → docs → community → voting → quizzes).
+
 ## 2026-08-12 — Thread voting + feed sorting (Reddit Phase 2a)
 - **Votes**: `post_votes` table (PK post+user, vote 1/-1) + `threads.score/ups/downs` cached columns, maintained by the `update_thread_score` trigger (recompute on insert/update/delete — idempotent, race-safe) — migration `20260812000007_thread_votes.sql` (manual apply ⚠️). RLS mirrors thread readability (`can_read_space`), votes owned per user.
 - **Action**: `voteOnThread(threadId, vote)` in `src/actions/discussion.ts` (upsert/delete + revalidate space + thread pages).

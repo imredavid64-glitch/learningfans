@@ -1,5 +1,4 @@
--- ===== 1. 20260520100000_initial_schema.sql =====
-
+-- ============ MIGRATION 1: 20260520100000_initial_schema.sql ============
 -- LearningFans initial schema + RLS
 
 -- Enums
@@ -810,15 +809,13 @@ create policy "Users can delete own material files"
 alter publication supabase_realtime add table public.posts;
 alter publication supabase_realtime add table public.threads;
 
--- ===== 2. 20260524100000_profile_insert_policy.sql =====
-
+-- ============ MIGRATION 2: 20260524100000_profile_insert_policy.sql ============
 -- Allow users to create their own profile if the signup trigger did not run
 create policy "Users can insert own profile"
   on public.profiles for insert to authenticated
   with check (auth.uid() = id);
 
--- ===== 3. 20260528100000_profile_insert_policy_only.sql =====
-
+-- ============ MIGRATION 3: 20260528100000_profile_insert_policy_only.sql ============
 -- Safe to run if you already applied the main migration but missed this policy.
 -- Ignores error if policy already exists.
 
@@ -831,8 +828,7 @@ exception
   when duplicate_object then null;
 end $$;
 
--- ===== 4. 20260715000000_security.sql =====
-
+-- ============ MIGRATION 4: 20260715000000_security.sql ============
 -- Audit log table
 create table public.audit_log (
   id uuid primary key default gen_random_uuid(),
@@ -902,8 +898,7 @@ create trigger on_profile_sanitize_name
   before insert or update on public.profiles
   for each row execute function public.sanitize_display_name();
 
--- ===== 5. 20260720000000_archive_security.sql =====
-
+-- ============ MIGRATION 5: 20260720000000_archive_security.sql ============
 -- get_db_size: returns database size in bytes
 create or replace function public.get_db_size()
 returns bigint
@@ -939,8 +934,7 @@ $$;
 --
 -- Also run the main schema migration (20260520100000_initial_schema.sql) on this project
 
--- ===== 6. 20260727000000_meetings.sql =====
-
+-- ============ MIGRATION 6: 20260727000000_meetings.sql ============
 create type public.meeting_status as enum ('scheduled', 'live', 'completed', 'cancelled');
 
 create table public.meetings (
@@ -1062,8 +1056,7 @@ create policy "Server can update reminders"
   on public.meeting_reminders for update to authenticated
   using (true);
 
--- ===== 7. 20260727000001_space_passwords.sql =====
-
+-- ============ MIGRATION 7: 20260727000001_space_passwords.sql ============
 -- Add password protection to spaces
 alter table public.spaces 
   add column if not exists join_password_hash text;
@@ -1083,8 +1076,7 @@ as $$
   );
 $$;
 
--- ===== 8. 20260728000000_multi_tenant_schools.sql =====
-
+-- ============ MIGRATION 8: 20260728000000_multi_tenant_schools.sql ============
 -- Schools table for multi-tenant architecture
 create table public.schools (
   id uuid primary key default gen_random_uuid(),
@@ -1126,8 +1118,7 @@ create policy "Admins can delete schools"
   on public.schools for delete to authenticated
   using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));
 
--- ===== 9. 20260807000000_profanity_escalation.sql =====
-
+-- ============ MIGRATION 9: 20260807000000_profanity_escalation.sql ============
 -- ===== 7. 20260807000000_profanity_escalation.sql =====
 
 -- Add columns to profiles for tracking profanity violations and restrictions
@@ -1346,8 +1337,7 @@ returns table (
   last_incident_at timestamptz
 ) language sql stable security definer set search_path = public
 as $$ select profanity_warnings, profanity_violations, restriction_level, last_profanity_at from public.profiles where id = p_user_id; $$;
--- ===== 10. 20260811000000_study_progress_notifications.sql =====
-
+-- ============ MIGRATION 10: 20260811000000_study_progress_notifications.sql ============
 -- LearningFans: Gamification (XP / streaks) + Notifications
 -- Apply this in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
 
@@ -1679,8 +1669,7 @@ create trigger on_new_meeting_notify
 -- Realtime for the notification bell
 alter publication supabase_realtime add table public.notifications;
 
--- ===== 11. 20260812000001_reply_notifications.sql =====
-
+-- ============ MIGRATION 11: 20260812000001_reply_notifications.sql ============
 -- LearningFans: Notify thread authors when someone replies
 -- Apply in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
 -- Mirrors the existing notify_new_thread / notify_new_material triggers.
@@ -1728,8 +1717,7 @@ create trigger on_new_post_notify
   after insert on public.posts
   for each row execute function public.notify_new_post();
 
--- ===== 12. 20260812000002_schedule_event_reminders.sql =====
-
+-- ============ MIGRATION 12: 20260812000002_schedule_event_reminders.sql ============
 -- LearningFans: Schedule event reminders
 -- Apply in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
 -- Mirrors the meeting_reminders table: rows are generated when an event is
@@ -1763,8 +1751,7 @@ create policy "Server can update event reminders"
   on public.schedule_event_reminders for update to authenticated
   using (true);
 
--- ===== 13. 20260812000003_push_subscriptions.sql =====
-
+-- ============ MIGRATION 13: 20260812000003_push_subscriptions.sql ============
 -- LearningFans: Web push subscriptions
 -- Apply in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
 -- Stores browser Push API subscriptions (VAPID, no Firebase needed) for PWA/browser delivery.
@@ -1791,8 +1778,7 @@ create policy "Users manage own push subscriptions"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- ===== 14. 20260812000004_study_rooms.sql =====
-
+-- ============ MIGRATION 14: 20260812000004_study_rooms.sql ============
 -- LearningFans: Interactive Study Rooms
 -- Rooms people can join live: real-time whiteboard (broadcast), room chat
 -- (postgres_changes realtime), presence, shared pomodoro, one-click video call.
@@ -1923,8 +1909,7 @@ create policy "Users delete own room messages"
 -- Live chat via realtime
 alter publication supabase_realtime add table public.study_room_messages;
 
--- ===== 15. 20260812000005_study_room_reactions.sql =====
-
+-- ============ MIGRATION 15: 20260812000005_study_room_reactions.sql ============
 -- LearningFans: Emoji reactions on study room chat messages
 -- Apply this in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
 
@@ -1987,8 +1972,7 @@ create policy "Users remove own reactions"
 -- Live reactions via realtime
 alter publication supabase_realtime add table public.study_room_message_reactions;
 
--- ===== 16. 20260812000006_community_rules.sql =====
-
+-- ============ MIGRATION 16: 20260812000006_community_rules.sql ============
 -- LearningFans: Community rules + moderator announcements (Reddit-style)
 -- Rules and announcements live on the space row as small jsonb arrays — one row
 -- per community, no new tables, free-tier friendly. The existing "Space
@@ -2004,8 +1988,7 @@ create policy "App moderators can update spaces"
   on public.spaces for update to authenticated
   using (public.is_app_moderator());
 
--- ===== 17. 20260812000007_thread_votes.sql =====
-
+-- ============ MIGRATION 17: 20260812000007_thread_votes.sql ============
 -- LearningFans: Thread upvotes/downvotes (Reddit-style)
 -- A single post_votes table (one row per user per post) + cached score columns
 -- on threads, maintained by a trigger so sorting stays cheap and consistent.
@@ -2091,4 +2074,58 @@ $$;
 create trigger on_post_vote_changed
   after insert or update or delete on public.post_votes
   for each row execute function public.update_thread_score();
+
+-- ============ MIGRATION 18: 20260812000008_quiz_posts.sql ============
+-- LearningFans: Quiz posts (Reddit-for-learners Phase 3a)
+-- Quizzes are study_materials of type 'quiz' (payload in metadata.questions);
+-- quiz_attempts keeps ONE row per user per quiz with the best score, so the
+-- community leaderboard stays lean on the free tier.
+-- Apply this in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
+
+alter type public.material_type add value if not exists 'quiz';
+
+create table public.quiz_attempts (
+  material_id uuid not null references public.study_materials (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  best_score_pct int not null check (best_score_pct between 0 and 100),
+  best_correct int not null default 0,
+  best_total int not null default 0,
+  attempts int not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (material_id, user_id)
+);
+
+create index idx_quiz_attempts_leaderboard on public.quiz_attempts (material_id, best_score_pct desc);
+
+alter table public.quiz_attempts enable row level security;
+
+create policy "Quiz scores visible to material readers"
+  on public.quiz_attempts for select to authenticated
+  using (
+    exists (
+      select 1 from public.study_materials sm
+      where sm.id = material_id
+        and public.can_read_space(sm.space_id)
+        and (sm.is_hidden = false or public.is_app_moderator())
+    )
+  );
+
+create policy "Users record own quiz attempts"
+  on public.quiz_attempts for insert to authenticated
+  with check (
+    auth.uid() = user_id
+    and not public.is_suspended()
+    and exists (
+      select 1 from public.study_materials sm
+      where sm.id = material_id
+        and public.can_read_space(sm.space_id)
+        and sm.is_hidden = false
+    )
+  );
+
+create policy "Users update own quiz attempts"
+  on public.quiz_attempts for update to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 

@@ -120,6 +120,10 @@ for cross-account checks.
 - [ ] Re-click toggles the vote off; refresh keeps your vote state
 - [ ] Two accounts: scores stay consistent (trigger-maintained) across both
 - [ ] Hot/New/Top/Controversial tabs reorder the feed; pinned threads stay on top
+- [ ] Quiz: member creates one (up to 20 questions) → appears in materials with a Take quiz button
+- [ ] Taking it grades instantly; review shows correct answers + explanations
+- [ ] Retake records a new attempt; best score lands on the top-10 leaderboard (two accounts)
+- [ ] Skipping a question counts as wrong; submitting with unanswered questions is blocked
 
 ### Presence, calls, invites
 - [ ] Avatar count + names update as accounts join/leave (live presence)

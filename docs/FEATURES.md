@@ -82,6 +82,22 @@ aware, thanks to `metadata.mime` on uploads). This is the "find a PDF / quiz"
 superpower of the Reddit-for-learners vision (see
 [docs/REDDIT_FOR_LEARNERS.md](../docs/REDDIT_FOR_LEARNERS.md)).
 
+## Quiz posts (community quizzes)
+
+- **Create:** a member of a space posts a quiz from the materials page
+  (`QuizBuilder` — up to 20 questions, 2–6 options each, optional explanation per
+  question). Payload lives in `study_materials.metadata.questions` (validated by
+  `src/lib/quizzes.ts`); the new `quiz` material type (migration 0008).
+- **Take inline:** `QuizPlayer` (`/app/spaces/[slug]/materials/[id]`) — one
+  question at a time, instant **server-authoritative grading** on submit
+  (`gradeQuiz` in `src/lib/quizzes.ts`), then a per-question review showing your
+  answer vs. the correct one plus explanations.
+- **Leaderboard:** `QuizLeaderboard` — top 10 by best % (🥇🥈🥉), your own best
+  highlighted; `quiz_attempts` keeps one row per user per quiz so the board stays
+  lean on the free tier. New personal bests award +5 XP.
+- **Actions:** `src/actions/quizzes.ts`; **Files:** `quiz-builder.tsx`,
+  `quiz-player.tsx`, `quiz-leaderboard.tsx`, `src/lib/quizzes.ts`.
+
 ## Meetings & live calls
 
 - **Routes:** `/app/meetings`, `/app/meetings/new`, `/app/meetings/[id]`.

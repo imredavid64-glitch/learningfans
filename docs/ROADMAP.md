@@ -35,6 +35,11 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   `threads.score/ups/downs` cached by trigger), feed sorts with pinned threads
   always on top (`src/lib/thread-ranking.ts`, unit-tested). Next: flairs, then
   community directory.
+- ✅ **Quiz posts + community leaderboard** — shipped 2026-08-12 (Phase 3a):
+  create a quiz in a space (`quiz` material type), take it inline with instant
+  server-side grading + per-question review, best score lands on a top-10
+  community leaderboard (`quiz_attempts`, one row per user per quiz). Next from
+  the blueprint: PDF posts with in-feed preview + image lightboxes.
 - **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
   under it. Chat gets long in live rooms; threading keeps it scannable.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or

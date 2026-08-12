@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FlashcardReview } from "@/components/materials/flashcard-review";
+import { QuizPlayer } from "@/components/materials/quiz-player";
+import type { QuizQuestion } from "@/lib/quizzes";
 
-export default async function FlashcardReviewPage({
+export default async function MaterialPage({
   params,
 }: {
   params: Promise<{ slug: string; id: string }>;
@@ -13,11 +15,11 @@ export default async function FlashcardReviewPage({
 
   const { data: material } = await supabase
     .from("study_materials")
-    .select("title, metadata, type, author_id, space_id, created_at")
+    .select("id, title, metadata, type, author_id, space_id, created_at")
     .eq("id", id)
     .single();
 
-  if (!material || material.type !== "flashcard_set") notFound();
+  if (!material) notFound();
 
   // Fetch creator profile
   const { data: creator } = await supabase
@@ -26,12 +28,6 @@ export default async function FlashcardReviewPage({
     .eq("id", material.author_id)
     .single();
 
-  const cards =
-    (material.metadata as { cards?: { front: string; back: string }[] })?.cards ??
-    [];
-  const isVip = (material.metadata as { is_vip?: boolean })?.is_vip === true;
-
-  // Generate accent color from space_id for consistent branding
   const colors = ["indigo", "purple", "blue", "green", "orange", "red"];
   const accentColor = colors[material.space_id.charCodeAt(0) % colors.length];
 
@@ -46,23 +42,40 @@ export default async function FlashcardReviewPage({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{material.title}</h1>
         <div className="flex items-center gap-2">
-          {isVip && (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-3 py-1 text-sm font-medium text-amber-700 dark:text-amber-300 border border-amber-500/20">
-              🔒 VIP Subscriber Content
+          {material.type === "flashcard_set" && (
+            <span className="inline-flex items-center gap-1 rounded-lg bg-green-500/10 px-3 py-1 text-sm font-medium text-green-700 dark:text-green-300 border border-green-500/20">
+              ⚡ Vector Cache (0ms latency | 0 LLM API Cost)
             </span>
           )}
-          <span className="inline-flex items-center gap-1 rounded-lg bg-green-500/10 px-3 py-1 text-sm font-medium text-green-700 dark:text-green-300 border border-green-500/20">
-            ⚡ Vector Cache (0ms latency | 0 LLM API Cost)
-          </span>
+          {material.type === "quiz" && (
+            <span className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1 text-sm font-medium text-primary border border-primary/20">
+              ⚡ Community quiz
+            </span>
+          )}
         </div>
       </div>
-      <FlashcardReview
-        cards={cards}
-        isVip={isVip}
-        creatorName={creator?.display_name || "Creator"}
-        creatorAvatar={creator?.avatar_url}
-        accentColor={accentColor}
-      />
+
+      {material.type === "quiz" ? (
+        <QuizPlayer
+          materialId={material.id}
+          questions={
+            (material.metadata as { questions?: QuizQuestion[] })?.questions ?? []
+          }
+        />
+      ) : material.type === "flashcard_set" ? (
+        <FlashcardReview
+          cards={
+            (material.metadata as { cards?: { front: string; back: string }[] })?.cards ??
+            []
+          }
+          isVip={(material.metadata as { is_vip?: boolean })?.is_vip === true}
+          creatorName={creator?.display_name || "Creator"}
+          creatorAvatar={creator?.avatar_url}
+          accentColor={accentColor}
+        />
+      ) : (
+        notFound()
+      )}
     </div>
   );
 }
