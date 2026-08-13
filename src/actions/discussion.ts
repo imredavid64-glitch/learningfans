@@ -8,7 +8,13 @@ import type { CommunityFlair } from "@/lib/community";
 import { checkAutomod, type AutomodRule } from "@/lib/automod";
 import { checkContentWithAI, checkAndArchive } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
-import { threadSchema, postSchema, validateOrThrow } from "@/lib/validation";
+import {
+  threadSchema,
+  postSchema,
+  validateOrThrow,
+  whatTriedSchema,
+  threadKindSchema,
+} from "@/lib/validation";
 import type { VoteValue } from "@/lib/thread-ranking";
 
 function checkBot(formData: FormData): boolean {
@@ -217,6 +223,27 @@ export async function createThread(spaceId: string, formData: FormData): Promise
     redirect(`/app/classes/${slug}?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}`);
   }
 
+  // Question posts require a "what I've tried" field (the r/learnmath pattern).
+  let kind: "discussion" | "question" = "discussion";
+  let whatTried: string | null = null;
+  try {
+    kind = validateOrThrow(threadKindSchema, String(formData.get("kind") ?? "discussion"));
+  } catch {
+    kind = "discussion";
+  }
+  if (kind === "question") {
+    try {
+      whatTried = validateOrThrow(
+        whatTriedSchema,
+        String(formData.get("what_tried") ?? "").trim(),
+      );
+    } catch (err) {
+      redirect(
+        `/app/classes/${slug}?error=${encodeURIComponent(err instanceof Error ? err.message : "Invalid input")}`,
+      );
+    }
+  }
+
   const { data: membership } = await supabase
     .from("space_members")
     .select("role")
@@ -228,10 +255,11 @@ export async function createThread(spaceId: string, formData: FormData): Promise
     redirect(`/app/classes/${slug}?error=You%20must%20be%20a%20member%20to%20create%20threads`);
   }
 
-  const moderation = await checkContentWithAI(`${title}\n${body}`, "class discussion thread");
+  const fullText = whatTried ? `${title}\n${body}\n${whatTried}` : `${title}\n${body}`;
+  const moderation = await checkContentWithAI(fullText, "class discussion thread");
 
   // Community automod rules (scope: thread) — remove rejects outright.
-  const automodMatch = checkAutomod(automodRules, `${title}\n${body}`, "thread");
+  const automodMatch = checkAutomod(automodRules, fullText, "thread");
   if (automodMatch?.action === "remove") {
     redirect(
       `/app/classes/${slug}?error=${encodeURIComponent(`Removed by community rule: ${automodMatch.name}`)}`,
@@ -257,6 +285,8 @@ export async function createThread(spaceId: string, formData: FormData): Promise
       title,
       body,
       flair_id: flairId,
+      kind,
+      what_tried: kind === "question" ? whatTried : null,
       is_hidden: !moderation.is_clean || Boolean(automodFlagged),
     })
     .select()
@@ -499,6 +529,59 @@ export async function toggleThreadLock(threadId: string, locked: boolean): Promi
   }
 
   revalidatePath(threadPath(slug, threadId));
+}
+
+/**
+ * Mark (or clear) the official answer on a question thread. The thread author
+ * or a moderator can do this; the post must belong to the thread.
+ */
+export async function markOfficialAnswer(
+  threadId: string,
+  postId: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("id, author_id, space_id, kind")
+    .eq("id", threadId)
+    .single();
+  if (!thread) return { ok: false, error: "Thread not found." };
+  if (thread.kind !== "question") {
+    return { ok: false, error: "Only questions can have an official answer." };
+  }
+
+  const membership = await getSpaceMembership(thread.space_id, profile.id);
+  const canMark =
+    thread.author_id === profile.id ||
+    membership?.role === "moderator" ||
+    isModerator(profile.role);
+  if (!canMark) {
+    return { ok: false, error: "Only the author or a moderator can mark the answer." };
+  }
+
+  if (postId) {
+    const { data: post } = await supabase
+      .from("posts")
+      .select("id, thread_id, is_hidden")
+      .eq("id", postId)
+      .single();
+    if (!post || post.thread_id !== threadId || post.is_hidden) {
+      return { ok: false, error: "That reply isn't in this thread." };
+    }
+  }
+
+  const { error } = await supabase
+    .from("threads")
+    .update({ accepted_answer_id: postId })
+    .eq("id", threadId);
+  if (error) return { ok: false, error: error.message };
+
+  const slug = await getSpaceSlug(supabase, thread.space_id);
+  revalidatePath(`/app/spaces/${slug}/threads/${threadId}`);
+  revalidatePath(`/app/spaces/${slug}`);
+  return { ok: true };
 }
 
 export async function hideThread(threadId: string, hidden: boolean): Promise<void> {

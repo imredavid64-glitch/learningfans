@@ -2,10 +2,10 @@ import { notFound } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, isModerator } from "@/lib/auth";
-import { createThread } from "@/actions/discussion";
 import { leaveSpace } from "@/actions/spaces";
 import { CommunityAdmin } from "@/components/community/community-admin";
 import { ThreadFeed, type FeedThread } from "@/components/community/thread-feed";
+import { NewThreadForm } from "@/components/community/new-thread-form";
 import type { CommunityAnnouncement, CommunityFlair, CommunityRule } from "@/lib/community";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -84,6 +84,8 @@ export default async function SpacePage({
     id: t.id,
     title: t.title,
     flair_id: t.flair_id ?? null,
+    kind: t.kind,
+    accepted_answer_id: t.accepted_answer_id ?? null,
     is_pinned: t.is_pinned,
     is_locked: t.is_locked,
     score: t.score ?? 0,
@@ -206,35 +208,7 @@ export default async function SpacePage({
             <TabsContent value="new" className="mt-4">
               <Card>
                 <CardContent className="pt-6">
-                  <form action={createThread.bind(null, slug)} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Title</Label>
-                      <Input id="title" name="title" required />
-                    </div>
-                    {flairs.length > 0 && (
-                      <div className="space-y-2">
-                        <Label htmlFor="flair">Flair</Label>
-                        <select
-                          id="flair"
-                          name="flair"
-                          defaultValue=""
-                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <option value="">No flair</option>
-                          {flairs.map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label htmlFor="body">First post</Label>
-                      <Textarea id="body" name="body" rows={4} />
-                    </div>
-                    <Button type="submit">Create thread</Button>
-                  </form>
+                  <NewThreadForm spaceId={space.id} flairs={flairs} />
                 </CardContent>
               </Card>
             </TabsContent>

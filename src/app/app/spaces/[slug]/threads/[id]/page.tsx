@@ -8,6 +8,7 @@ import { ThreadPosts } from "@/components/discussion/thread-posts";
 import { ReportButton } from "@/components/moderation/report-button";
 import { ThreadFlairControl } from "@/components/community/thread-flair-control";
 import { SaveButton } from "@/components/saved/save-button";
+import { HelpCircle, CheckCircle2 } from "lucide-react";
 import type { CommunityFlair } from "@/lib/community";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -83,12 +84,30 @@ export default async function ThreadPage({
             flairs={flairs}
             canEdit={canMod || thread.author_id === profile!.id}
           />
+          {thread.kind === "question" && (
+            <Badge variant="secondary" className="gap-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+              <HelpCircle className="h-3 w-3" /> Question
+            </Badge>
+          )}
+          {thread.kind === "question" && thread.accepted_answer_id && (
+            <Badge className="gap-1 bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+              <CheckCircle2 className="h-3 w-3" /> Answered
+            </Badge>
+          )}
           {thread.is_locked && <Badge variant="outline">Locked</Badge>}
         </div>
         {thread.body && (
           <p className="mt-4 whitespace-pre-wrap rounded-lg border border-border bg-card p-4 text-sm">
             {thread.body}
           </p>
+        )}
+        {thread.kind === "question" && thread.what_tried && (
+          <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+              What I&apos;ve tried
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-sm">{thread.what_tried}</p>
+          </div>
         )}
         <div className="mt-2 flex flex-wrap gap-2">
           <SaveButton itemType="thread" itemId={id} initialSaved={Boolean(savedRow)} />
@@ -106,6 +125,9 @@ export default async function ThreadPage({
         threadId={id}
         initialPosts={posts ?? []}
         isLocked={thread.is_locked}
+        acceptedAnswerId={thread.accepted_answer_id ?? null}
+        canMarkAnswer={canMod || thread.author_id === profile!.id}
+        isQuestion={thread.kind === "question"}
       />
     </div>
   );

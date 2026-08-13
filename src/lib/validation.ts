@@ -80,6 +80,13 @@ export const threadSchema = z.object({
   body: bodySchema,
 })
 
+export const whatTriedSchema = z
+  .string()
+  .min(1, "Please describe what you've already tried")
+  .max(10000, "What you've tried is too long")
+
+export const threadKindSchema = z.enum(["discussion", "question"])
+
 export const postSchema = z.object({
   body: bodySchema,
 })

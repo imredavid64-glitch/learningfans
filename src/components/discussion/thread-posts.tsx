@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
-import { createPost } from "@/actions/discussion";
+import { createPost, markOfficialAnswer } from "@/actions/discussion";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { CornerDownRight } from "lucide-react";
+import { CornerDownRight, CheckCircle2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Post, Profile } from "@/types/database";
 
@@ -20,13 +22,22 @@ export function ThreadPosts({
   threadId,
   initialPosts,
   isLocked,
+  acceptedAnswerId,
+  canMarkAnswer,
+  isQuestion,
 }: {
   threadId: string;
   initialPosts: PostWithAuthor[];
   isLocked: boolean;
+  acceptedAnswerId?: string | null;
+  canMarkAnswer?: boolean;
+  isQuestion?: boolean;
 }) {
   const [posts, setPosts] = useState(initialPosts);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [acceptedId, setAcceptedId] = useState<string | null>(acceptedAnswerId ?? null);
+  const [marking, setMarking] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
@@ -86,17 +97,37 @@ export function ThreadPosts({
     setReplyingTo(null);
   }
 
+  async function handleMarkAnswer(postId: string) {
+    setMarking(postId);
+    const next = acceptedId === postId ? null : postId;
+    const res = await markOfficialAnswer(threadId, next);
+    setMarking(null);
+    if (!res.ok) {
+      toast.error(res.error ?? "Couldn't update the answer.");
+      return;
+    }
+    setAcceptedId(next);
+    router.refresh();
+  }
+
   function renderPost(post: PostWithAuthor, depth: number) {
     const kids = tree.children.get(post.id) ?? [];
+    const isAccepted = acceptedId === post.id;
     return (
       <div key={post.id}>
         <div
           className={cn(
             "rounded-lg border border-border bg-card p-4",
             depth > 0 && "border-l-2 border-l-primary/20",
+            isAccepted && "border-green-500/50 bg-green-500/5",
           )}
           style={{ marginLeft: Math.min(depth, MAX_INDENT_LEVEL) * 16 }}
         >
+          {isAccepted && (
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-green-600 dark:text-green-400">
+              <CheckCircle2 className="h-4 w-4" /> Official answer
+            </div>
+          )}
           <div className="mb-2 flex items-center justify-between gap-2 text-sm text-muted-foreground">
             <span className="truncate">
               <Link
@@ -109,6 +140,23 @@ export function ThreadPosts({
             <time>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</time>
           </div>
           <p className="whitespace-pre-wrap text-sm">{post.body}</p>
+          {isQuestion && canMarkAnswer && (
+            <div className="mt-2">
+              <Button
+                size="sm"
+                variant={isAccepted ? "default" : "ghost"}
+                className={cn(
+                  "gap-1.5 text-xs",
+                  isAccepted ? "bg-green-600 text-white hover:bg-green-700" : "text-muted-foreground",
+                )}
+                disabled={marking === post.id}
+                onClick={() => handleMarkAnswer(post.id)}
+              >
+                <Check className="h-3.5 w-3.5" />
+                {isAccepted ? "Official answer" : "Mark as answer"}
+              </Button>
+            </div>
+          )}
           {!isLocked && (
             <div className="mt-2">
               {replyingTo === post.id ? (

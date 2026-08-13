@@ -60,6 +60,10 @@ export type Thread = {
   downs: number;
   /** References a flair id from the space's flairs jsonb list. */
   flair_id?: string | null;
+  /** "discussion" | "question" — question posts carry what_tried + an official answer. */
+  kind?: string;
+  what_tried?: string | null;
+  accepted_answer_id?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -18,7 +18,7 @@ import {
 } from "@/lib/thread-ranking";
 import { cn } from "@/lib/utils";
 import { FLAIR_COLOR_CLASSES, type CommunityFlair } from "@/lib/community";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, HelpCircle, CheckCircle2 } from "lucide-react";
 
 const SORTS: { id: ThreadSort; label: string }[] = [
   { id: "hot", label: "Hot" },
@@ -31,6 +31,8 @@ export interface FeedThread {
   id: string;
   title: string;
   flair_id?: string | null;
+  kind?: string;
+  accepted_answer_id?: string | null;
   is_pinned: boolean;
   is_locked: boolean;
   score: number;
@@ -199,6 +201,19 @@ export function ThreadFeed({
                         >
                           {flairMap.get(t.flair_id)?.label}
                         </span>
+                      )}
+                      {t.kind === "question" && (
+                        <Badge
+                          variant="secondary"
+                          className="gap-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                        >
+                          <HelpCircle className="h-3 w-3" /> Question
+                        </Badge>
+                      )}
+                      {t.kind === "question" && t.accepted_answer_id && (
+                        <Badge className="gap-1 bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                          <CheckCircle2 className="h-3 w-3" /> Answered
+                        </Badge>
                       )}
                       {t.is_pinned && <Badge>Pinned</Badge>}
                       {t.is_locked && <Badge variant="outline">Locked</Badge>}
