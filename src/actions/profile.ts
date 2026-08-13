@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
-import { MAX_BIO_LENGTH, MAX_MAJOR_LENGTH, MAX_INTERESTS, MAX_INTEREST_LENGTH } from "@/lib/validation";
+import { MAX_BIO_LENGTH, MAX_MAJOR_LENGTH, MAX_INTERESTS, MAX_INTEREST_LENGTH, emailSchema } from "@/lib/validation";
 import { isAllowedImage } from "@/lib/file-types";
 
 const MAX_AVATAR_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
@@ -37,11 +37,21 @@ export async function updateProfile(formData: FormData): Promise<void> {
   const major = String(formData.get("major") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
   const interests = cleanInterests(String(formData.get("interests") ?? ""));
+  const parentEmail = String(formData.get("parentEmail") ?? "").trim();
 
   if (displayName && displayName.length <= 50) update.display_name = displayName;
   if (major.length <= MAX_MAJOR_LENGTH) update.major = major || null;
   if (bio.length <= MAX_BIO_LENGTH) update.bio = bio || null;
   update.interests = interests;
+
+  // Parent/guardian email (for the monthly progress digest). Empty clears it.
+  if (parentEmail) {
+    const parsed = emailSchema.safeParse(parentEmail);
+    if (!parsed.success) return;
+    update.parent_email = parsed.data;
+  } else {
+    update.parent_email = null;
+  }
 
   const { error } = await supabase.from("profiles").update(update).eq("id", profile.id);
   if (error) return;

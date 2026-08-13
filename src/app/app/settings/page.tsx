@@ -1,5 +1,6 @@
 import { updateProfile } from "@/actions/profile";
 import { getCurrentProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { USER_STORAGE_QUOTA_BYTES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,23 @@ export default async function SettingsPage() {
     100,
     Math.round((profile!.storage_used_bytes / USER_STORAGE_QUOTA_BYTES) * 100),
   );
+
+  // Latest parent progress digest, if one has been generated. Guarded so the
+  // page still renders before the parent_digests migration is applied.
+  const supabase = await createClient();
+  let latestDigest: { created_at: string; body: string } | null = null;
+  try {
+    const { data } = await supabase
+      .from("parent_digests")
+      .select("created_at, body")
+      .eq("user_id", profile!.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    latestDigest = data as { created_at: string; body: string } | null;
+  } catch {
+    latestDigest = null;
+  }
 
   return (
     <div className="max-w-lg space-y-6">
@@ -87,6 +105,19 @@ export default async function SettingsPage() {
                 {MAX_BIO_LENGTH} max
               </p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="parentEmail">Parent/guardian email</Label>
+              <Input
+                id="parentEmail"
+                name="parentEmail"
+                type="email"
+                placeholder="parent@example.com"
+                defaultValue={profile!.parent_email ?? ""}
+              />
+              <p className="text-xs text-muted-foreground">
+                Used for the monthly progress report. Leave blank to opt out.
+              </p>
+            </div>
             <p className="text-xs text-muted-foreground">Role: {profile!.role}</p>
             <div className="flex flex-wrap gap-2">
               <Button type="submit">Save</Button>
@@ -119,6 +150,23 @@ export default async function SettingsPage() {
       </Card>
 
       <TimeLimitSetting />
+
+      {latestDigest && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Parent progress report</CardTitle>
+            <CardDescription>
+              The latest monthly summary shared with your parent/guardian.{" "}
+              {new Date(latestDigest.created_at).toLocaleDateString()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <pre className="whitespace-pre-wrap font-sans text-sm text-muted-foreground">
+              {latestDigest.body}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

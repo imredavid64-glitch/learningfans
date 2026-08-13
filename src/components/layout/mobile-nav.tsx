@@ -35,6 +35,7 @@ export function MobileNav() {
     { href: "/app/feed", icon: Newspaper, label: "Feed" },
     { href: "/app/communities", icon: Compass, label: "Browse" },
     { href: "/app/study-rooms", icon: Presentation, label: "Study" },
+    { href: "/app/groups", icon: Users, label: "Groups" },
     { href: "/app/priorities", icon: ListOrdered, label: "Priorities" },
     { href: "/app/saved", icon: Bookmark, label: "Saved" },
     { href: "/app/schedule", icon: Calendar, label: "Schedule" },
