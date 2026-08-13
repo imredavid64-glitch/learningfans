@@ -8,6 +8,104 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-13 — Drop unused dependencies
+- Removed `pg` and `@hookform/resolvers` from `package.json` (never imported anywhere) via `npm uninstall`, refreshing `package-lock.json` (−159 lines, 15 transitive packages). tsc + 186 tests still green.
+
+## 2026-08-13 — Consolidate pending_apply.sql
+- Folded migrations **0016** (message reports), **0017** (DB housekeeping), and the **20260813 batch 0001-0007** (parent digests, room moderation, ask-community, study parties, accountability groups, quiz integrity, party RSVPs) into `supabase/migrations/pending_apply.sql`, so a single paste enables every pending feature. Header now reads "0008-0017 + 0000-0007".
+- Section order respects dependencies (0015 stays first; 0006 quiz-integrity after 0008 quiz-posts; 0007 party-rsvps after 0004 study-parties). Each appended section was verified **byte-identical** to its source `.sql` file via a diff loop.
+- Note: 0001 (parent digests) and 0005 (accountability groups) still use bare `create policy` (not `drop if exists`), so the file is "run once" — consistent with the existing sections.
+
+## 2026-08-13 — Unanswered-questions filter (URL state)
+- Added an **Unanswered** chip to `ThreadFeed` next to the sort tabs (with a live count) that filters the feed to questions with no accepted answer (`kind === "question" && !accepted_answer_id`). Composes with the flair filter and all four sorts; empty state says everyone's getting helped.
+- The **whole feed view is URL-driven** now (`?sort=top&flair=<id>&filter=unanswered`): `sort` is parsed/coerced via a `parseSort` helper (invalid → `hot`), `flairId` and `showUnanswered` are derived from `useSearchParams`, and a shared `updateParam(key, value)` helper does `router.replace(..., { scroll: false })`. Defaults (`sort=hot`, no flair, no filter) stay out of the URL, so links are clean. Survives refresh + back/forward and is shareable.
+- **Server-side filter:** `spaces/[slug]/page.tsx` now reads the `searchParams` promise and, when `?filter=unanswered`, applies `.eq("kind", "question").is("accepted_answer_id", null)` to the Supabase query — so deep links fetch up to 30 unanswered questions directly instead of trimming a mixed 30-row batch on the client. Other `filter` values are ignored (client treats anything ≠ `unanswered` as off).
+- Quality: tsc clean, lint clean, **186/186 tests**, build compiles (page is dynamic via cookie auth, so `useSearchParams` needs no Suspense boundary). Docs: FEATURES.
+
+## 2026-08-13 — Sort accepted answers to the top
+- Extracted the reply-tree build into `src/lib/post-tree.ts` (`buildPostTree<T>(posts, acceptedId)`) — roots + per-parent children sorted by date, and the accepted answer **hoisted to the front** of the root list (its own replies follow it), whether it was top-level or nested. +5 unit tests.
+- `thread-posts.tsx` now uses the helper (`useMemo(() => buildPostTree(posts, acceptedId), [posts, acceptedId])`) instead of inline tree building.
+- Quality: tsc clean, lint clean, **186/186 tests** (was 181), build compiles. Docs: FEATURES.
+
+## 2026-08-13 — Study party auto-end when empty
+- **Pure helper** `isLastPresentUser(state, myUserId)` in `study-room-utils.ts` (+3 tests): true when the raw Realtime presence state has no other users and ≤1 of my own connections (multi-tab aware).
+- **Action** `autoEndPartyWhenEmpty(roomId)` in `src/actions/study-rooms.ts` (uses `createAdminClient` to bypass the host-only update RLS): ends the room only when it's an active party whose `starts_at` has passed, and the caller actually participated (creator, RSVP, or a `study_sessions` row). Idempotent; revalidates hub + room.
+- **`room-presence.tsx`**: new `autoEndParty` prop — on unmount, if `isLastPresentUser` says closing my last tab empties the room, it fire-and-forgets the auto-end action. `study-room.tsx` passes `autoEndParty={Boolean(room.starts_at)}`; `StudyRoomData` gains `starts_at` (threaded from the room page).
+- **Known gap:** a hard crash of the *last* remaining person has no client to fire the trigger (clean navigation/Leave is covered) — the host can still end manually.
+- Quality: tsc clean, lint clean, **181/181 tests** (was 178), build compiles. Docs: ROADMAP, FEATURES.
+
+## 2026-08-13 — Study party RSVP + reminders
+- **Migration** `20260813000007_party_rsvps.sql` (manual apply ⚠️, idempotent): `study_room_rsvps` (PK room+user, `reminded_at` dedupe, index on room). RLS: anyone can view; insert gated to self + active room with a future `starts_at`; delete own.
+- **Pure helpers** in `study-room-utils.ts` (+2 tests): `partyReminderDue` (starts within the 15-min lead window), `shouldRsvpRemindNow` (RSVP to a party within 30 min reminds instantly).
+- **`src/lib/party-reminders.ts`**: `sendPartyReminders()` — admin sweep for parties starting within the lead window; pings each un-reminded RSVPer via `create_notification` (type `party_reminder`, link → room) and marks `reminded_at`. Best-effort, never throws.
+- **Actions** `src/actions/party-rsvps.ts`: `rsvpToParty` (validates future party, upsert, instant reminder when close, returns attendee count), `unrsvpParty`.
+- **UI**: `PartyRsvp` client component (count + Going/RSVP toggle) on the hub's upcoming cards (cards restructured so the button isn't nested in the card link) and a room-page party banner (countdown + RSVP). Lazy sweep on hub + room page loads; also wired into `/api/cron/digest` and `/api/push/send`.
+- Quality: tsc clean, lint clean, **178/178 tests** (was 176), build compiles. Degrades gracefully pre-migration (RSVP UI empty, sweep no-ops). Docs: ROADMAP, FEATURES.
+
+## 2026-08-13 — Quiz cheating guard (answer-time fingerprints)
+- **Pure lib** `src/lib/quiz-integrity.ts` (+8 tests): `analyzeQuizIntegrity` — flags when a perfect score is answered implausibly fast (`totalMs < max(10s, n×1.5s)`), has a fast median (`<1500ms`), or >50% of questions are answered in `<800ms`. Missing timing on a perfect score is itself suspicious. Advisory verdict — never trusted from the client.
+- **Migration** `20260813000006_quiz_integrity.sql` (manual apply ⚠️, idempotent): `quiz_attempts` gains `total_ms int`, `answer_times_ms jsonb`, `flagged boolean`, `flag_reasons text[]`.
+- **`submitQuizResult(materialId, answers, timing?)`** now computes the verdict server-side; a flagged attempt preserves the existing best score, skips XP, and returns `flagged`/`flagReasons`. Pre-migration the extended upsert falls back to the legacy shape (guard inactive).
+- **`quiz-player.tsx`**: tracks quiz start + per-question first-shown/first-answered (refs), sends `{ totalMs, answerTimesMs }`, and shows an amber "too fast to be fairly graded — won't count toward the leaderboard" banner on flagged results.
+- Quality: tsc clean, lint clean, **176/176 tests** (was 168), build compiles. Docs: ROADMAP.
+
+## 2026-08-13 — Community RAG tutor (librarian AI)
+- **Pure lib** `src/lib/community-rag.ts` (no migration, +12 unit tests): `buildCorpus` (notes/flashcards/quizzes/links/files/threads/posts → `RagChunk[]` with route hrefs), `tokenize`/`rankChunks` (lexical retrieval — query-term overlap + 3x title boost, top-k), `buildTutorPrompt` (numbered-context system/user prompt asking for `{ answer, citations }` JSON), `parseTutorResponse` (tolerant of prose wrappers, clamps citation indices). 4000-char per-chunk cap.
+- **Action** `src/actions/community-tutor.ts`: `askCommunityTutor(spaceSlug, question)` — membership gate (or public space), fast local profanity check, 500-char cap, fetches the space's corpus (materials/threads/posts, hidden excluded), ranks top 6, calls Groq `llama-3.1-8b-instant`, returns `{ answer, citations:[{title,href,kind}] }`. Graceful when `GROQ_API_KEY` is missing or the corpus is empty.
+- **UI** `src/components/community/community-tutor.tsx`: "Community librarian" card in the space-page sidebar (question input, loading spinner, whitespace-preserved answer, citation badge chips linking to materials/threads).
+- **Gap:** PDFs/files are indexed by title/description only — full-text extraction needs a PDF parser (or embeddings + pgvector) as a follow-up.
+- Quality: tsc clean, lint clean, **168/168 tests** (was 156), build compiles. No migration. Docs: ROADMAP, FEATURES.
+
+## 2026-08-13 — Offline-first rooms (chat queue + whiteboard snapshot replay)
+- **Pure lib** `src/lib/offline-room-sync.ts` (no migration): one localStorage key (`lf-offline-room-sync`) holding a per-room **chat queue** (capped at 50, oldest evicted) + the latest **pending whiteboard snapshot**, with a shared `lf-offline-room-sync-updated` event. Functions: `queueChatMessage`, `pendingChatMessages`/`pendingChatCount`, `removeChatMessage`, `clearChatQueue`, `savePendingWhiteboard`, `loadPendingWhiteboard`, `clearPendingWhiteboard`, `roomsWithPendingSync`. Last-writer-wins (matches the snapshot model), not a CRDT merge. +11 unit tests.
+- **`room-chat.tsx`**: `handleSend` queues locally when `navigator.onLine` is false (optimistic "queued" bubble + `queued` count in the header) and on a thrown server-action network failure; moderation/mute rejections still surface inline. `flushQueue` replays the queue **in order** on the `online` event (and on mount), stopping at the first failure. A delivered realtime message confirms its queued copy by body (dedupes the bubble).
+- **`whiteboard.tsx`**: `scheduleSave` writes the latest strokes to `savePendingWhiteboard` when offline or the save fails; a `flushPendingBoard` effect replays the snapshot on `online` and clears it on success; a **"Saved locally"** amber badge shows while a snapshot is waiting.
+- Quality: tsc clean, lint clean, **156/156 tests** (was 145), build compiles. No migration needed. Docs: ROADMAP (§5 + §8), FEATURES.
+
+## 2026-08-13 — Accountability groups
+- **Migration** `20260813000005_accountability_groups.sql` (manual apply ⚠️): `accountability_groups` (name + weekly_goal), `accountability_group_members` (PK group+user), `accountability_checkins` (PK group+user+date, UTC date), `accountability_nudges` (peer nudges). All RLS-browsable at app scale; insert gated to the acting user; creator (or app mod) deletes the group.
+- **Pure helpers** `src/lib/accountability.ts` (UTC date math to match the app's check-in convention): `weekStart`, `utcDateKey`, `checkedInSince`, `groupStreak` (consecutive all-member days; today in-progress), `weeklyProgress` (0–1). +8 unit tests.
+- **Actions** `src/actions/accountability.ts`: `createAccountabilityGroup` (creator auto-joins), `joinAccountabilityGroup` (max 8), `leaveAccountabilityGroup`, `checkInGroup` (idempotent per day), `nudgeMember` (24h cooldown + `create_notification` type `nudge` → `/app/groups`).
+- **UI**: `/app/groups` page + `AccountabilityGroups` client component — create form, per-group progress bar (% checked in this week), 🎯 weekly goal, 🔥 group streak badge, member list with green check-ins + Nudge buttons, join/leave/check-in. Nav links added (desktop + mobile).
+- Quality: tsc clean, lint clean, 145/145 tests, build compiles. Degrades gracefully pre-migration (empty list). Docs: ROADMAP.
+
+## 2026-08-13 — Study parties (scheduled rooms + minutes leaderboard)
+- **Migration** `20260813000004_study_parties.sql` (manual apply ⚠️): `study_rooms.starts_at` (nullable — set = scheduled party), `study_sessions` table (room+user+minutes+`focus_key`, unique (room,user,focus_key) so a broadcast focus completion dedupes to one row per participant), `get_study_party_leaderboard(days, limit)` security-definer RPC (total participant-minutes + distinct participants, last N days).
+- **`src/actions/study-rooms.ts`**: `createStudyRoom` accepts an optional future `startsAt` (rejects past/invalid); new `recordStudySession(roomId, focusKey)` upserts a focus block (minutes = 25).
+- **`pomodoro-timer.tsx`**: on focus→break auto-transition, fires `recordStudySession(roomId, `${roomId}:${endsAt}`)` (fire-and-forget; the shared `endsAt` is the dedupe key across clients).
+- **Hub** `/app/study-rooms`: splits **Upcoming study parties** (live `PartyCountdown` badge → "Live" once passed) from **Open rooms**; new **Most minutes studied together this week** leaderboard (🥇🥈🥉 + participant count). `StudyRoomForm` gains a `datetime-local` start time.
+- Quality: tsc clean, lint clean, 137/137 tests, build compiles. Degrades gracefully pre-migration (no `starts_at` ⇒ all live; leaderboard empty). Docs: ROADMAP.
+
+## 2026-08-13 — "Ask the community" question posts + official answers
+- **Migration** `20260813000003_ask_community.sql` (manual apply ⚠️): `threads.kind` (`discussion` | `question`, default discussion), `threads.what_tried`, `threads.accepted_answer_id uuid → posts (on delete set null)`, index on `(kind, created_at)`.
+- **`src/actions/discussion.ts`**: `createThread` reads `kind` + `what_tried` (question ⇒ `what_tried` required via `whatTriedSchema`; included in AI/automod text). New `markOfficialAnswer(threadId, postId|null)` — author, space mod, or app mod; post must belong to the thread; updates `accepted_answer_id`.
+- **UI**: `NewThreadForm` (`src/components/community/new-thread-form.tsx`) replaces the inline new-thread form on the space page — a Discussion / "Ask the community" toggle with a required "What have you tried?" textarea for questions. `ThreadPosts` renders a green "Official answer" badge on the accepted reply + a Mark-as-answer button (author/mods); `ThreadPage` shows the "What I've tried" block and Question/Answered badges; `ThreadFeed` shows Question/Answered badges.
+- Quality: tsc clean, lint clean, 136/136 tests, build compiles. Degrades gracefully pre-migration (`kind` null ⇒ treated as discussion). Docs: ROADMAP.
+
+## 2026-08-13 — Per-user whiteboard colors
+- **Whiteboard strokes now carry `author_id`/`author_name`** (`WhiteboardStroke` type). A new **"Person" toolbar toggle** (default on) renders each author's strokes in their deterministic palette color via `strokeRenderColor(stroke, byPerson)` in `study-room-utils.ts` — the same color their live presence cursor already uses — so you can tell who drew what. A "who drew what" legend lists distinct authors with color chips under the toolbar; the manual color swatches dim/disable in person mode. Exported PNGs honor the toggle too.
+- Files: `src/components/study-rooms/whiteboard.tsx`, `src/lib/study-room-utils.ts`, `src/lib/__tests__/study-room-utils.test.ts` (+1 test → 136/136). Backwards-compatible: legacy strokes without `author_id` fall back to their own color.
+- Quality: tsc clean, lint clean, 136/136 tests, build compiles. No migration needed (strokes stay in the existing `whiteboard` jsonb).
+
+## 2026-08-13 — Room chat rate limits + host kick/mute
+- **Migration** `20260813000002_room_moderation.sql` (manual apply ⚠️): `study_room_moderation` table (unique room+user, `action` mute/ban, `expires_at` null=permanent); RLS — participants can read, hosts manage; drops/recreates the chat insert policy as "Users post in visible rooms (unmuted)" so muted/banned users can't bypass via direct writes.
+- **`src/actions/study-rooms.ts`**: `moderateRoomMember(roomId, targetUserId, action)` (host gate: creator / app mod / space mod; can't self-moderate or moderate another host; mute = 10 min, ban = permanent until unban). `sendRoomMessage` now checks mute/ban and enforces a DB-counted rate limit (6 msgs / 15s per user); `saveWhiteboard` blocks banned users. Helpers `getRoomRestriction` / `isRoomHost`.
+- **`RoomModeration`** (`src/components/study-rooms/room-moderation.tsx`): host-only "Moderate" dropdown listing live presence participants with mute/unmute + ban/unban buttons (per-action spinners, 30s clock tick to auto-clear expired mutes). `RoomChat` disables the composer with a "muted"/"removed" placeholder; `StudyRoom` + room page thread `isHost`/`moderationRows`/`myMuted`/`myBanned` through.
+- Quality: tsc clean, lint clean, 135/135 tests, build compiles. Docs: ROADMAP.
+
+## 2026-08-13 — Parent progress digest
+- **Migration** `20260813000001_parent_digests.sql` (manual apply ⚠️): `parent_digests` table (one row per student per month — XP, level, streaks, 30-day thread/material/reply counts, XP delta vs prior digest, `status` pending/sent/failed, email-ready `body`) + `send_parent_digests()` RPC (security definer; skips users without `parent_email` or already digested this month; pings the student via a `parent_digest` notification).
+- **Settings** (`src/app/app/settings/page.tsx`, `src/actions/profile.ts`): `parent_email` is now editable in the profile form (validated with `emailSchema`, empty clears it) — previously only settable via the restricted-account banner. A "Parent progress report" card shows the latest digest (guarded so the page renders before the migration lands).
+- **Cron** `/api/cron/digest` now also calls `send_parent_digests()` on the Monday run (self-gates to monthly; non-fatal on failure). No new cron slot needed.
+- **Known gap**: email sending isn't wired — rows are queued with `status='pending'` (same pattern as `profanity_notifications`). Needs an email provider (Resend/SendGrid) + a flush route. "Minutes studied" isn't tracked either — the digest reports XP/level/streaks/contributions instead.
+- Quality: tsc clean, lint clean, 135/135 tests, build compiles. Docs: ROADMAP.
+
+## 2026-08-13 — Whiteboard export & pin to community
+- **Whiteboard** (`src/components/study-rooms/whiteboard.tsx`): new toolbar buttons — **Download PNG** (client renders strokes to a 2x offscreen canvas, eraser strokes drawn as opaque white so the PNG has a solid background) and **Pin to community** (only for space-linked rooms; shows a spinner while uploading, sonner toast on success/failure).
+- **Action** `pinWhiteboardToSpace(roomId, spaceSlug, dataUrl, title)` in `src/actions/study-rooms.ts`: validates the room belongs to the space + membership, parses the PNG data URL, downscales via sharp ≤1920px, stores in the `materials` bucket + `storage_objects`, and creates a `file` material with `metadata.mime: "image/png"` (so the feed shows the image thumbnail/lightbox). Title defaults to `<room> — whiteboard`; description records the source room.
+- **`StudyRoom`** passes `spaceSlug`/`roomName` down to the Whiteboard.
+- Quality: tsc clean, lint clean, 135/135 tests, build compiles. No new migration (reuses `study_materials` + `materials` bucket). Docs: FEATURES, ROADMAP.
+
 ## 2026-08-13 — User profiles + broad file-type uploads
 - **Migration** `20260813000000_user_profiles_upload_types.sql` (manual apply ⚠️ — appended to `pending_apply.sql`): restores `profiles.major/bio/interests/parent_email/principal_email/gpa/current_class_id/credits_completed` (schema-drift fix); `get_public_stats(uuid)` security-definer RPC exposing just XP/level/streaks from private `user_stats`; `storage.buckets` `materials` now allows doc/xlsx/pptx/rtf/txt/md/csv/html/json/xml/zip/7z/rar/tar/gz/audio/video + 15 MB cap.
 - **Profiles**: `/app/settings` gains avatar upload/remove (`AvatarUpload`, sharp 256px → `avatars/{userId}/avatar`, 2 MB cap), major, interests (comma-list → text[]), bio (500 chars). Profile page shows avatar, role badge, major, GPA, bio, interest tags, XP/level/streak stats (via RPC), and an Edit link when viewing yourself. Profile links now point at `/app/profile/[id]` from the dashboard leaderboard, material list, and thread posts.

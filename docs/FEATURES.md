@@ -143,6 +143,14 @@ superpower of the Reddit-for-learners vision (see
 - **Leaderboard:** `QuizLeaderboard` — top 10 by best % (🥇🥈🥉), your own best
   highlighted; `quiz_attempts` keeps one row per user per quiz so the board stays
   lean on the free tier. New personal bests award +5 XP.
+- **Cheating guard:** the player sends an **answer-time fingerprint** (per-question
+  latency from first-shown to first-answered, plus total time).
+  `analyzeQuizIntegrity` (`src/lib/quiz-integrity.ts`) flags suspiciously-fast
+  submissions — perfect score answered implausibly fast, a fast median, or >50%
+  instant answers. A flagged attempt never advances `best_score_pct`, earns no
+  XP, and shows an amber "too fast to be fairly graded" notice; the fingerprint
+  is stored on `quiz_attempts` (`total_ms`, `answer_times_ms`, `flagged`,
+  `flag_reasons`; migration `20260813000006`). Degrades gracefully pre-migration.
 - **Review queue:** on results, "Add to my review queue" builds a private-ish
   SM-2 flashcard deck from the missed questions (front = question, back = correct
   answer + explanation) — `createQuizReviewDeck` builds cards server-side from
@@ -208,7 +216,14 @@ superpower of the Reddit-for-learners vision (see
   - **Whiteboard** — pen (6 colors × 4 widths), eraser, undo, clear; strokes
     broadcast live and snapshotted to `study_rooms.whiteboard` (600 strokes /
     256 KB caps); **presence cursors** show everyone's pointer as a colored dot +
-    name pill (presence, ~10 Hz).
+    name pill (presence, ~10 Hz); **per-user stroke colors** — a "Person" toggle
+    renders each author's strokes in their deterministic palette color (matching
+    their cursor) with a "who drew what" legend, so you can tell who drew what;
+    **export & pin** — download the board as a PNG or (space-linked rooms) pin it
+    to the community as an image material (`pinWhiteboardToSpace` action: client
+    renders a 2x PNG, server validates, downscales via sharp ≤1920px, stores in
+    the `materials` bucket + a `file` material with `metadata.mime`, so the feed
+    shows it with the image thumbnail/lightbox — the board outlives the room).
   - **Room chat** — persisted, realtime via `postgres_changes`; **@mentions**
     (autocomplete against space members or app profiles; pings via
     `create_notification`, type `mention`); **emoji reactions**
@@ -222,10 +237,141 @@ superpower of the Reddit-for-learners vision (see
     localStorage persistence).
   - **Presence avatars**, **one-click Jitsi video call**, **copy invite link**,
     host **End room** (read-only board + disabled chat afterwards).
+  - **Host moderation** — hosts (creator, app mod, or space mod) get a
+    **Moderate** panel over the live presence list: mute (10 min) or ban a
+    participant. Muted users can't chat; banned users can't chat or save the
+    whiteboard. Enforced in `sendRoomMessage`/`saveWhiteboard` *and* in RLS
+    (hardened insert policy) so it can't be bypassed. Chat is rate-limited to
+    6 messages / 15s per user (`study_room_moderation` table, migration
+    `20260813000002`).
 - **Actions:** `src/actions/study-rooms.ts`; **Files:**
   `src/components/study-rooms/*`, `src/lib/study-room-utils.ts`.
 - **Entry points:** desktop + mobile nav, dashboard quick actions, space pages
   (`/app/study-rooms?space=…` preselects the space).
+
+## Offline-first rooms
+
+- **Chat:** while offline (or on a network failure) `RoomChat` queues the
+  message in localStorage, renders it optimistically as a faded "queued" bubble
+  (with a `queued` count in the header), and flushes the queue **in order** on
+  the `online` event. A delivered realtime message confirms its queued copy by
+  body, so there's no duplicate bubble.
+- **Whiteboard:** when a snapshot save fails, the latest strokes are kept
+  locally; on reconnect they're replayed to `saveWhiteboard` and cleared on
+  success. A **"Saved locally"** badge shows while a snapshot is waiting.
+- **Storage:** `src/lib/offline-room-sync.ts` — one localStorage key
+  (`lf-offline-room-sync`) holding a per-room chat queue (capped at 50) and the
+  latest pending whiteboard snapshot, with a shared `lf-offline-room-sync-updated`
+  event. Last-writer-wins (matches the existing snapshot model), not a CRDT
+  merge.
+- **Files:** `src/lib/offline-room-sync.ts` (+ tests), `room-chat.tsx`,
+  `whiteboard.tsx`.
+
+## Parent progress digest
+
+- **Data:** `profiles.parent_email` (settable in **Settings**, validated — empty
+  opts out) + the `parent_digests` table (migration `20260813000001`).
+- **Generation:** `send_parent_digests()` RPC runs on the Monday cron
+  (`/api/cron/digest`) and writes one row per student per rolling month — total
+  XP, level, current/longest streak, 30-day thread/material/reply counts, and XP
+  delta vs the previous digest. Students get a `parent_digest` bell notification
+  and can view the latest report as a card in Settings.
+- **Delivery gap:** rows carry a `status` (pending/sent/failed) like
+  `profanity_notifications`; actual email sending awaits an email provider.
+  "Minutes studied" isn't tracked yet — the report covers XP/streaks/contributions.
+
+## "Ask the community" question posts
+
+- **Post type:** threads carry a `kind` — `discussion` (default) or `question`.
+  Questions are the r/learnmath pattern: a mandatory **"What have you tried?"**
+  field (validated server-side; empty is rejected) shown in a highlighted block
+  on the thread page.
+- **Official answers:** the thread author or a moderator marks one reply as the
+  official answer (`markOfficialAnswer` → `threads.accepted_answer_id`). The
+  accepted reply renders with a green **Official answer** badge; the thread and
+  feed show Question / Answered badges. The accepted reply (and its nested
+  replies) is **sorted to the top** of the list via `buildPostTree`
+  (`src/lib/post-tree.ts`) so it's seen first even when it was posted later or
+  nested under another reply.
+- **Unanswered filter:** the community feed has an **Unanswered** chip next to
+  the sort tabs (with a live count) that narrows the feed to questions without
+  an accepted answer, so members can find help requests that still need a
+  response. The whole feed view is URL-driven — `?sort=top&flair=<id>&filter=unanswered`
+  — so sort, flair, and the unanswered toggle all survive refresh and
+  back/forward navigation and can be shared as links (defaults are omitted for
+  clean URLs). `?filter=unanswered` is applied **server-side**
+  (`.eq("kind","question").is("accepted_answer_id",null)`), so a deep link loads
+  up to 30 unanswered questions directly instead of trimming a mixed batch on
+  the client.
+- **Files:** `NewThreadForm` (discussion/question toggle + what-tried textarea),
+  `ThreadPosts` (badge + mark button), `createThread` / `markOfficialAnswer` in
+  `src/actions/discussion.ts`. Migration `20260813000003_ask_community.sql`.
+
+## Study parties
+
+- **Scheduled rooms:** `study_rooms.starts_at` (optional). The room form lets a
+  host pick a future start time; the hub lists **upcoming parties** with a live
+  ticking countdown (`PartyCountdown` → "Live" once passed) separate from
+  **open rooms**.
+- **RSVP + reminders:** upcoming cards and the room page banner show an **RSVP
+  button** with an attendee count (`study_room_rsvps`, migration
+  `20260813000007`). Each RSVPer gets a `party_reminder` **bell notification**
+  ~15 min before start — `sendPartyReminders` sweeps lazily on hub/room page
+  loads plus the daily push and weekly digest crons (web push rides the existing
+  daily push cron). RSVPing to a party starting within 30 min reminds
+  immediately; `reminded_at` dedupes so nobody is pinged twice.
+- **Auto-end when empty:** when the last participant leaves a started party, the
+  room's presence watcher (`RoomPresence`, multi-tab aware via
+  `isLastPresentUser`) fires `autoEndPartyWhenEmpty` — the room flips to `ended`
+  and drops off the hub's live + upcoming lists. Guarded to parties that have
+  already started and to callers who actually participated (creator / RSVP / a
+  recorded study session), so a random user can't kill a live party.
+- **Minutes studied together:** a shared pomodoro focus completion records a
+  `study_sessions` row per participant (`focus_key` = `roomId:endsAt` dedupes the
+  broadcast so one block counts once per person). The **weekly leaderboard** on
+  the hub ranks rooms by total participant-minutes
+  (`get_study_party_leaderboard`).
+- **Files:** `src/actions/study-rooms.ts` (`recordStudySession`, `startsAt`),
+  `src/components/study-rooms/{party-countdown,pomodoro-timer}.tsx`,
+  `src/app/app/study-rooms/page.tsx`. Migration
+  `20260813000004_study_parties.sql`.
+
+## Community RAG tutor (librarian AI)
+
+- **"Community librarian"** — a sidebar card on every space page answers
+  questions **grounded in that community's own content** with citation chips
+  linking back to each source (the "Reddit for learners" librarian endgame).
+- **Retrieval:** `src/lib/community-rag.ts` builds a corpus from the space's
+  **notes** (`metadata.content`), **flashcard sets** (`metadata.cards`),
+  **quizzes** (`metadata.questions` — question + options + answer +
+  explanation), **links** (title/url/description), **files** (title/description),
+  **threads** (title/body/what-tried), and **posts** (body). Lexical ranking
+  (`rankChunks` — query-term overlap with a 3x title boost) picks the top 6;
+  no vector DB or embedding dependency.
+- **Answer:** `askCommunityTutor(spaceSlug, question)` server action gates on
+  membership (or a public space), runs a fast local profanity check, then calls
+  Groq (`llama-3.1-8b-instant`) with a numbered-context prompt asking for
+  `{ answer, citations }` JSON; `parseTutorResponse` maps the cited indices back
+  to source links (tolerant of prose wrappers, falls back to an uncited answer).
+- **Gap:** PDFs and files are indexed by **title/description only** — full-text
+  PDF extraction needs a PDF parser (or embeddings + `pgvector`) as a follow-up.
+- **Files:** `src/lib/community-rag.ts` (+ tests), `src/actions/community-tutor.ts`,
+  `src/components/community/community-tutor.tsx`.
+
+## Accountability groups
+
+- **Route:** `/app/groups` (linked from desktop + mobile nav).
+- Small groups (max 8) with a shared **weekly goal** (e.g. "finish Unit 3").
+  Members **check in daily** (`accountability_checkins`, idempotent per day); a
+  **progress bar** shows the % of members who checked in this week, and a
+  **group streak** counts consecutive days where everyone checked in (today is
+  treated as in-progress).
+- **Peer nudges:** any member can nudge another (24h cooldown) — a gentle bell
+  notification (`nudge` type) pointing back to the group.
+- **Files:** `src/lib/accountability.ts` (pure UTC date/streak/progress helpers),
+  `src/actions/accountability.ts`, `src/components/accountability/*`,
+  `src/app/app/groups/page.tsx`. Migration
+  `20260813000005_accountability_groups.sql`.
 
 ## Community leaderboard
 

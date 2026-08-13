@@ -3,10 +3,7 @@
 Living document. Everything below is a candidate, not a promise. Ideas are tagged
 by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 
-> Last updated: 2026-08-12 — after room chat got **@mentions** (bell notifications,
-> autocomplete) and **emoji reactions** (realtime). Interactive Study Rooms shipped
-> earlier the same day: live whiteboard, room chat, shared pomodoro, presence,
-> one-click video call.
+> Last updated: 2026-08-13 — added section 8 (brainstorm) with effort/impact tags.
 
 ---
 
@@ -111,10 +108,17 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   the whiteboard (broadcast deltas, debounced snapshot like the whiteboard).
 - **Room-linked flashcards** (`M`): create/queue a deck *inside* a room so everyone
   reviews the same cards; due counts already drive presence badges.
-- **Whiteboard image export / sharing** (`S`): "Download PNG" button (canvas
-  `toDataURL`) and a "pin board to space" action that stores it as a material.
+- ✅ **Whiteboard image export / sharing** — shipped 2026-08-13: "Download PNG"
+  button (canvas `toDataURL`) plus a "pin board to space" action that stores the
+  board as an image material (`pinWhiteboardToSpace` — client 2x PNG render,
+  sharp ≤1920px, `materials` bucket + `file` material with `metadata.mime`).
+- ✅ **Per-user whiteboard colors** — shipped 2026-08-13: strokes are stamped
+  with `author_id`/`author_name`; a "Person" toggle renders each author's
+  strokes in their deterministic palette color (the same one their presence
+  cursor uses, via `strokeRenderColor`), with a "who drew what" legend under the
+  toolbar. Exported PNGs honor the toggle too.
 - **More whiteboard tools** (`M`): shapes (rect/arrow/line), text tool, background
-  grid toggle, per-user stroke colors so you can tell who drew what.
+  grid toggle.
 - **Ambient focus rooms** (`M`): rooms with a shared lofi/rain sound toggle (Web
   Audio), synced with the pomodoro.
 
@@ -129,9 +133,10 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 
 ## 5. Native & platform
 
-- **True offline rooms** (`L`): queue whiteboard strokes + chat locally and sync
-  when back online (localStorage + broadcast catch-up) — a huge win for the
-  Capacitor apps, which currently load the live site.
+- ✅ **True offline rooms** — shipped 2026-08-13 (see §8 moonshots): chat
+  messages and whiteboard snapshots queue in localStorage while offline and
+  replay on reconnect — a huge win for the Capacitor apps, which currently load
+  the live site.
 - **System notifications for room activity** (`M`): FCM/APNs via
   `@capacitor/push-notifications` once the service-account setup is available.
 - **Whiteboard on mobile** (`S`): pointer events already work — polish the toolbar
@@ -139,11 +144,12 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 
 ## 6. Trust & safety at scale
 
-- **Room moderation** (`M`): room hosts get kick/mute controls (mirrors the meeting
-  organizer model); chat messages already run through the profanity escalation
-  pipeline.
-- **Rate limits on room chat** (`S`): the app already has `src/lib/rate-limit.ts` —
-  apply per-user/per-minute caps to `sendRoomMessage` to stop flood spam.
+- ✅ **Room moderation + rate limits** — shipped 2026-08-13: hosts (creator /
+  app mod / space mod) get a **Moderate** panel listing live participants with
+  mute (10 min) and ban controls; muted users can't chat, banned users can't
+  chat or save the whiteboard (`study_room_moderation` table + hardened chat
+  insert policy). Chat is rate-limited to 6 messages/15s per user (DB-counted,
+  so it holds across serverless instances).
 
 ## 7. Data & cost (free-tier discipline)
 
@@ -183,3 +189,111 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 - **2026-08-11** — Study streaks + XP, notification bell, live study-room presence on
   flashcards.
 - **2026-08-06** — Live calls (Jitsi) + visual schedule calendar.
+
+---
+
+## 8. Brainstorm (2026-08-13)
+
+Fresh territory on top of the shipped Reddit-for-learners core. Tagged by effort
+(`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
+
+### Cheap wins (existing infra, one feature each)
+
+- **Live quiz battles in study rooms** (`M` 🔥) — quizzes *and* realtime rooms both
+  exist. Add a "host quiz" mode: everyone in the room answers simultaneously with a
+  live scoreboard and first-to-answer bonus. The Kahoot moment — the single most
+  shareable feature for a study app.
+- **Karma / trophies** (`S`) — the last blueprint item. Trophies for "First 100 XP",
+  "Answered 10 questions", "Hosted 5 study rooms"; karma = net upvotes on your
+  threads/posts shown next to usernames. Data already lives in `user_stats` +
+  `post_votes`.
+- **AI "Explain this" on any post/material** (`S`) — Groq is already wired into
+  moderation; reuse it student-facing: "Explain this PDF/note/answer like I'm 12"
+  with a citation of the source. Turns every resource into a tutor.
+- ✅ **Whiteboard → PNG → pin as material** — shipped 2026-08-13 (see §3 study
+  tools above).
+- ✅ **Parent progress digest** — shipped 2026-08-13: a monthly `parent_digests`
+  row per student (XP, level, streak, 30-day contributions, XP delta vs last
+  month) generated by the `send_parent_digests()` RPC on the Monday cron; the
+  student gets a bell ping and can view the report in Settings. `parent_email`
+  is now settable in Settings (not just the restricted-account banner). Email
+  delivery is queued (`status` column) — still needs an email provider.
+- **Chat rate limits + room kick/mute** (`S`/`M`) — `rate-limit.ts` exists for chat
+  flood; hosts get kick/mute like meeting organizers. Trust & safety before scale.
+- **Per-user whiteboard colors** (`S`) — roadmap item; tells you who drew what,
+  pairs with the existing presence cursors.
+
+### The engagement loop (community retention)
+
+- ✅ **"Ask the community" post type** — shipped 2026-08-13: threads gain a
+  `kind` (`discussion` | `question`); questions require a **"what I've tried"**
+  field (r/learnmath pattern, validated in `createThread`) and render it in a
+  highlighted block. The author or a moderator can **mark the official answer**
+  (`markOfficialAnswer` → `threads.accepted_answer_id`); accepted replies get a
+  green "Official answer" badge, and question threads show Question/Answered
+  badges in the feed. Migration `20260813000003`.
+- ✅ **Study parties** — shipped 2026-08-13: study rooms gain an optional
+  `starts_at` (scheduled via the room form); the hub shows **upcoming parties**
+  with a live ticking countdown (`PartyCountdown`) and **open rooms** separately.
+  A shared pomodoro focus completion records a `study_sessions` row (deduped by
+  `focus_key` so one 25-min block counts once per participant), powering the
+  **"most minutes studied together this week"** leaderboard
+  (`get_study_party_leaderboard`). Migration `20260813000004`. **RSVP +
+  reminders** (2026-08-13, migration `20260813000007`): attendees RSVP on the
+  hub cards / room banner (attendee count), and each RSVPer gets a
+  `party_reminder` bell notification ~15 min before start — fired by a sweep
+  (`sendPartyReminders`) that runs lazily on hub/room page loads plus the daily
+  push + weekly digest crons; RSVPing to a party starting within 30 min reminds
+  instantly. `reminded_at` dedupes. **Auto-end** (2026-08-13): when the last
+  participant leaves a started party, the room's presence watcher fires
+  `autoEndPartyWhenEmpty` (guarded to the creator / RSVP / study-session
+  participants) and the room flips to `ended`, dropping off the hub.
+- **AI-generated flashcards from notes/PDFs** (`M`) — Gemini is already integrated.
+  "Turn this PDF into a 20-card deck" → straight into the SM-2 review queue. Massive
+  study-time saver.
+- ✅ **Accountability groups** — shipped 2026-08-13: small groups (max 8) with a
+  shared weekly goal; members check in daily (`accountability_checkins`),
+  progress bars show % checked in this week, a **group streak** counts
+  consecutive all-member days (today is in-progress), and **gentle peer nudges**
+  ping members through the existing bell (24h cooldown). `/app/groups` hub +
+  nav links. Migration `20260813000005`.
+
+### Moonshots
+
+- **Voice rooms** (`L`) — persistent Discord-style audio channels via LiveKit so
+  people "hang out while studying" without booking a meeting.
+- ✅ **Offline-first rooms** — shipped 2026-08-13: `src/lib/offline-room-sync.ts`
+  (localStorage layer — chat queue + pending whiteboard snapshot, 50-msg cap,
+  shared change event, 11 unit tests). `RoomChat` queues messages on
+  offline/network failure, renders them optimistically as "queued", and flushes
+  in order on the `online` event (a delivered message confirms its queued copy);
+  `Whiteboard` keeps a local snapshot when a save fails and replays it on
+  reconnect with a "Saved locally" badge. Last-writer-wins (matching the
+  existing snapshot model), not a true CRDT merge.
+- ✅ **Community RAG tutor** — shipped 2026-08-13: `src/lib/community-rag.ts`
+  (lexical retrieval — keyword overlap with a title boost, not embeddings) builds
+  a corpus from the community's own **notes, flashcards, quizzes, links, files,
+  threads, and posts**, ranks the top 6 against the question, and answers via
+  Groq grounded in those chunks with **citation chips** back to each source.
+  `askCommunityTutor` (membership/public-gated, local profanity check, 500-char
+  cap) powers the **"Community librarian"** card in the space sidebar. **Gap:**
+  PDFs/files are indexed by title/description only — full-text extraction needs a
+  PDF parser (or embeddings + pgvector) as a follow-up.
+- ✅ **Quiz plagiarism / cheating guard** — shipped 2026-08-13:
+  `src/lib/quiz-integrity.ts` analyzes the per-question **answer-time
+  fingerprint** (client sends latency from each question's first-shown to
+  first-answered, plus total time) and flags suspiciously-fast submissions
+  (perfect + implausibly-fast total, fast median, or >50% instant answers). A
+  flagged attempt never advances `best_score_pct`, earns no XP, and shows a
+  "too fast to grade" notice — the leaderboard stays honest. The fingerprint is
+  stored on `quiz_attempts` (`total_ms`, `answer_times_ms`, `flagged`,
+  `flag_reasons`; migration `20260813000006`). Degrades gracefully pre-migration
+  (guard inactive).
+
+### Suggested build order
+
+1. **Karma/trophies + AI explain** (both tiny, both visible everywhere)
+2. **Live quiz battles** (the feature people will actually tell friends about)
+3. **"Ask the community" + official answers** (community depth)
+4. **Whiteboard export + room XP** (closes the loop on study rooms)
+5. Then pick a moonshot based on how rooms get used.
