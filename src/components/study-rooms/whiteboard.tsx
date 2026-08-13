@@ -3,23 +3,35 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { saveWhiteboard, clearWhiteboard } from "@/actions/study-rooms";
+import { saveWhiteboard, clearWhiteboard, pinWhiteboardToSpace } from "@/actions/study-rooms";
 import {
   capStrokes,
   isValidWhiteboard,
   cursorColor,
+  strokeRenderColor,
   type WhiteboardPoint,
   type WhiteboardStroke,
 } from "@/lib/study-room-utils";
+import {
+  OFFLINE_ROOM_SYNC_EVENT,
+  clearPendingWhiteboard,
+  loadPendingWhiteboard,
+  savePendingWhiteboard,
+} from "@/lib/offline-room-sync";
 import { cn } from "@/lib/utils";
 import { hapticLight } from "@/lib/haptics";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Eraser,
   PenLine,
   Trash2,
   Undo2,
   Loader2,
+  Download,
+  Pin,
+  Palette,
+  CloudOff,
 } from "lucide-react";
 
 const COLORS = ["#111827", "#dc2626", "#2563eb", "#16a34a", "#9333ea", "#ea580c"];
@@ -32,6 +44,9 @@ interface WhiteboardProps {
   displayName: string;
   initialStrokes: unknown;
   readOnly?: boolean;
+  /** Space the room belongs to — enables "Pin to community". */
+  spaceSlug?: string | null;
+  roomName?: string;
 }
 
 type CursorPresence = {
@@ -45,7 +60,15 @@ function makeId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOnly }: WhiteboardProps) {
+export function Whiteboard({
+  roomId,
+  userId,
+  displayName,
+  initialStrokes,
+  readOnly,
+  spaceSlug,
+  roomName,
+}: WhiteboardProps) {
   function initStrokes(): WhiteboardStroke[] {
     return isValidWhiteboard(initialStrokes) ? initialStrokes : [];
   }
@@ -61,11 +84,22 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[1]);
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
+  const [byPerson, setByPerson] = useState(true);
+  const byPersonRef = useRef(true);
   const [saving, setSaving] = useState(false);
+  const [pinning, setPinning] = useState(false);
+  const [pendingOffline, setPendingOffline] = useState(false);
   const drawingRef = useRef(false);
   const currentStrokeRef = useRef<WhiteboardStroke | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+
+  // Distinct authors who have drawn on this board (for the per-person legend).
+  const authors = [...new Map(
+    strokes
+      .filter((s) => s.author_id)
+      .map((s) => [s.author_id!, { id: s.author_id!, name: s.author_name ?? "" }]),
+  ).values()];
 
   /** Keep the ref (drawing/save source of truth) in sync with state. */
   function commitStrokes(updater: (prev: WhiteboardStroke[]) => WhiteboardStroke[]) {
@@ -88,7 +122,7 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     for (const s of strokesRef.current) {
-      drawStroke(ctx, s);
+      drawStroke(ctx, s, strokeRenderColor(s, byPersonRef.current));
     }
   }, []);
 
@@ -214,9 +248,19 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
       void (async () => {
         setSaving(true);
         try {
-          await saveWhiteboard(roomId, strokesRef.current);
+          if (typeof navigator !== "undefined" && !navigator.onLine) {
+            // Offline — keep a local copy; the flush effect replays on reconnect.
+            savePendingWhiteboard(roomId, strokesRef.current);
+            return;
+          }
+          const res = await saveWhiteboard(roomId, strokesRef.current);
+          if (!res.ok) {
+            // Couldn't reach the server — keep a local copy rather than lose work.
+            savePendingWhiteboard(roomId, strokesRef.current);
+          }
         } catch {
-          // Session expired or server hiccup — the next stroke re-saves.
+          // Network failure — keep a local copy until we're back online.
+          savePendingWhiteboard(roomId, strokesRef.current);
         } finally {
           setSaving(false);
         }
@@ -229,6 +273,33 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, []);
+
+  // Replay a locally-saved snapshot once the connection returns.
+  const flushPendingBoard = useCallback(async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    const pendingSnapshot = loadPendingWhiteboard(roomId);
+    if (!pendingSnapshot) return;
+    try {
+      const res = await saveWhiteboard(roomId, pendingSnapshot.strokes);
+      if (res.ok) clearPendingWhiteboard(roomId);
+    } catch {
+      // Still offline — retry on the next "online" event.
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.onLine) void flushPendingBoard();
+    const onOnline = () => void flushPendingBoard();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [flushPendingBoard]);
+
+  // Track whether a snapshot is waiting locally (shared event keeps it in sync).
+  useEffect(() => {
+    const sync = () => setPendingOffline(loadPendingWhiteboard(roomId) !== null);
+    window.addEventListener(OFFLINE_ROOM_SYNC_EVENT, sync);
+    return () => window.removeEventListener(OFFLINE_ROOM_SYNC_EVENT, sync);
+  }, [roomId]);
 
   // --- Drawing -------------------------------------------------------------
   function canvasPoint(e: React.PointerEvent<HTMLCanvasElement>): WhiteboardPoint {
@@ -251,6 +322,8 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
       color,
       width,
       points: [point],
+      author_id: userId,
+      author_name: displayName,
     };
   }
 
@@ -265,7 +338,7 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawStrokeSegment(ctx, stroke);
+    drawStrokeSegment(ctx, stroke, strokeRenderColor(stroke, byPersonRef.current));
   }
 
   function handlePointerUp() {
@@ -285,6 +358,13 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
     void hapticLight();
   }
 
+  function toggleByPerson() {
+    setByPerson((prev) => {
+      byPersonRef.current = !prev;
+      return !prev;
+    });
+  }
+
   function handleUndo() {
     if (readOnly || strokesRef.current.length === 0) return;
     commitStrokes((prev) => prev.slice(0, -1));
@@ -298,6 +378,76 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
     commitStrokes(() => []);
     broadcast("clear", {});
     await clearWhiteboard(roomId);
+  }
+
+  /** Render the current strokes to an offscreen canvas and return a PNG data URL. */
+  function renderBoardPng(): string | null {
+    const container = containerRef.current;
+    if (!container) return null;
+    const cssW = Math.max(1, container.clientWidth);
+    const cssH = Math.max(1, container.clientHeight || 480);
+    // Export at 2x for crispness when pinned/shared, capped for size.
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.min(2400, Math.round(cssW * scale));
+    canvas.height = Math.min(2400, Math.round(cssH * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const s = canvas.width / cssW;
+    ctx.setTransform(s, 0, 0, s, 0, 0);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, cssW, cssH);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (const stroke of strokesRef.current) {
+      ctx.beginPath();
+      // Eraser leaves white (opaque) rather than transparent — PNG needs a solid bg.
+      ctx.globalCompositeOperation = stroke.tool === "eraser" ? "source-over" : "source-over";
+      ctx.strokeStyle =
+        stroke.tool === "eraser" ? "#ffffff" : strokeRenderColor(stroke, byPersonRef.current);
+      ctx.lineWidth = stroke.tool === "eraser" ? stroke.width * 2.5 : stroke.width;
+      if (stroke.points.length === 0) continue;
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      ctx.stroke();
+    }
+    return canvas.toDataURL("image/png");
+  }
+
+  function handleDownload() {
+    const dataUrl = renderBoardPng();
+    if (!dataUrl) return;
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `whiteboard-${roomId.slice(0, 8)}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    void hapticLight();
+  }
+
+  async function handlePin() {
+    if (!spaceSlug) return;
+    const dataUrl = renderBoardPng();
+    if (!dataUrl) {
+      toast.error("Couldn't render the board.");
+      return;
+    }
+    setPinning(true);
+    try {
+      const result = await pinWhiteboardToSpace(roomId, spaceSlug, dataUrl, roomName ?? "");
+      if (result.ok) {
+        toast.success("Board pinned to the community.");
+      } else {
+        toast.error(result.error ?? "Couldn't pin the board.");
+      }
+    } catch {
+      toast.error("Couldn't pin the board.");
+    } finally {
+      setPinning(false);
+    }
   }
 
   return (
@@ -322,17 +472,33 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
           >
             <Eraser className="h-3.5 w-3.5" /> Eraser
           </Button>
+          <Button
+            variant={byPerson ? "default" : "ghost"}
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={toggleByPerson}
+            title={
+              byPerson
+                ? "Per-person colors — each author's strokes match their cursor. Click to pick your own color."
+                : "Pick your own color. Click for per-person colors."
+            }
+          >
+            <Palette className="h-3.5 w-3.5" /> Person
+          </Button>
           <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
           {COLORS.map((c) => (
             <button
               key={c}
               type="button"
               aria-label={`Color ${c}`}
-              disabled={readOnly || tool !== "pen"}
+              disabled={readOnly || tool !== "pen" || byPerson}
               onClick={() => setColor(c)}
               className={cn(
                 "h-6 w-6 rounded-full border-2 transition-transform hover:scale-110",
-                color === c && tool === "pen" ? "border-foreground" : "border-transparent",
+                color === c && tool === "pen" && !byPerson
+                  ? "border-foreground"
+                  : "border-transparent",
+                byPerson && "opacity-40",
               )}
               style={{ backgroundColor: c }}
             />
@@ -365,6 +531,32 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
             variant="ghost"
             size="icon"
             className="h-8 w-8"
+            onClick={handleDownload}
+            disabled={strokes.length === 0}
+            title="Download as PNG"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+          {spaceSlug && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handlePin}
+              disabled={pinning || strokes.length === 0}
+              title="Pin to community"
+            >
+              {pinning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Pin className="h-4 w-4" />
+              )}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
             onClick={handleUndo}
             disabled={readOnly || strokes.length === 0}
             title="Undo last stroke"
@@ -386,8 +578,38 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
           ) : (
             <span className="h-4 w-4" aria-hidden />
           )}
+          {pendingOffline && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-600 dark:text-amber-400"
+              title="You're offline — changes are saved on this device and will sync when you reconnect."
+            >
+              <CloudOff className="h-3 w-3" />
+              Saved locally
+            </span>
+          )}
         </div>
       </div>
+      {byPerson && (
+        <div className="flex flex-wrap items-center gap-2 border-b px-3 py-1.5">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Who drew what
+          </span>
+          {authors.length === 0 ? (
+            <span className="text-xs text-muted-foreground">Draw to see per-person colors.</span>
+          ) : (
+            authors.map((a) => (
+              <span key={a.id} className="inline-flex items-center gap-1.5 text-xs">
+                <span
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: cursorColor(a.id) }}
+                />
+                {a.name || "Unknown"}
+                {a.id === userId ? " (you)" : ""}
+              </span>
+            ))
+          )}
+        </div>
+      )}
       <div
         ref={containerRef}
         className="relative min-h-[320px] flex-1 touch-none"
@@ -415,10 +637,10 @@ export function Whiteboard({ roomId, userId, displayName, initialStrokes, readOn
   );
 }
 
-function drawStroke(ctx: CanvasRenderingContext2D, stroke: WhiteboardStroke) {
+function drawStroke(ctx: CanvasRenderingContext2D, stroke: WhiteboardStroke, color: string) {
   ctx.beginPath();
   ctx.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
-  ctx.strokeStyle = stroke.tool === "eraser" ? "#000000" : stroke.color;
+  ctx.strokeStyle = stroke.tool === "eraser" ? "#000000" : color;
   ctx.lineWidth = stroke.tool === "eraser" ? stroke.width * 2.5 : stroke.width;
   ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
   for (let i = 1; i < stroke.points.length; i++) {
@@ -481,10 +703,10 @@ function drawCursor(ctx: CanvasRenderingContext2D, dpr: number, cursor: CursorPr
 }
 
 /** Incremental version used while the pointer is moving (cheaper than a full redraw). */
-function drawStrokeSegment(ctx: CanvasRenderingContext2D, stroke: WhiteboardStroke) {
+function drawStrokeSegment(ctx: CanvasRenderingContext2D, stroke: WhiteboardStroke, color: string) {
   ctx.beginPath();
   ctx.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
-  ctx.strokeStyle = stroke.tool === "eraser" ? "#000000" : stroke.color;
+  ctx.strokeStyle = stroke.tool === "eraser" ? "#000000" : color;
   ctx.lineWidth = stroke.tool === "eraser" ? stroke.width * 2.5 : stroke.width;
   const pts = stroke.points;
   const from = pts.length >= 2 ? pts[pts.length - 2] : pts[0];

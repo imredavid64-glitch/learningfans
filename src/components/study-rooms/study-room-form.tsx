@@ -40,6 +40,18 @@ export function StudyRoomForm({
         <Label htmlFor="description">What are you studying? (optional)</Label>
         <Textarea id="description" name="description" rows={2} maxLength={500} placeholder="Topic, goal, or what to bring…" />
       </div>
+      <div className="space-y-2">
+        <Label htmlFor="startsAt">Start time (optional — schedule a study party)</Label>
+        <Input
+          id="startsAt"
+          name="startsAt"
+          type="datetime-local"
+          placeholder="Leave blank to start now"
+        />
+        <p className="text-xs text-muted-foreground">
+          Leave blank to start now, or pick a future time so people can RSVP and join when it starts.
+        </p>
+      </div>
       {spaces.length > 0 && (
         <div className="space-y-2">
           <Label htmlFor="spaceId">Link to a space (optional)</Label>

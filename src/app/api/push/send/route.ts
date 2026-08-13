@@ -3,6 +3,7 @@ import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildPushPayload, getVapidConfig } from "@/lib/push";
 import { drainChatModerationQueue } from "@/lib/chat-moderation";
+import { sendPartyReminders } from "@/lib/party-reminders";
 import { checkAndArchive } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -48,6 +49,9 @@ export async function GET(request: Request) {
     // Non-fatal — housekeeping is best-effort; the cron continues.
   }
 
+  // Study-party reminders (safety net — the hub/room pages are the lazy path).
+  const partyReminders = (await sendPartyReminders()).reminded;
+
   const { data: notifications } = await admin
     .from("notifications")
     .select("id, user_id, title, body, link")
@@ -57,7 +61,7 @@ export async function GET(request: Request) {
     .limit(BATCH_LIMIT);
 
   if (!notifications || notifications.length === 0) {
-    return NextResponse.json({ sent: 0 });
+    return NextResponse.json({ sent: 0, partyReminders });
   }
 
   let sent = 0;
@@ -97,7 +101,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ sent });
+  return NextResponse.json({ sent, partyReminders });
 }
 
 export { GET as POST };

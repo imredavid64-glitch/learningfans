@@ -12,6 +12,9 @@ export interface WhiteboardStroke {
   color: string;
   width: number;
   points: WhiteboardPoint[];
+  /** Author — enables per-user stroke colors (matches their presence cursor). */
+  author_id?: string;
+  author_name?: string;
 }
 
 export const WHITEBOARD_MAX_STROKES = 600;
@@ -22,6 +25,17 @@ export const ROOM_DESCRIPTION_MAX_LENGTH = 500;
 
 export const POMODORO_FOCUS_SECONDS = 25 * 60;
 export const POMODORO_BREAK_SECONDS = 5 * 60;
+
+// Room-chat flood control: max messages per rolling window, per user.
+export const ROOM_CHAT_RATE_MAX = 6;
+export const ROOM_CHAT_RATE_WINDOW_SECONDS = 15;
+// Host mute duration (a short cooldown rather than an indefinite ban).
+export const ROOM_MUTE_SECONDS = 10 * 60;
+
+// Study-party reminders: fire this many minutes before a party starts.
+export const PARTY_REMINDER_LEAD_MINUTES = 15;
+// RSVPing to a party starting within this horizon triggers an instant reminder.
+export const RSVP_REMINDER_HORIZON_MINUTES = 30;
 
 export const ALLOWED_REACTIONS = ["👍", "🎉", "❤️", "🔥", "😄", "🙏"] as const;
 
@@ -44,6 +58,17 @@ export function cursorColor(userId: string): string {
     hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
   }
   return CURSOR_COLORS[hash % CURSOR_COLORS.length];
+}
+
+/**
+ * Color to render a stroke with. In "color by person" mode each author's
+ * strokes use their deterministic palette color (the same one their live
+ * presence cursor uses), so you can tell who drew what. Falls back to the
+ * stroke's own chosen color for legacy strokes or when disabled.
+ */
+export function strokeRenderColor(stroke: WhiteboardStroke, byPerson: boolean): string {
+  if (byPerson && stroke.author_id) return cursorColor(stroke.author_id);
+  return stroke.color;
 }
 
 export function isAllowedReaction(emoji: string): boolean {
@@ -163,6 +188,45 @@ export function isValidWhiteboard(strokes: unknown): strokes is WhiteboardStroke
   if (!Array.isArray(strokes)) return false;
   if (strokes.length > WHITEBOARD_MAX_STROKES) return false;
   return whiteboardBytes(strokes as WhiteboardStroke[]) <= WHITEBOARD_MAX_BYTES;
+}
+
+/** Human countdown for a scheduled party (e.g. "2d 3h", "45m 12s"). */
+export function formatPartyCountdown(startsAtMs: number, nowMs: number): string {
+  const total = Math.max(0, Math.floor((startsAtMs - nowMs) / 1000));
+  const d = Math.floor(total / 86_400);
+  const h = Math.floor((total % 86_400) / 3_600);
+  const m = Math.floor((total % 3_600) / 60);
+  const s = total % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+/** True when a party starts within the reminder lead window (not yet started). */
+export function partyReminderDue(startsAtMs: number, nowMs: number): boolean {
+  const untilStart = startsAtMs - nowMs;
+  return untilStart > 0 && untilStart <= PARTY_REMINDER_LEAD_MINUTES * 60_000;
+}
+
+/** True when RSVPing to a close party should remind immediately. */
+export function shouldRsvpRemindNow(startsAtMs: number, nowMs: number): boolean {
+  const untilStart = startsAtMs - nowMs;
+  return untilStart > 0 && untilStart <= RSVP_REMINDER_HORIZON_MINUTES * 60_000;
+}
+
+/**
+ * True when the raw Realtime presence state shows nobody else connected and at
+ * most one connection for `myUserId` — i.e. closing my last tab empties the
+ * room. Used by the study-party auto-end trigger (multi-tab aware).
+ */
+export function isLastPresentUser(state: Record<string, unknown[]>, myUserId: string): boolean {
+  for (const [key, metas] of Object.entries(state)) {
+    if (key === myUserId) continue;
+    if (Array.isArray(metas) && metas.length > 0) return false;
+  }
+  const mine = state[myUserId];
+  return !Array.isArray(mine) || mine.length <= 1;
 }
 
 export function formatCountdown(totalSeconds: number): string {

@@ -4,6 +4,10 @@ import {
   whiteboardBytes,
   isValidWhiteboard,
   formatCountdown,
+  formatPartyCountdown,
+  partyReminderDue,
+  shouldRsvpRemindNow,
+  isLastPresentUser,
   pomodoroDurationSeconds,
   pomodoroRemainingSeconds,
   applyPomodoroEvent,
@@ -19,6 +23,7 @@ import {
   ALLOWED_REACTIONS,
   cursorColor,
   CURSOR_COLORS,
+  strokeRenderColor,
   type WhiteboardStroke,
   type PomodoroState,
 } from "@/lib/study-room-utils";
@@ -84,6 +89,32 @@ describe("pomodoro", () => {
     expect(formatCountdown(-5)).toBe("00:00");
   });
 
+  it("formats party countdowns across time scales", () => {
+    const now = 1_000_000;
+    expect(formatPartyCountdown(now + 45 * 1000, now)).toBe("45s");
+    expect(formatPartyCountdown(now + (5 * 60 + 12) * 1000, now)).toBe("5m 12s");
+    expect(formatPartyCountdown(now + (3 * 3600 + 5 * 60) * 1000, now)).toBe("3h 5m");
+    expect(formatPartyCountdown(now + (2 * 86_400 + 4 * 3600) * 1000, now)).toBe("2d 4h");
+    expect(formatPartyCountdown(now - 1000, now)).toBe("0s");
+  });
+
+  it("deems party reminders due only inside the lead window", () => {
+    const now = 1_000_000;
+    expect(partyReminderDue(now + 5 * 60_000, now)).toBe(true);
+    expect(partyReminderDue(now + 15 * 60_000, now)).toBe(true);
+    expect(partyReminderDue(now + 16 * 60_000, now)).toBe(false);
+    expect(partyReminderDue(now - 1000, now)).toBe(false);
+    expect(partyReminderDue(now, now)).toBe(false);
+  });
+
+  it("reminds immediately when RSVPing to a close party", () => {
+    const now = 1_000_000;
+    expect(shouldRsvpRemindNow(now + 10 * 60_000, now)).toBe(true);
+    expect(shouldRsvpRemindNow(now + 30 * 60_000, now)).toBe(true);
+    expect(shouldRsvpRemindNow(now + 45 * 60_000, now)).toBe(false);
+    expect(shouldRsvpRemindNow(now - 60_000, now)).toBe(false);
+  });
+
   it("returns per-mode durations", () => {
     expect(pomodoroDurationSeconds("focus")).toBe(1500);
     expect(pomodoroDurationSeconds("break")).toBe(300);
@@ -145,6 +176,26 @@ describe("pomodoro", () => {
   });
 });
 
+describe("isLastPresentUser", () => {
+  it("is true when I'm the only connection (or nobody is present)", () => {
+    expect(isLastPresentUser({ me: [{ user_id: "me" }] }, "me")).toBe(true);
+    expect(isLastPresentUser({}, "me")).toBe(true);
+  });
+
+  it("is false when another user is still present", () => {
+    expect(
+      isLastPresentUser(
+        { me: [{ user_id: "me" }], other: [{ user_id: "other" }] },
+        "me",
+      ),
+    ).toBe(false);
+  });
+
+  it("is false when I have another tab open", () => {
+    expect(isLastPresentUser({ me: [{}, {}] }, "me")).toBe(false);
+  });
+});
+
 describe("mentions & reactions", () => {
   it("flags @Name tokens for rendering and leaves the rest plain", () => {
     const segments = renderMentions("hey @Ada, want to review @Lin?");
@@ -194,6 +245,15 @@ describe("mentions & reactions", () => {
     expect(cursorColor("different-user")).not.toBe(c1);
     const seen = new Set(Array.from({ length: 40 }, (_, i) => cursorColor(`u${i}`)));
     expect(seen.size).toBeGreaterThan(1); // spreads across the palette
+  });
+
+  it("renders per-author stroke colors in by-person mode", () => {
+    const s = { ...stroke("a"), author_id: "user-1", color: "#111111" };
+    expect(strokeRenderColor(s, true)).toBe(cursorColor("user-1"));
+    expect(strokeRenderColor(s, false)).toBe("#111111");
+    // Legacy stroke without an author falls back to its own color.
+    const legacy = stroke("b");
+    expect(strokeRenderColor(legacy, true)).toBe("#000000");
   });
 
   it("only allows the curated reaction set", () => {

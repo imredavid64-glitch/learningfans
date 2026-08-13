@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { recordStudySession } from "@/actions/study-rooms";
 import {
   applyPomodoroEvent,
   createIdlePomodoro,
@@ -121,10 +122,18 @@ export function PomodoroTimer({
     broadcast(event);
     beep();
     void hapticSuccess();
+
+    // A focus block just completed — record it for the study-party leaderboard.
+    // focusKey is derived from the block's endsAt so every client in the room
+    // fires the same key and the upsert dedupes (one row per participant).
+    if (state.mode === "focus") {
+      void recordStudySession(roomId, `${roomId}:${state.endsAt}`).catch(() => undefined);
+    }
+
     window.setTimeout(() => {
       transitioningRef.current = false;
     }, 1500);
-  }, [state, now, userId, broadcast]);
+  }, [state, now, userId, broadcast, roomId]);
 
   const remaining = pomodoroRemainingSeconds(state, now);
   const total = pomodoroDurationSeconds(state.mode);

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { studyRoomChannel } from "@/lib/study-room-utils";
+import { autoEndPartyWhenEmpty } from "@/actions/study-rooms";
+import { isLastPresentUser, studyRoomChannel } from "@/lib/study-room-utils";
 import { Users } from "lucide-react";
 
 type PresencePayload = {
@@ -14,10 +15,13 @@ export function RoomPresence({
   roomId,
   userId,
   displayName,
+  autoEndParty,
 }: {
   roomId: string;
   userId: string;
   displayName: string;
+  /** Scheduled party — end the room when the last participant leaves. */
+  autoEndParty?: boolean;
 }) {
   const [present, setPresent] = useState<PresencePayload[]>([]);
 
@@ -50,10 +54,18 @@ export function RoomPresence({
       });
 
     return () => {
+      // Last one out: if this is a scheduled party and closing my final tab
+      // empties the room, ask the server to end it (guarded server-side).
+      if (autoEndParty) {
+        const state = channel.presenceState() as unknown as Record<string, unknown[]>;
+        if (isLastPresentUser(state, userId)) {
+          void autoEndPartyWhenEmpty(roomId);
+        }
+      }
       void channel.untrack();
       supabase.removeChannel(channel);
     };
-  }, [roomId, userId, displayName]);
+  }, [roomId, userId, displayName, autoEndParty]);
 
   if (present.length === 0) return null;
 

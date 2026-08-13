@@ -2,6 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { StudyRoom, type StudyRoomData } from "@/components/study-rooms/study-room";
+import { PartyCountdown } from "@/components/study-rooms/party-countdown";
+import { PartyRsvp } from "@/components/study-rooms/party-rsvp";
+import { sendPartyReminders } from "@/lib/party-reminders";
 import type { RoomMessage } from "@/components/study-rooms/room-chat";
 
 export default async function StudyRoomPage({
@@ -78,6 +81,38 @@ export default async function StudyRoomPage({
     .eq("room_id", id)
     .limit(500);
 
+  // Host = room creator, app moderator, or space moderator (when space-linked).
+  let isHost = room.created_by === profile.id || profile.role === "moderator" || profile.role === "admin";
+  if (!isHost && room.space_id) {
+    const { data: membership } = await supabase
+      .from("space_members")
+      .select("role")
+      .eq("space_id", room.space_id)
+      .eq("user_id", profile.id)
+      .maybeSingle();
+    isHost = membership?.role === "moderator";
+  }
+
+  // Moderation rows (mute/ban) — guarded so the page renders before the
+  // room_moderation migration is applied.
+  let moderationRows: { user_id: string; action: "mute" | "ban"; expires_at: string | null }[] = [];
+  try {
+    const { data: modRows } = await supabase
+      .from("study_room_moderation")
+      .select("user_id, action, expires_at")
+      .eq("room_id", id);
+    moderationRows = (modRows ?? []) as typeof moderationRows;
+  } catch {
+    moderationRows = [];
+  }
+
+  // The viewer's own restriction (muted/banned) drives the disabled composer.
+  const myMod = moderationRows.find((m) => m.user_id === profile.id);
+  const nowMs = new Date().getTime();
+  const myMuted =
+    myMod?.action === "mute" && (!myMod.expires_at || new Date(myMod.expires_at).getTime() > nowMs);
+  const myBanned = myMod?.action === "ban";
+
   const roomData: StudyRoomData = {
     id: room.id,
     name: room.name,
@@ -86,6 +121,7 @@ export default async function StudyRoomPage({
     space_id: room.space_id,
     created_by: room.created_by,
     whiteboard: room.whiteboard,
+    starts_at: (room as { starts_at?: string | null }).starts_at ?? null,
     created_at: room.created_at,
     creator: room.creator as StudyRoomData["creator"],
     spaces: room.spaces as StudyRoomData["spaces"],
@@ -101,11 +137,52 @@ export default async function StudyRoomPage({
     profiles: (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) ?? null,
   }));
 
+  // Scheduled party banner: RSVP + countdown, plus the lazy reminder sweep.
+  const partyStartsAtMs = room.starts_at ? new Date(room.starts_at).getTime() : 0;
+  const isUpcomingParty = partyStartsAtMs > 0 && partyStartsAtMs > new Date().getTime();
+  let myRsvp = false;
+  let rsvpCount = 0;
+  if (isUpcomingParty) {
+    await sendPartyReminders();
+    try {
+      const { data: mine } = await supabase
+        .from("study_room_rsvps")
+        .select("room_id")
+        .eq("room_id", id)
+        .eq("user_id", profile.id)
+        .maybeSingle();
+      myRsvp = Boolean(mine);
+      const { count } = await supabase
+        .from("study_room_rsvps")
+        .select("user_id", { count: "exact", head: true })
+        .eq("room_id", id);
+      rsvpCount = count ?? 0;
+    } catch {
+      // Pre-migration — banner renders without RSVP state.
+    }
+  }
+
   return (
     <div className="space-y-4">
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
           {error}
+        </div>
+      )}
+      {isUpcomingParty && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div>
+            <h2 className="flex items-center gap-2 font-semibold">
+              🎉 Study party — starts{" "}
+              <span className="tabular-nums">
+                <PartyCountdown startsAt={room.starts_at!} />
+              </span>
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              RSVP to get a reminder before it starts.
+            </p>
+          </div>
+          <PartyRsvp roomId={room.id} initialAttending={myRsvp} initialCount={rsvpCount} />
         </div>
       )}
       <StudyRoom
@@ -121,6 +198,10 @@ export default async function StudyRoomPage({
             emoji: r.emoji,
           }))
         }
+        isHost={isHost}
+        moderationRows={moderationRows}
+        myMuted={myMuted}
+        myBanned={myBanned}
       />
     </div>
   );

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { endStudyRoom } from "@/actions/study-rooms";
 import { studyRoomCallUrl, studyRoomInviteUrl } from "@/lib/study-room-utils";
 import { RoomPresence } from "@/components/study-rooms/room-presence";
+import { RoomModeration, type ModerationRow } from "@/components/study-rooms/room-moderation";
 import { Whiteboard } from "@/components/study-rooms/whiteboard";
 import { RoomChat, type RoomMessage } from "@/components/study-rooms/room-chat";
 import { PomodoroTimer } from "@/components/study-rooms/pomodoro-timer";
@@ -20,6 +21,7 @@ export interface StudyRoomData {
   space_id: string | null;
   created_by: string;
   whiteboard: unknown;
+  starts_at: string | null;
   created_at: string;
   creator: { display_name: string } | null;
   spaces: { name: string; slug: string } | null;
@@ -32,6 +34,10 @@ export function StudyRoom({
   initialMessages,
   mentionableUsers,
   initialReactions,
+  isHost,
+  moderationRows,
+  myMuted,
+  myBanned,
 }: {
   room: StudyRoomData;
   userId: string;
@@ -39,6 +45,10 @@ export function StudyRoom({
   initialMessages: RoomMessage[];
   mentionableUsers: { id: string; display_name: string }[];
   initialReactions: { message_id: string; user_id: string; emoji: string }[];
+  isHost: boolean;
+  moderationRows: ModerationRow[];
+  myMuted: boolean;
+  myBanned: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const isCreator = room.created_by === userId;
@@ -90,7 +100,18 @@ export function StudyRoom({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <RoomPresence roomId={room.id} userId={userId} displayName={displayName} />
+            <RoomPresence
+              roomId={room.id}
+              userId={userId}
+              displayName={displayName}
+              autoEndParty={Boolean(room.starts_at)}
+            />
+            <RoomModeration
+              roomId={room.id}
+              userId={userId}
+              isHost={isHost}
+              initialModeration={moderationRows}
+            />
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={copyInvite}>
               {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? "Copied!" : "Copy invite"}
@@ -131,6 +152,8 @@ export function StudyRoom({
             displayName={displayName}
             initialStrokes={room.whiteboard}
             readOnly={ended}
+            spaceSlug={room.spaces?.slug ?? null}
+            roomName={room.name}
           />
         </div>
         <div className="flex min-h-0 flex-col gap-6">
@@ -144,6 +167,8 @@ export function StudyRoom({
               mentionableUsers={mentionableUsers}
               initialReactions={initialReactions}
               disabled={ended}
+              muted={myMuted}
+              banned={myBanned}
             />
           </div>
         </div>

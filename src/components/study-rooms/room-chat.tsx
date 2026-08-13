@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
 import { sendRoomMessage, toggleReaction } from "@/actions/study-rooms";
@@ -11,12 +11,19 @@ import {
   mentionQuery,
   renderMentions,
 } from "@/lib/study-room-utils";
+import {
+  OFFLINE_ROOM_SYNC_EVENT,
+  pendingChatMessages,
+  queueChatMessage,
+  removeChatMessage,
+  type QueuedChatMessage,
+} from "@/lib/offline-room-sync";
 import { hapticLight } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ReportButton } from "@/components/moderation/report-button";
-import { MessageSquare, Send, ShieldAlert, SmilePlus } from "lucide-react";
+import { CloudOff, MessageSquare, Send, ShieldAlert, SmilePlus } from "lucide-react";
 
 export interface RoomMessage {
   id: string;
@@ -47,6 +54,9 @@ interface RoomChatProps {
   mentionableUsers: { id: string; display_name: string }[];
   initialReactions: ReactionRow[];
   disabled?: boolean;
+  /** Host-moderated: viewer can't post while muted/banned. */
+  muted?: boolean;
+  banned?: boolean;
 }
 
 function groupReactions(rows: ReactionRow[], userId: string): Map<string, ReactionSummary[]> {
@@ -96,6 +106,8 @@ export function RoomChat({
   mentionableUsers,
   initialReactions,
   disabled,
+  muted,
+  banned,
 }: RoomChatProps) {
   const [messages, setMessages] = useState<RoomMessage[]>(initialMessages);
   const [text, setText] = useState("");
@@ -105,6 +117,9 @@ export function RoomChat({
     groupReactions(initialReactions, userId),
   );
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  const [pending, setPending] = useState<QueuedChatMessage[]>(() => pendingChatMessages(roomId));
+  const [flushing, setFlushing] = useState(false);
+  const flushInFlightRef = useRef(false);
   const listRef = useRef<HTMLDivElement>(null);
   const mentionIdsRef = useRef<Set<string>>(new Set());
   const profileCacheRef = useRef<Map<string, { display_name: string; avatar_url?: string | null }>>(
@@ -141,6 +156,12 @@ export function RoomChat({
               .maybeSingle();
             profile = data ?? { display_name: "Unknown" };
             profileCacheRef.current.set(row.user_id, profile);
+          }
+          // A delivered message confirms any queued copy of it (same body, from me).
+          if (row.user_id === userId) {
+            const queued = pendingChatMessages(roomId);
+            const match = queued.find((m) => m.body === row.body);
+            if (match) removeChatMessage(roomId, match.id);
           }
           setMessages((prev) => {
             if (prev.some((m) => m.id === row.id)) return prev;
@@ -224,7 +245,42 @@ export function RoomChat({
   useEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length]);
+  }, [messages.length, pending.length]);
+
+  // --- Offline queue flush -------------------------------------------------
+  const flushQueue = useCallback(async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    if (flushInFlightRef.current) return;
+    flushInFlightRef.current = true;
+    setFlushing(true);
+    try {
+      for (const msg of pendingChatMessages(roomId)) {
+        const res = await sendRoomMessage(roomId, msg.body, msg.mentionIds);
+        if (!res.ok) break; // still offline or blocked — keep the rest queued
+        removeChatMessage(roomId, msg.id);
+      }
+    } finally {
+      flushInFlightRef.current = false;
+      setFlushing(false);
+    }
+  }, [roomId]);
+
+  // Replay anything queued from a previous session once online, and flush
+  // again whenever the connection comes back.
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.onLine) void flushQueue();
+    const onOnline = () => void flushQueue();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [flushQueue]);
+
+  // Keep the pending list in sync with the localStorage queue (covers
+  // cross-component changes via the shared event).
+  useEffect(() => {
+    const sync = () => setPending(pendingChatMessages(roomId));
+    window.addEventListener(OFFLINE_ROOM_SYNC_EVENT, sync);
+    return () => window.removeEventListener(OFFLINE_ROOM_SYNC_EVENT, sync);
+  }, [roomId]);
 
   // --- Mention autocomplete -------------------------------------------------
   const query = useMemo(() => mentionQuery(text), [text]);
@@ -257,17 +313,38 @@ export function RoomChat({
     e.preventDefault();
     const body = text.trim();
     if (!body || sending) return;
-    setSending(true);
     setError(null);
-    const res = await sendRoomMessage(roomId, body, [...mentionIdsRef.current]);
-    setSending(false);
-    if (!res.ok) {
-      setError(res.error ?? "Couldn't send the message.");
+
+    // Offline — queue locally and render optimistically; flushes on reconnect.
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      queueChatMessage(roomId, body, [...mentionIdsRef.current]);
+      setText("");
+      mentionIdsRef.current.clear();
+      setPickerFor(null);
+      void hapticLight();
       return;
     }
-    setText("");
-    mentionIdsRef.current.clear();
-    setPickerFor(null);
+
+    setSending(true);
+    try {
+      const res = await sendRoomMessage(roomId, body, [...mentionIdsRef.current]);
+      if (res.ok) {
+        setText("");
+        mentionIdsRef.current.clear();
+        setPickerFor(null);
+        return;
+      }
+      // A real rejection (moderation/mute) — surface it, don't retry.
+      setError(res.error ?? "Couldn't send the message.");
+    } catch {
+      // Network failure (or flaky offline detection) — queue for retry.
+      queueChatMessage(roomId, body, [...mentionIdsRef.current]);
+      setText("");
+      mentionIdsRef.current.clear();
+      setPickerFor(null);
+    } finally {
+      setSending(false);
+    }
   }
 
   // --- Reactions ------------------------------------------------------------
@@ -288,17 +365,20 @@ export function RoomChat({
         <MessageSquare className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">Room chat</h3>
         <span className="ml-auto text-xs text-muted-foreground">
-          {messages.length} message{messages.length === 1 ? "" : "s"}
+          {messages.length + pending.length} message
+          {messages.length + pending.length === 1 ? "" : "s"}
+          {flushing ? " · syncing…" : pending.length > 0 ? ` · ${pending.length} queued` : ""}
         </span>
       </div>
 
       <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3" style={{ maxHeight: 340 }}>
-        {messages.length === 0 ? (
+        {messages.length === 0 && pending.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             No messages yet — type <span className="font-medium">@name</span> to mention a friend.
           </p>
         ) : (
-          messages.map((m) => {
+          <>
+          {messages.map((m) => {
             const mine = m.user_id === userId;
             const segments = renderMentions(m.body);
             const msgReactions = reactions.get(m.id) ?? [];
@@ -399,7 +479,20 @@ export function RoomChat({
                 </div>
               </div>
             );
-          })
+          })}
+          {pending.map((p) => (
+            <div key={`pending-${p.id}`} className="flex flex-col items-end gap-1 opacity-60">
+              <div className="max-w-[80%] rounded-lg bg-primary/70 px-3 py-2 text-sm text-primary-foreground">
+                <div className="mb-0.5 flex items-center gap-1.5 text-xs text-primary-foreground/80">
+                  <CloudOff className="h-3 w-3" />
+                  <span className="font-semibold">You</span>
+                  <span>· queued</span>
+                </div>
+                <p className="whitespace-pre-wrap break-words">{p.body}</p>
+              </div>
+            </div>
+          ))}
+          </>
         )}
       </div>
 
@@ -430,11 +523,24 @@ export function RoomChat({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           maxLength={ROOM_MESSAGE_MAX_LENGTH}
-          placeholder={disabled ? "Room ended" : "Message the room… (@ to mention)"}
-          disabled={disabled || sending}
+          placeholder={
+            disabled
+              ? "Room ended"
+              : banned
+                ? "You've been removed from this room"
+                : muted
+                  ? "You're muted in this room"
+                  : "Message the room… (@ to mention)"
+          }
+          disabled={disabled || muted || banned || sending}
           className="h-9"
         />
-        <Button type="submit" size="icon" className="h-9 w-9" disabled={disabled || sending || !text.trim()}>
+        <Button
+          type="submit"
+          size="icon"
+          className="h-9 w-9"
+          disabled={disabled || muted || banned || sending || !text.trim()}
+        >
           <Send className="h-4 w-4" />
         </Button>
       </form>
