@@ -1,11 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, Mail, Award, Users } from "lucide-react";
-import Link from "next/link";
+import { ButtonLink } from "@/components/ui/button-link";
+import { GraduationCap, Mail, Award, Users, Flame, Star, PencilLine } from "lucide-react";
 import { format } from "date-fns";
 
 interface ProfilePageProps {
@@ -27,7 +28,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
   if (!profile) return notFound();
 
-  const [enrollments, spaces] = await Promise.all([
+  const [enrollments, spaces, stats] = await Promise.all([
     supabase
       .from("class_enrollments")
       .select("spaces(id, name, slug, instructor, class_code, semester)")
@@ -39,21 +40,25 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .select("spaces(id, name, slug, is_public)")
       .eq("user_id", id)
       .limit(10),
+    supabase.rpc("get_public_stats", { p_user_id: id }),
   ]);
+
+  const isMe = me.id === id;
+  const statsRow = Array.isArray(stats.data) ? stats.data[0] : null;
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
-      <div className="flex items-center gap-4">
-        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+      <div className="flex items-start gap-4">
+        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-border overflow-hidden">
           {profile.avatar_url ? (
-            <Image src={profile.avatar_url} alt="" width={128} height={128} className="h-16 w-16 rounded-full object-cover" />
+            <Image src={profile.avatar_url} alt="" width={160} height={160} className="h-20 w-20 rounded-full object-cover" />
           ) : (
-            <GraduationCap className="h-8 w-8 text-primary" />
+            <GraduationCap className="h-9 w-9 text-primary" />
           )}
         </div>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold">{profile.display_name}</h1>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex flex-wrap items-center gap-2 mt-1">
             <Badge variant={profile.role === "admin" ? "default" : profile.role === "moderator" ? "secondary" : "outline"}>
               {profile.role}
             </Badge>
@@ -61,21 +66,51 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             {typeof profile.gpa === "number" && profile.gpa > 0 && (
               <span className="text-sm text-muted-foreground">GPA {profile.gpa.toFixed(2)}</span>
             )}
+            {isMe && (
+              <ButtonLink href="/app/settings" variant="outline" size="sm" className="gap-1">
+                <PencilLine className="h-3 w-3" />
+                Edit profile
+              </ButtonLink>
+            )}
           </div>
-          {profile.email && (
+          {profile.bio && (
+            <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">{profile.bio}</p>
+          )}
+          {profile.interests && profile.interests.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {profile.interests.map((interest: string) => (
+                <span key={interest} className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium">
+                  {interest}
+                </span>
+              ))}
+            </div>
+          )}
+          {profile.parent_email && (
             <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-              <Mail className="h-3.5 w-3.5" /> {profile.email}
+              <Mail className="h-3.5 w-3.5" /> {profile.parent_email}
             </p>
           )}
         </div>
       </div>
 
-      {profile.bio && (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground">{profile.bio}</p>
-          </CardContent>
-        </Card>
+      {statsRow && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg border border-border p-4 text-center">
+            <Star className="mx-auto mb-1 h-5 w-5 text-amber-500" />
+            <p className="text-2xl font-bold">{statsRow.total_xp ?? 0}</p>
+            <p className="text-xs text-muted-foreground">XP</p>
+          </div>
+          <div className="rounded-lg border border-border p-4 text-center">
+            <GraduationCap className="mx-auto mb-1 h-5 w-5 text-primary" />
+            <p className="text-2xl font-bold">{statsRow.level ?? 1}</p>
+            <p className="text-xs text-muted-foreground">Level</p>
+          </div>
+          <div className="rounded-lg border border-border p-4 text-center">
+            <Flame className="mx-auto mb-1 h-5 w-5 text-orange-500" />
+            <p className="text-2xl font-bold">{statsRow.current_streak ?? 0}</p>
+            <p className="text-xs text-muted-foreground">day streak</p>
+          </div>
+        </div>
       )}
 
       <Card>

@@ -11,9 +11,12 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { TimeLimitSetting } from "@/components/layout/time-limit-setting";
 import { ButtonLink } from "@/components/ui/button-link";
 import { PushNotificationSetting } from "@/components/settings/push-notification-setting";
+import { AvatarUpload } from "@/components/settings/avatar-upload";
+import { MAX_BIO_LENGTH, MAX_INTERESTS } from "@/lib/validation";
 
 export default async function SettingsPage() {
   const profile = await getCurrentProfile();
@@ -35,7 +38,11 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Profile</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <AvatarUpload
+            avatarUrl={profile!.avatar_url}
+            displayName={profile!.display_name}
+          />
           <form action={updateProfile} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="displayName">Display name</Label>
@@ -46,8 +53,47 @@ export default async function SettingsPage() {
                 required
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="major">Major</Label>
+              <Input
+                id="major"
+                name="major"
+                placeholder="e.g. Computer Science"
+                defaultValue={profile!.major ?? ""}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="interests">
+                Interests (comma separated, up to {MAX_INTERESTS})
+              </Label>
+              <Input
+                id="interests"
+                name="interests"
+                placeholder="e.g. math, flashcards, design"
+                defaultValue={profile!.interests?.join(", ") ?? ""}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                name="bio"
+                rows={3}
+                placeholder="A short intro for your profile"
+                maxLength={MAX_BIO_LENGTH}
+                defaultValue={profile!.bio ?? ""}
+              />
+              <p className="text-right text-xs text-muted-foreground">
+                {MAX_BIO_LENGTH} max
+              </p>
+            </div>
             <p className="text-xs text-muted-foreground">Role: {profile!.role}</p>
-            <Button type="submit">Save</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit">Save</Button>
+              <ButtonLink href={`/app/profile/${profile!.id}`} variant="outline">
+                View my profile
+              </ButtonLink>
+            </div>
           </form>
         </CardContent>
       </Card>

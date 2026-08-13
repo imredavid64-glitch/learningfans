@@ -16,6 +16,13 @@ export type Profile = {
   role: ProfileRole;
   storage_used_bytes: number;
   created_at: string;
+  major: string | null;
+  bio: string | null;
+  interests: string[] | null;
+  parent_email: string | null;
+  principal_email: string | null;
+  gpa: number | null;
+  credits_completed: number | null;
 };
 
 export type Space = {

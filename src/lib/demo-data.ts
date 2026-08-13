@@ -110,6 +110,8 @@ export const DEMO_CREATOR_PROFILE: DemoProfile = {
   interests: ["Quantum Mechanics", "Project-Based Learning", "EdTech"],
   gpa: 0,
   credits_completed: 0,
+  parent_email: null,
+  principal_email: null,
 };
 
 export const DEMO_FAN_PROFILE: DemoProfile = {
@@ -124,6 +126,8 @@ export const DEMO_FAN_PROFILE: DemoProfile = {
   interests: ["Physics", "Programming", "Robotics"],
   gpa: 3.9,
   credits_completed: 42,
+  parent_email: null,
+  principal_email: null,
 };
 
 export const DEMO_CREATOR_STATS: DemoCreatorStats = {

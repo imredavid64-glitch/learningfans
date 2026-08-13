@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Flame, Star, Trophy, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { dailyCheckIn } from "@/actions/gamification";
@@ -157,10 +158,13 @@ export function StudyStatsCard({
                   <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                     {entry.display_name.charAt(0).toUpperCase()}
                   </span>
-                  <span className="min-w-0 flex-1 truncate font-medium">
+                  <Link
+                    href={`/app/profile/${entry.user_id}`}
+                    className="min-w-0 flex-1 truncate font-medium hover:underline"
+                  >
                     {entry.display_name}
                     {isMe && <span className="ml-1.5 text-xs text-muted-foreground">(you)</span>}
-                  </span>
+                  </Link>
                   <span className="text-xs text-muted-foreground">Lv {entry.level}</span>
                   <span className="font-semibold tabular-nums">{entry.total_xp.toLocaleString()} XP</span>
                 </div>

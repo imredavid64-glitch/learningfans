@@ -8,6 +8,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-13 — User profiles + broad file-type uploads
+- **Migration** `20260813000000_user_profiles_upload_types.sql` (manual apply ⚠️ — appended to `pending_apply.sql`): restores `profiles.major/bio/interests/parent_email/principal_email/gpa/current_class_id/credits_completed` (schema-drift fix); `get_public_stats(uuid)` security-definer RPC exposing just XP/level/streaks from private `user_stats`; `storage.buckets` `materials` now allows doc/xlsx/pptx/rtf/txt/md/csv/html/json/xml/zip/7z/rar/tar/gz/audio/video + 15 MB cap.
+- **Profiles**: `/app/settings` gains avatar upload/remove (`AvatarUpload`, sharp 256px → `avatars/{userId}/avatar`, 2 MB cap), major, interests (comma-list → text[]), bio (500 chars). Profile page shows avatar, role badge, major, GPA, bio, interest tags, XP/level/streak stats (via RPC), and an Edit link when viewing yourself. Profile links now point at `/app/profile/[id]` from the dashboard leaderboard, material list, and thread posts.
+- **Files**: `src/lib/file-types.ts` (MIME allowlist, categories, icons, `FILE_ACCEPT_ATTR`, `fileExtension`, `formatFileSize`); `uploadFileMaterial` skips sharp compression for GIFs; `material-list` links author → profile.
+- Quality: `tsc` clean, lint clean, 135/135 tests. `.env.vercel.prod` (with the working POSTGRES_URL used by `scripts/run-sql.cjs`) was **removed mid-session** — direct DB apply not possible; use the SQL editor one-paste.
+
 ## 2026-08-12 — Database management (free-tier 500 MB cap)
 - **Migration** `20260812000017_database_housekeeping.sql` (manual apply ⚠️): `get_table_sizes()` (per-table size + row count) and `run_housekeeping(p_queue_days=7, p_notification_days=30, p_reminder_days=30)` retention pruning (consumed queue rows, read notifications, sent meeting reminders).
 - **`src/lib/archive.ts`**: per-table retention days — moderation_actions/audit_log/reports 30d, **`study_room_messages` 90d** (chat history was the biggest unmanaged growth source) — archived to the archive project before deletion; `getDbUsageReport()` exported for the dashboard.

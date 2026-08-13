@@ -1,5 +1,10 @@
 import { z } from "zod"
 
+export const MAX_BIO_LENGTH = 500;
+export const MAX_MAJOR_LENGTH = 80;
+export const MAX_INTERESTS = 12;
+export const MAX_INTEREST_LENGTH = 40;
+
 export const emailSchema = z
   .string()
   .min(1, "Email is required")

@@ -6,7 +6,6 @@ import sharp from "sharp";
 import { createClient, checkContentWithAI } from "@/lib/supabase/server";
 import { requireProfile, getSpaceMembership } from "@/lib/auth";
 import {
-  ALLOWED_FILE_MIME_TYPES,
   MAX_CARD_TEXT_LENGTH,
   MAX_DECK_METADATA_BYTES,
   MAX_FILE_SIZE_BYTES,
@@ -14,6 +13,7 @@ import {
   MAX_NOTE_SIZE_BYTES,
   USER_STORAGE_QUOTA_BYTES,
 } from "@/lib/constants";
+import { ALLOWED_FILE_MIME_TYPES } from "@/lib/file-types";
 import type { MaterialPriority, MaterialType } from "@/lib/constants";
 
 /** AI-moderation gate shared by all material types. Returns false on high risk. */
@@ -251,7 +251,7 @@ export async function uploadFileMaterial(
   let buffer: Buffer = Buffer.from(await file.arrayBuffer());
   let contentType = file.type;
 
-  if (file.type.startsWith("image/")) {
+  if (file.type.startsWith("image/") && file.type !== "image/gif") {
     const compressed = await sharp(buffer)
       .resize({ width: 1920, height: 1920, fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 80 })

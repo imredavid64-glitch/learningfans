@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
 import { createPost } from "@/actions/discussion";
@@ -97,7 +98,14 @@ export function ThreadPosts({
           style={{ marginLeft: Math.min(depth, MAX_INDENT_LEVEL) * 16 }}
         >
           <div className="mb-2 flex items-center justify-between gap-2 text-sm text-muted-foreground">
-            <span className="truncate">{post.profiles?.display_name ?? "Unknown"}</span>
+            <span className="truncate">
+              <Link
+                href={`/app/profile/${post.author_id}`}
+                className="hover:underline"
+              >
+                {post.profiles?.display_name ?? "Unknown"}
+              </Link>
+            </span>
             <time>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</time>
           </div>
           <p className="whitespace-pre-wrap text-sm">{post.body}</p>

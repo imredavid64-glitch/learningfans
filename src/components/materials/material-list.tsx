@@ -149,8 +149,14 @@ export function MaterialList({
                   </p>
                 )}
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {m.profiles?.display_name} ·{" "}
-                  {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
+                  {m.author_id ? (
+                    <Link href={`/app/profile/${m.author_id}`} className="hover:text-foreground hover:underline">
+                      {m.profiles?.display_name}
+                    </Link>
+                  ) : (
+                    m.profiles?.display_name
+                  )}{" "}
+                  · {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
                 </p>
               </div>
             </div>
