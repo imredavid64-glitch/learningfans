@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CornerDownRight, CheckCircle2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buildPostTree } from "@/lib/post-tree";
 import type { Post, Profile } from "@/types/database";
 
 type PostWithAuthor = Post & { profiles: Pick<Profile, "display_name"> | null };
@@ -71,25 +72,9 @@ export function ThreadPosts({
     };
   }, [threadId]);
 
-  // Build the reply tree from the flat list (posts arrive flat over realtime).
-  const tree = useMemo(() => {
-    const children = new Map<string, PostWithAuthor[]>();
-    const roots: PostWithAuthor[] = [];
-    for (const p of posts) {
-      if (p.parent_id && posts.some((x) => x.id === p.parent_id)) {
-        const list = children.get(p.parent_id) ?? [];
-        list.push(p);
-        children.set(p.parent_id, list);
-      } else {
-        roots.push(p);
-      }
-    }
-    const byDate = (a: PostWithAuthor, b: PostWithAuthor) =>
-      a.created_at.localeCompare(b.created_at);
-    roots.sort(byDate);
-    for (const list of children.values()) list.sort(byDate);
-    return { roots, children };
-  }, [posts]);
+  // Build the reply tree from the flat list (posts arrive flat over realtime),
+  // hoisting the accepted answer to the top so it's seen first.
+  const tree = useMemo(() => buildPostTree(posts, acceptedId), [posts, acceptedId]);
 
   async function handleSubmit(formData: FormData) {
     formData.set("timestamp", Date.now().toString());

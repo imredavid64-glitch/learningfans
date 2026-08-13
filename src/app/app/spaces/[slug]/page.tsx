@@ -6,6 +6,7 @@ import { leaveSpace } from "@/actions/spaces";
 import { CommunityAdmin } from "@/components/community/community-admin";
 import { ThreadFeed, type FeedThread } from "@/components/community/thread-feed";
 import { NewThreadForm } from "@/components/community/new-thread-form";
+import { CommunityTutor } from "@/components/community/community-tutor";
 import type { CommunityAnnouncement, CommunityFlair, CommunityRule } from "@/lib/community";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -16,18 +17,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Megaphone, ScrollText, ShieldCheck } from "lucide-react";
 
 export default async function SpacePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ filter?: string | string[] }>;
 }) {
   const { slug } = await params;
+  const { filter } = await searchParams;
+  const unansweredOnly = filter === "unanswered";
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
@@ -52,7 +54,7 @@ export default async function SpacePage({
     .eq("space_id", space.id)
     .eq("role", "moderator");
 
-  const { data: threads } = await supabase
+  let threadsQuery = supabase
     .from("threads")
     .select("*, profiles(display_name)")
     .eq("space_id", space.id)
@@ -60,6 +62,14 @@ export default async function SpacePage({
     .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(30);
+
+  // Server-side filter so `?filter=unanswered` deep links load unanswered
+  // questions directly (up to 30) instead of trimming a mixed 30-row batch client-side.
+  if (unansweredOnly) {
+    threadsQuery = threadsQuery.eq("kind", "question").is("accepted_answer_id", null);
+  }
+
+  const { data: threads } = await threadsQuery;
 
   const isMod = isModerator(profile!.role) || membership?.role === "moderator";
   const rules = (Array.isArray(space.rules) ? space.rules : []) as CommunityRule[];
@@ -215,8 +225,9 @@ export default async function SpacePage({
           </Tabs>
         </div>
 
-        {/* Sidebar: about / rules / mods */}
+        {/* Sidebar: librarian / about / rules / mods */}
         <div className="space-y-4">
+          <CommunityTutor spaceSlug={slug} />
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">About this community</CardTitle>

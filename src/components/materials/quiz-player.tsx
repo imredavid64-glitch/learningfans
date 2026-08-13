@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, CheckCircle2, ListPlus, RotateCcw, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ListPlus, RotateCcw, XCircle, Zap } from "lucide-react";
 import {
   createQuizReviewDeck,
   getQuizReviewDeck,
@@ -36,6 +36,11 @@ export function QuizPlayer({
   const [deckId, setDeckId] = useState<string | null>(null);
   const [addingDeck, setAddingDeck] = useState(false);
 
+  // Answer-time fingerprint: quiz start + per-question first-shown / first-answered.
+  const startedAtRef = useRef<number | null>(null);
+  const shownAtRef = useRef<(number | null)[]>(questions.map(() => null));
+  const answeredAtRef = useRef<(number | null)[]>(questions.map(() => null));
+
   const missedCount = questions.filter((q, i) => answers[i] !== q.answerIndex).length;
 
   // On the results screen, detect an existing review deck so the button stays
@@ -53,6 +58,12 @@ export function QuizPlayer({
     };
   }, [phase, materialId]);
 
+  // Record when each question is first shown (for the answer-time fingerprint).
+  useEffect(() => {
+    if (phase !== "playing") return;
+    if (shownAtRef.current[idx] === null) shownAtRef.current[idx] = Date.now();
+  }, [phase, idx]);
+
   const question = questions[idx];
   const answered = answers.every((a) => a !== null);
 
@@ -63,7 +74,14 @@ export function QuizPlayer({
 
   async function handleSubmit() {
     setSubmitting(true);
-    const res = await submitQuizResult(materialId, answers);
+    const totalMs = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
+    const answerTimesMs = questions.map((_, i) => {
+      const shown = shownAtRef.current[i];
+      const answered = answeredAtRef.current[i];
+      if (shown == null || answered == null) return null;
+      return Math.max(0, answered - shown);
+    });
+    const res = await submitQuizResult(materialId, answers, { totalMs, answerTimesMs });
     setSubmitting(false);
     if (!res.ok || !res.grade) {
       toast.error(res.error ?? "Couldn't submit your quiz.");
@@ -78,6 +96,9 @@ export function QuizPlayer({
     setIdx(0);
     setResult(null);
     setDeckId(null);
+    startedAtRef.current = Date.now();
+    shownAtRef.current = questions.map(() => null);
+    answeredAtRef.current = questions.map(() => null);
     setPhase("playing");
   }
 
@@ -108,7 +129,14 @@ export function QuizPlayer({
               instantly · your best score lands on the community leaderboard
             </p>
           </div>
-          <Button onClick={() => setPhase("playing")}>Start quiz</Button>
+          <Button
+            onClick={() => {
+              startedAtRef.current = Date.now();
+              setPhase("playing");
+            }}
+          >
+            Start quiz
+          </Button>
         </div>
       )}
 
@@ -140,7 +168,12 @@ export function QuizPlayer({
                 <button
                   key={oi}
                   type="button"
-                  onClick={() => select(oi)}
+                  onClick={() => {
+                    if (answeredAtRef.current[idx] === null) {
+                      answeredAtRef.current[idx] = Date.now();
+                    }
+                    select(oi);
+                  }}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors",
                     selected
@@ -187,6 +220,15 @@ export function QuizPlayer({
       {phase === "done" && result?.grade && (
         <>
           <div className="space-y-4 rounded-lg border border-border bg-card p-6">
+            {result.flagged && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm">
+                <Zap className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <span>
+                  This attempt was answered too quickly to be fairly graded, so it won&apos;t
+                  count toward the leaderboard. Take your time on the next attempt.
+                </span>
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-muted-foreground">Your score</p>

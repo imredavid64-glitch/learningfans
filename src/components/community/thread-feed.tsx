@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { voteOnThread } from "@/actions/discussion";
@@ -26,6 +26,12 @@ const SORTS: { id: ThreadSort; label: string }[] = [
   { id: "top", label: "Top" },
   { id: "controversial", label: "Controversial" },
 ];
+
+const VALID_SORTS: readonly ThreadSort[] = ["hot", "new", "top", "controversial"];
+
+function parseSort(value: string | null): ThreadSort {
+  return VALID_SORTS.includes(value as ThreadSort) ? (value as ThreadSort) : "hot";
+}
 
 export interface FeedThread {
   id: string;
@@ -57,12 +63,38 @@ export function ThreadFeed({
 }) {
   const flairMap = new Map(flairs.map((f) => [f.id, f]));
   const router = useRouter();
-  const [sort, setSort] = useState<ThreadSort>("hot");
-  const [flairId, setFlairId] = useState<string | null>(null);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [pendingId, setPendingId] = useState<string | null>(null);
 
-  const filtered = flairId ? threads.filter((t) => t.flair_id === flairId) : threads;
+  // URL-driven so the whole feed view survives refresh + back/forward navigation
+  // and can be shared as a link (?sort=top&flair=<id>&filter=unanswered).
+  const sort = parseSort(searchParams.get("sort"));
+  const flairId = searchParams.get("flair");
+  const showUnanswered = searchParams.get("filter") === "unanswered";
+
+  function updateParam(key: string, value: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
+
+  // Compose filters: flair first, then the unanswered-questions toggle.
+  const filtered = (() => {
+    let list = threads;
+    if (flairId) list = list.filter((t) => t.flair_id === flairId);
+    if (showUnanswered) list = list.filter((t) => t.kind === "question" && !t.accepted_answer_id);
+    return list;
+  })();
   const ranked = rankThreads(filtered, sort);
+  const unansweredCount = threads.filter(
+    (t) => t.kind === "question" && !t.accepted_answer_id,
+  ).length;
 
   async function handleVote(threadId: string, current: VoteValue, direction: 1 | -1) {
     const next: VoteValue = current === direction ? 0 : direction;
@@ -83,7 +115,7 @@ export function ThreadFeed({
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setFlairId(null)}
+            onClick={() => updateParam("flair", null)}
             className={cn(
               "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
               !flairId
@@ -97,7 +129,7 @@ export function ThreadFeed({
             <button
               key={f.id}
               type="button"
-              onClick={() => setFlairId((current) => (current === f.id ? null : f.id))}
+              onClick={() => updateParam("flair", flairId === f.id ? null : f.id)}
               className={cn(
                 "rounded-full border px-3 py-1 text-xs font-medium transition-all",
                 FLAIR_COLOR_CLASSES[(f.color ?? "blue") as keyof typeof FLAIR_COLOR_CLASSES],
@@ -118,7 +150,7 @@ export function ThreadFeed({
           <button
             key={s.id}
             type="button"
-            onClick={() => setSort(s.id)}
+            onClick={() => updateParam("sort", s.id === "hot" ? null : s.id)}
             className={cn(
               "rounded-full px-3 py-1 text-sm font-medium transition-colors",
               sort === s.id
@@ -129,11 +161,30 @@ export function ThreadFeed({
             {s.label}
           </button>
         ))}
+        <span className="mx-2 h-4 w-px bg-border" aria-hidden />
+        <button
+          type="button"
+          onClick={() => updateParam("filter", showUnanswered ? null : "unanswered")}
+          className={cn(
+            "rounded-full px-3 py-1 text-sm font-medium transition-colors",
+            showUnanswered
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+          )}
+          title="Show questions that still need an answer"
+        >
+          <HelpCircle className="mr-1 inline h-3.5 w-3.5" />
+          Unanswered{unansweredCount > 0 ? ` (${unansweredCount})` : ""}
+        </button>
       </div>
 
       {ranked.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {flairId ? "No threads with this flair yet — be the first!" : "No threads yet. Start one!"}
+          {showUnanswered
+            ? "No unanswered questions — everyone's getting helped! 🎉"
+            : flairId
+              ? "No threads with this flair yet — be the first!"
+              : "No threads yet. Start one!"}
         </p>
       ) : (
         ranked.map((t) => {

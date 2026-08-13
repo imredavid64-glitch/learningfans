@@ -9,6 +9,7 @@ import {
   type QuizGrade,
   type QuizQuestion,
 } from "@/lib/quizzes";
+import { analyzeQuizIntegrity } from "@/lib/quiz-integrity";
 import {
   MAX_FLASHCARDS_PER_SET,
   MAX_CARD_TEXT_LENGTH,
@@ -93,12 +94,21 @@ export interface SubmitQuizResponse extends QuizResult {
   improved?: boolean;
   bestPct?: number;
   attempts?: number;
+  flagged?: boolean;
+  flagReasons?: string[];
+}
+
+/** Per-question answer-time fingerprint sent by the quiz player. */
+export interface QuizTiming {
+  totalMs: number;
+  answerTimesMs: (number | null)[];
 }
 
 /** Grade a submission server-side (authoritative) and record the best attempt. */
 export async function submitQuizResult(
   materialId: string,
   answers: (number | null)[],
+  timing?: QuizTiming | null,
 ): Promise<SubmitQuizResponse> {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -132,6 +142,16 @@ export async function submitQuizResult(
       : [],
   );
 
+  // Cheating guard: derive the verdict server-side from the answer-time
+  // fingerprint. A missing fingerprint on a perfect score is itself suspicious.
+  const integrity = analyzeQuizIntegrity({
+    totalMs: timing?.totalMs ?? 0,
+    answerTimesMs: (timing?.answerTimesMs ?? []).slice(0, questions.length),
+    pct: grade.pct,
+    totalQuestions: questions.length,
+  });
+  const flagged = integrity.flagged;
+
   const { data: existing } = await supabase
     .from("quiz_attempts")
     .select("best_score_pct, best_correct, attempts")
@@ -139,21 +159,69 @@ export async function submitQuizResult(
     .eq("user_id", profile.id)
     .maybeSingle();
 
-  const improved = !existing || grade.pct > existing.best_score_pct;
+  // A flagged attempt never advances the best score (keeps the leaderboard
+  // honest) and never earns XP.
+  const improved = !flagged && (!existing || grade.pct > existing.best_score_pct);
   const attempts = (existing?.attempts ?? 0) + 1;
 
   const { error } = await supabase.from("quiz_attempts").upsert(
     {
       material_id: materialId,
       user_id: profile.id,
-      best_score_pct: improved ? grade.pct : (existing?.best_score_pct ?? grade.pct),
-      best_correct: improved ? grade.correct : (existing?.best_correct ?? grade.correct),
+      best_score_pct: flagged
+        ? (existing?.best_score_pct ?? 0)
+        : improved
+          ? grade.pct
+          : (existing?.best_score_pct ?? grade.pct),
+      best_correct: flagged
+        ? (existing?.best_correct ?? 0)
+        : improved
+          ? grade.correct
+          : (existing?.best_correct ?? grade.correct),
       best_total: grade.total,
       attempts,
+      total_ms: timing?.totalMs ?? null,
+      answer_times_ms: timing?.answerTimesMs ?? [],
+      flagged,
+      flag_reasons: integrity.reasons,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "material_id,user_id" },
   );
+
+  // Pre-migration fallback: the integrity columns don't exist yet, so retry
+  // with the legacy shape (guard inactive, best score records as before).
+  if (error && isColumnMissing(error.message)) {
+    const legacyImproved = !existing || grade.pct > existing.best_score_pct;
+    const { error: legacyError } = await supabase.from("quiz_attempts").upsert(
+      {
+        material_id: materialId,
+        user_id: profile.id,
+        best_score_pct: legacyImproved ? grade.pct : (existing?.best_score_pct ?? grade.pct),
+        best_correct: legacyImproved ? grade.correct : (existing?.best_correct ?? grade.correct),
+        best_total: grade.total,
+        attempts,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "material_id,user_id" },
+    );
+    if (legacyError) return { ok: false, error: legacyError.message };
+    if (legacyImproved) {
+      await supabase.rpc("award_xp", {
+        p_user_id: profile.id,
+        p_amount: 5,
+        p_reason: "quiz_best",
+      });
+    }
+    revalidatePath("/app/");
+    return {
+      ok: true,
+      grade,
+      improved: legacyImproved,
+      bestPct: legacyImproved ? grade.pct : (existing?.best_score_pct ?? grade.pct),
+      attempts,
+    };
+  }
 
   if (error) return { ok: false, error: error.message };
 
@@ -165,14 +233,30 @@ export async function submitQuizResult(
     });
   }
 
-  revalidatePath(`/app/`);
+  revalidatePath("/app/");
   return {
     ok: true,
     grade,
     improved,
-    bestPct: improved ? grade.pct : (existing?.best_score_pct ?? grade.pct),
+    bestPct: flagged
+      ? (existing?.best_score_pct ?? 0)
+      : improved
+        ? grade.pct
+        : (existing?.best_score_pct ?? grade.pct),
     attempts,
+    flagged,
+    flagReasons: flagged ? integrity.reasons : [],
   };
+}
+
+function isColumnMissing(message?: string): boolean {
+  if (!message) return false;
+  return (
+    message.includes("PGRST204") ||
+    message.includes("schema cache") ||
+    message.includes("does not exist") ||
+    message.includes("Could not find")
+  );
 }
 
 /**
