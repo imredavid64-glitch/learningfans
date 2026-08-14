@@ -8,6 +8,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-13 — Make the migration batch fully idempotent
+- Made every DDL in `pending_apply.sql` (and the matching source files) re-runnable: `create table if not exists`, `create index if not exists`, and `drop policy if exists` before every `create policy`. Affected 0008 (quiz_attempts), 0010 (storage policies), 0012 (saved), 0001 (parent digests), 0002 (room moderation), 0004 (study sessions), and 0005 (accountability groups).
+- Verified: no bare `create table`/`create index` remain; every `create policy` has a matching `drop policy if exists`; all 18 sections stay byte-identical to their source files (0000 differs only by a trailing newline).
+
 ## 2026-08-13 — Drop unused dependencies
 - Removed `pg` and `@hookform/resolvers` from `package.json` (never imported anywhere) via `npm uninstall`, refreshing `package-lock.json` (−159 lines, 15 transitive packages). tsc + 186 tests still green.
 

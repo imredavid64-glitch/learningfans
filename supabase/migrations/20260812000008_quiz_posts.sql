@@ -6,7 +6,7 @@
 
 alter type public.material_type add value if not exists 'quiz';
 
-create table public.quiz_attempts (
+create table if not exists public.quiz_attempts (
   material_id uuid not null references public.study_materials (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
   best_score_pct int not null check (best_score_pct between 0 and 100),
@@ -18,10 +18,11 @@ create table public.quiz_attempts (
   primary key (material_id, user_id)
 );
 
-create index idx_quiz_attempts_leaderboard on public.quiz_attempts (material_id, best_score_pct desc);
+create index if not exists idx_quiz_attempts_leaderboard on public.quiz_attempts (material_id, best_score_pct desc);
 
 alter table public.quiz_attempts enable row level security;
 
+drop policy if exists "Quiz scores visible to material readers" on public.quiz_attempts;
 create policy "Quiz scores visible to material readers"
   on public.quiz_attempts for select to authenticated
   using (
@@ -33,6 +34,7 @@ create policy "Quiz scores visible to material readers"
     )
   );
 
+drop policy if exists "Users record own quiz attempts" on public.quiz_attempts;
 create policy "Users record own quiz attempts"
   on public.quiz_attempts for insert to authenticated
   with check (
@@ -46,6 +48,7 @@ create policy "Users record own quiz attempts"
     )
   );
 
+drop policy if exists "Users update own quiz attempts" on public.quiz_attempts;
 create policy "Users update own quiz attempts"
   on public.quiz_attempts for update to authenticated
   using (auth.uid() = user_id)

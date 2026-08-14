@@ -30,10 +30,12 @@ create index if not exists idx_parent_digests_status on public.parent_digests (s
 
 alter table public.parent_digests enable row level security;
 
+drop policy if exists "Users view own parent digests" on public.parent_digests;
 create policy "Users view own parent digests"
   on public.parent_digests for select to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Server manages parent digests" on public.parent_digests;
 create policy "Server manages parent digests"
   on public.parent_digests for all to authenticated
   using (true) with check (true);

@@ -14,7 +14,7 @@ create index if not exists idx_study_rooms_starts
 -- One row per user per completed focus block in a room. focus_key dedupes the
 -- shared broadcast (every client fires the same completion with the same key),
 -- so a 25-minute block counts once per participant, not once per tab.
-create table public.study_sessions (
+create table if not exists public.study_sessions (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.study_rooms (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -24,11 +24,12 @@ create table public.study_sessions (
   unique (room_id, user_id, focus_key)
 );
 
-create index idx_study_sessions_room_time on public.study_sessions (room_id, created_at desc);
-create index idx_study_sessions_user_time on public.study_sessions (user_id, created_at desc);
+create index if not exists idx_study_sessions_room_time on public.study_sessions (room_id, created_at desc);
+create index if not exists idx_study_sessions_user_time on public.study_sessions (user_id, created_at desc);
 
 alter table public.study_sessions enable row level security;
 
+drop policy if exists "Participants view study sessions" on public.study_sessions;
 create policy "Participants view study sessions"
   on public.study_sessions for select to authenticated
   using (
@@ -46,6 +47,7 @@ create policy "Participants view study sessions"
     )
   );
 
+drop policy if exists "Users record own study sessions" on public.study_sessions;
 create policy "Users record own study sessions"
   on public.study_sessions for insert to authenticated
   with check (auth.uid() = user_id);

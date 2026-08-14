@@ -13,10 +13,12 @@ values
   ('community-assets', 'community-assets', true, 5242880, array['image/png', 'image/jpeg', 'image/webp'])
 on conflict (id) do nothing;
 
+drop policy if exists "Community assets are publicly readable" on storage.objects;
 create policy "Community assets are publicly readable"
   on storage.objects for select
   using (bucket_id = 'community-assets');
 
+drop policy if exists "Community mods upload assets" on storage.objects;
 create policy "Community mods upload assets"
   on storage.objects for insert to authenticated
   with check (
@@ -30,6 +32,7 @@ create policy "Community mods upload assets"
     )
   );
 
+drop policy if exists "Community mods update assets" on storage.objects;
 create policy "Community mods update assets"
   on storage.objects for update to authenticated
   using (
@@ -43,6 +46,7 @@ create policy "Community mods update assets"
     )
   );
 
+drop policy if exists "Community mods delete assets" on storage.objects;
 create policy "Community mods delete assets"
   on storage.objects for delete to authenticated
   using (

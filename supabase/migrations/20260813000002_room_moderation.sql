@@ -4,7 +4,7 @@
 -- can't post chat or save the whiteboard until unbanned.
 -- Apply in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
 
-create table public.study_room_moderation (
+create table if not exists public.study_room_moderation (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.study_rooms (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -15,12 +15,13 @@ create table public.study_room_moderation (
   unique (room_id, user_id)
 );
 
-create index idx_study_room_moderation_room on public.study_room_moderation (room_id, action, expires_at);
+create index if not exists idx_study_room_moderation_room on public.study_room_moderation (room_id, action, expires_at);
 
 alter table public.study_room_moderation enable row level security;
 
 -- Visible to anyone who can see the room (so muted users see their own status,
 -- and hosts see the full list).
+drop policy if exists "Room moderation visible to participants" on public.study_room_moderation;
 create policy "Room moderation visible to participants"
   on public.study_room_moderation for select to authenticated
   using (
@@ -39,6 +40,7 @@ create policy "Room moderation visible to participants"
   );
 
 -- Only hosts/moderators can write moderation rows.
+drop policy if exists "Hosts manage room moderation" on public.study_room_moderation;
 create policy "Hosts manage room moderation"
   on public.study_room_moderation for all to authenticated
   using (
@@ -75,6 +77,7 @@ create policy "Hosts manage room moderation"
 -- writing directly to the table.
 drop policy if exists "Users post in visible rooms" on public.study_room_messages;
 
+drop policy if exists "Users post in visible rooms (unmuted)" on public.study_room_messages;
 create policy "Users post in visible rooms (unmuted)"
   on public.study_room_messages for insert to authenticated
   with check (

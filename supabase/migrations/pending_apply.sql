@@ -74,7 +74,7 @@ create policy "Users enqueue their own chat messages"
 
 alter type public.material_type add value if not exists 'quiz';
 
-create table public.quiz_attempts (
+create table if not exists public.quiz_attempts (
   material_id uuid not null references public.study_materials (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
   best_score_pct int not null check (best_score_pct between 0 and 100),
@@ -86,10 +86,11 @@ create table public.quiz_attempts (
   primary key (material_id, user_id)
 );
 
-create index idx_quiz_attempts_leaderboard on public.quiz_attempts (material_id, best_score_pct desc);
+create index if not exists idx_quiz_attempts_leaderboard on public.quiz_attempts (material_id, best_score_pct desc);
 
 alter table public.quiz_attempts enable row level security;
 
+drop policy if exists "Quiz scores visible to material readers" on public.quiz_attempts;
 create policy "Quiz scores visible to material readers"
   on public.quiz_attempts for select to authenticated
   using (
@@ -101,6 +102,7 @@ create policy "Quiz scores visible to material readers"
     )
   );
 
+drop policy if exists "Users record own quiz attempts" on public.quiz_attempts;
 create policy "Users record own quiz attempts"
   on public.quiz_attempts for insert to authenticated
   with check (
@@ -114,6 +116,7 @@ create policy "Users record own quiz attempts"
     )
   );
 
+drop policy if exists "Users update own quiz attempts" on public.quiz_attempts;
 create policy "Users update own quiz attempts"
   on public.quiz_attempts for update to authenticated
   using (auth.uid() = user_id)
@@ -154,10 +157,12 @@ values
   ('community-assets', 'community-assets', true, 5242880, array['image/png', 'image/jpeg', 'image/webp'])
 on conflict (id) do nothing;
 
+drop policy if exists "Community assets are publicly readable" on storage.objects;
 create policy "Community assets are publicly readable"
   on storage.objects for select
   using (bucket_id = 'community-assets');
 
+drop policy if exists "Community mods upload assets" on storage.objects;
 create policy "Community mods upload assets"
   on storage.objects for insert to authenticated
   with check (
@@ -171,6 +176,7 @@ create policy "Community mods upload assets"
     )
   );
 
+drop policy if exists "Community mods update assets" on storage.objects;
 create policy "Community mods update assets"
   on storage.objects for update to authenticated
   using (
@@ -184,6 +190,7 @@ create policy "Community mods update assets"
     )
   );
 
+drop policy if exists "Community mods delete assets" on storage.objects;
 create policy "Community mods delete assets"
   on storage.objects for delete to authenticated
   using (
@@ -278,14 +285,14 @@ $$;
 -- layer; each table is strictly user-owned via RLS.
 -- Apply this in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
 
-create table public.saved_collections (
+create table if not exists public.saved_collections (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles (id) on delete cascade,
   name text not null check (char_length(name) between 1 and 60),
   created_at timestamptz not null default now()
 );
 
-create table public.saved_items (
+create table if not exists public.saved_items (
   user_id uuid not null references public.profiles (id) on delete cascade,
   item_type text not null check (item_type in ('thread', 'material')),
   item_id uuid not null,
@@ -294,17 +301,19 @@ create table public.saved_items (
   primary key (user_id, item_type, item_id)
 );
 
-create index idx_saved_items_user_created on public.saved_items (user_id, created_at desc);
-create index idx_saved_items_collection on public.saved_items (collection_id);
+create index if not exists idx_saved_items_user_created on public.saved_items (user_id, created_at desc);
+create index if not exists idx_saved_items_collection on public.saved_items (collection_id);
 
 alter table public.saved_collections enable row level security;
 alter table public.saved_items enable row level security;
 
+drop policy if exists "Users manage own saved collections" on public.saved_collections;
 create policy "Users manage own saved collections"
   on public.saved_collections for all to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users manage own saved items" on public.saved_items;
 create policy "Users manage own saved items"
   on public.saved_items for all to authenticated
   using (auth.uid() = user_id)
@@ -685,10 +694,12 @@ create index if not exists idx_parent_digests_status on public.parent_digests (s
 
 alter table public.parent_digests enable row level security;
 
+drop policy if exists "Users view own parent digests" on public.parent_digests;
 create policy "Users view own parent digests"
   on public.parent_digests for select to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Server manages parent digests" on public.parent_digests;
 create policy "Server manages parent digests"
   on public.parent_digests for all to authenticated
   using (true) with check (true);
@@ -813,7 +824,7 @@ $$;
 -- can't post chat or save the whiteboard until unbanned.
 -- Apply in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
 
-create table public.study_room_moderation (
+create table if not exists public.study_room_moderation (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.study_rooms (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -824,12 +835,13 @@ create table public.study_room_moderation (
   unique (room_id, user_id)
 );
 
-create index idx_study_room_moderation_room on public.study_room_moderation (room_id, action, expires_at);
+create index if not exists idx_study_room_moderation_room on public.study_room_moderation (room_id, action, expires_at);
 
 alter table public.study_room_moderation enable row level security;
 
 -- Visible to anyone who can see the room (so muted users see their own status,
 -- and hosts see the full list).
+drop policy if exists "Room moderation visible to participants" on public.study_room_moderation;
 create policy "Room moderation visible to participants"
   on public.study_room_moderation for select to authenticated
   using (
@@ -848,6 +860,7 @@ create policy "Room moderation visible to participants"
   );
 
 -- Only hosts/moderators can write moderation rows.
+drop policy if exists "Hosts manage room moderation" on public.study_room_moderation;
 create policy "Hosts manage room moderation"
   on public.study_room_moderation for all to authenticated
   using (
@@ -884,6 +897,7 @@ create policy "Hosts manage room moderation"
 -- writing directly to the table.
 drop policy if exists "Users post in visible rooms" on public.study_room_messages;
 
+drop policy if exists "Users post in visible rooms (unmuted)" on public.study_room_messages;
 create policy "Users post in visible rooms (unmuted)"
   on public.study_room_messages for insert to authenticated
   with check (
@@ -951,7 +965,7 @@ create index if not exists idx_study_rooms_starts
 -- One row per user per completed focus block in a room. focus_key dedupes the
 -- shared broadcast (every client fires the same completion with the same key),
 -- so a 25-minute block counts once per participant, not once per tab.
-create table public.study_sessions (
+create table if not exists public.study_sessions (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.study_rooms (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -961,11 +975,12 @@ create table public.study_sessions (
   unique (room_id, user_id, focus_key)
 );
 
-create index idx_study_sessions_room_time on public.study_sessions (room_id, created_at desc);
-create index idx_study_sessions_user_time on public.study_sessions (user_id, created_at desc);
+create index if not exists idx_study_sessions_room_time on public.study_sessions (room_id, created_at desc);
+create index if not exists idx_study_sessions_user_time on public.study_sessions (user_id, created_at desc);
 
 alter table public.study_sessions enable row level security;
 
+drop policy if exists "Participants view study sessions" on public.study_sessions;
 create policy "Participants view study sessions"
   on public.study_sessions for select to authenticated
   using (
@@ -983,6 +998,7 @@ create policy "Participants view study sessions"
     )
   );
 
+drop policy if exists "Users record own study sessions" on public.study_sessions;
 create policy "Users record own study sessions"
   on public.study_sessions for insert to authenticated
   with check (auth.uid() = user_id);
@@ -1024,7 +1040,7 @@ $$;
 -- existing notification bell.
 -- Apply in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
 
-create table public.accountability_groups (
+create table if not exists public.accountability_groups (
   id uuid primary key default gen_random_uuid(),
   created_by uuid not null references public.profiles (id) on delete cascade,
   name text not null,
@@ -1032,14 +1048,14 @@ create table public.accountability_groups (
   created_at timestamptz not null default now()
 );
 
-create table public.accountability_group_members (
+create table if not exists public.accountability_group_members (
   group_id uuid not null references public.accountability_groups (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
   joined_at timestamptz not null default now(),
   primary key (group_id, user_id)
 );
 
-create table public.accountability_checkins (
+create table if not exists public.accountability_checkins (
   group_id uuid not null references public.accountability_groups (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
   checkin_date date not null default (now() at time zone 'utc')::date,
@@ -1047,7 +1063,7 @@ create table public.accountability_checkins (
   primary key (group_id, user_id, checkin_date)
 );
 
-create table public.accountability_nudges (
+create table if not exists public.accountability_nudges (
   id uuid primary key default gen_random_uuid(),
   group_id uuid not null references public.accountability_groups (id) on delete cascade,
   from_user uuid not null references public.profiles (id) on delete cascade,
@@ -1055,10 +1071,10 @@ create table public.accountability_nudges (
   created_at timestamptz not null default now()
 );
 
-create index idx_accountability_members_group on public.accountability_group_members (group_id);
-create index idx_accountability_members_user on public.accountability_group_members (user_id);
-create index idx_accountability_checkins_group on public.accountability_checkins (group_id, checkin_date);
-create index idx_accountability_nudges_to on public.accountability_nudges (to_user, created_at desc);
+create index if not exists idx_accountability_members_group on public.accountability_group_members (group_id);
+create index if not exists idx_accountability_members_user on public.accountability_group_members (user_id);
+create index if not exists idx_accountability_checkins_group on public.accountability_checkins (group_id, checkin_date);
+create index if not exists idx_accountability_nudges_to on public.accountability_nudges (to_user, created_at desc);
 
 alter table public.accountability_groups enable row level security;
 alter table public.accountability_group_members enable row level security;
@@ -1066,41 +1082,51 @@ alter table public.accountability_checkins enable row level security;
 alter table public.accountability_nudges enable row level security;
 
 -- Groups are browsable by any authenticated user (small-community scale).
+drop policy if exists "Groups browsable" on public.accountability_groups;
 create policy "Groups browsable"
   on public.accountability_groups for select to authenticated using (true);
 
+drop policy if exists "Users create groups" on public.accountability_groups;
 create policy "Users create groups"
   on public.accountability_groups for insert to authenticated
   with check (auth.uid() = created_by and not public.is_suspended());
 
+drop policy if exists "Creator deletes group" on public.accountability_groups;
 create policy "Creator deletes group"
   on public.accountability_groups for delete to authenticated
   using (created_by = auth.uid() or public.is_app_moderator());
 
 -- Membership
+drop policy if exists "Memberships visible" on public.accountability_group_members;
 create policy "Memberships visible"
   on public.accountability_group_members for select to authenticated using (true);
 
+drop policy if exists "Users join groups" on public.accountability_group_members;
 create policy "Users join groups"
   on public.accountability_group_members for insert to authenticated
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users leave groups" on public.accountability_group_members;
 create policy "Users leave groups"
   on public.accountability_group_members for delete to authenticated
   using (auth.uid() = user_id);
 
 -- Check-ins
+drop policy if exists "Check-ins visible" on public.accountability_checkins;
 create policy "Check-ins visible"
   on public.accountability_checkins for select to authenticated using (true);
 
+drop policy if exists "Users check in own" on public.accountability_checkins;
 create policy "Users check in own"
   on public.accountability_checkins for insert to authenticated
   with check (auth.uid() = user_id);
 
 -- Nudges
+drop policy if exists "Nudges visible" on public.accountability_nudges;
 create policy "Nudges visible"
   on public.accountability_nudges for select to authenticated using (true);
 
+drop policy if exists "Users send nudges" on public.accountability_nudges;
 create policy "Users send nudges"
   on public.accountability_nudges for insert to authenticated
   with check (auth.uid() = from_user and from_user <> to_user);
