@@ -47,6 +47,28 @@ const KNOWN_EXCLUDED = new Map([
   ["20260812000007_thread_votes.sql", "legacy, applied long ago"],
 ]);
 
+// Filename convention: YYYYMMDDHHMMSS_name.sql (Supabase-style timestamp prefix).
+const MIGRATION_NAME_RE = /^([0-9]{14})_([a-z0-9]+(?:_[a-z0-9]+)*)\.sql$/;
+
+// "20260814093000" → a real clock time? (rejects month 13, day 32, hour 24, …)
+function isRealTimestamp(ts) {
+  const y = +ts.slice(0, 4);
+  const mo = +ts.slice(4, 6);
+  const d = +ts.slice(6, 8);
+  const h = +ts.slice(8, 10);
+  const mi = +ts.slice(10, 12);
+  const s = +ts.slice(12, 14);
+  const dt = new Date(y, mo - 1, d, h, mi, s);
+  return (
+    dt.getFullYear() === y &&
+    dt.getMonth() === mo - 1 &&
+    dt.getDate() === d &&
+    dt.getHours() === h &&
+    dt.getMinutes() === mi &&
+    dt.getSeconds() === s
+  );
+}
+
 // Strip comments and whitespace for a structure-only comparison. A heuristic —
 // fine for CI guarding; string literals are preserved byte-identically between
 // a section and its source file, so any whitespace/comment churn cancels out.
@@ -59,7 +81,7 @@ function normalize(sql) {
 
 function fail(problems) {
   for (const p of problems) console.error(p);
-  console.error(`\n❌ ${problems.length} problem(s) with ${BATCH_FILE}.`);
+  console.error(`\n❌ ${problems.length} problem(s) with the migration batch (${BATCH_FILE} sync + naming conventions).`);
   process.exit(1);
 }
 
@@ -86,6 +108,20 @@ function main() {
   }
 
   for (const name of files) {
+    // Filename must follow the YYYYMMDDHHMMSS_name.sql convention.
+    const m = name.match(MIGRATION_NAME_RE);
+    if (!m) {
+      problems.push(
+        `✗ ${name}: filename must follow the YYYYMMDDHHMMSS_name.sql convention\n` +
+          `    (e.g. 20260814000000_add_something.sql — lowercase snake_case).`,
+      );
+      continue;
+    }
+    if (!isRealTimestamp(m[1])) {
+      problems.push(`✗ ${name}: timestamp ${m[1]} isn't a real date-time (YYYYMMDDHHMMSS).`);
+      continue;
+    }
+
     const excluded = KNOWN_EXCLUDED.get(name);
 
     if (excluded) {

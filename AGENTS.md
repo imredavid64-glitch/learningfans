@@ -8,6 +8,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-14 — Migration filename convention check (CI)
+- `scripts/check-migration-batch.mjs` now also fails when a migration filename doesn't match **`YYYYMMDDHHMMSS_name.sql`** (14-digit Supabase-style timestamp + lowercase snake_case, via `MIGRATION_NAME_RE`) or when the timestamp isn't a real date-time (`isRealTimestamp` — rejects month 13, day 32, hour 24, …). Applies to every scanned migration (incl. `KNOWN_EXCLUDED` legacy files). Runs in the existing `migration-batch.yml` workflow — no workflow change needed.
+- Verified: clean run PASS (all 35 files already conform, timestamps all real); `not-a-migration.sql` and `20261399000000_invalid_month.sql` each FAIL with actionable messages; restored clean; lint clean. Failure summary reworded to "migration batch (pending_apply.sql sync + naming conventions)" since naming violations aren't about the batch file itself.
+
 ## 2026-08-14 — db:apply --verify (apply-then-probe)
 - `scripts/apply-migrations.mjs` gains **`--verify`**: probes live BEFORE applying (via `launch-smoke-test.mjs --json` as a child process), applies, then probes AGAIN and diffs — prints `Migrations live: X/N → Y/N`, **Flipped on** list, and **Still missing** list (exit 1 if any still missing or any statement failed). `runSmokeProbe()`/`reportVerify()` are exported (probe exits 1 when migrations are missing, so stdout is captured on non-zero exits too). `--verify` in dry-run mode is ignored with a notice; also wired into the `--single` success path.
 - Verified: syntax + help + dry-run notice; live test of the real functions ran two probes and correctly reported `1/18 → 1/18`, flipped none, 17 still missing, `allLive: false`. tsc, lint, **191/191 tests** clean. So `npm run db:apply -- --verify` will flip to "Flipped on (17) … Still missing: none 🎉" the moment the token works.
