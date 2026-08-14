@@ -30,6 +30,7 @@ org `imredavid64-glitchs-projects`). Git remote: `github.com/imredavid64-glitch/
 ```bash
 # 1. Verify locally first
 npm test && npx tsc --noEmit && npm run lint && npm run build
+npm run check:env        # env drift: .env.example/.env.local vs Vercel production
 
 # 2. Deploy to production
 npx vercel --prod --yes
@@ -58,6 +59,23 @@ npx vercel alias set <deployment-url> learningfans.vercel.app
 cron slots. Both endpoints are guarded by `CRON_SECRET` (Vercel's built-in cron
 auth convention) and fail safe (401) when the secret or their tables/functions
 are missing.
+
+### Verifying the push pipeline is configured (no side effects)
+
+The cron's `GET /api/push/send` has real side effects (archival, housekeeping,
+party reminders, push sends), so don't curl it to test. Instead use its dry mode:
+
+```bash
+npm run check:push            # -> exit 0 = fully configured
+npm run check:push -- --json  # machine-readable report
+```
+
+It calls `GET /api/push/send?dry=1` with `Authorization: Bearer $CRON_SECRET`.
+The route validates auth → VAPID env → `push_subscriptions`/`notifications`
+tables (read-only head queries) and short-circuits **before** any drain,
+archive, reminder, or push side effect. `401` = `CRON_SECRET` mismatch, `503` =
+VAPID env missing, `200 + ok:true` = fully configured. (Requires the dry mode
+to be deployed.)
 
 ## Native apps
 

@@ -54,6 +54,9 @@ public launch. Companion docs: [README](../README.md) (setup/deploy),
 - [ ] `npx tsc --noEmit` → clean
 - [ ] `npm run lint` → clean
 - [ ] `npm run build` → compiles, no route errors
+- [ ] `npm run smoke:launch -- --json` → **exit 0 / `"ok": true`**: site HTTP 200,
+      all routes ok, **18/18 migrations live** (every batch feature flips on), required
+      env present — see the failing-migration list if not (fix by applying `pending_apply.sql`)
 - [ ] `https://learningfans.vercel.app` loads (HTTP 200) and `/login` renders
 - [ ] Unauthenticated `/app/*` redirects to login (307 with `?redirect=`)
 

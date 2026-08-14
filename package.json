@@ -29,7 +29,12 @@
     "desktop:build:win": "electron-builder --config desktop/electron-builder.yml --win",
     "desktop:build:linux": "electron-builder --config desktop/electron-builder.yml --linux",
     "desktop:copy": "node scripts/copy-downloads.mjs",
-    "downloads:build": "npm run mobile:android:apk && npm run desktop:build && node scripts/copy-downloads.mjs"
+    "downloads:build": "npm run mobile:android:apk && npm run desktop:build && node scripts/copy-downloads.mjs",
+    "db:apply": "node scripts/apply-migrations.mjs",
+    "check:migrations": "node scripts/check-migration-batch.mjs",
+    "smoke:launch": "node scripts/launch-smoke-test.mjs",
+    "check:push": "node scripts/check-push-health.mjs",
+    "check:env": "node scripts/check-env-drift.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

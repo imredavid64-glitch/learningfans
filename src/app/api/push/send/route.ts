@@ -28,6 +28,30 @@ export async function GET(request: Request) {
   if (!vapid) {
     return NextResponse.json({ error: "VAPID not configured" }, { status: 503 });
   }
+
+  // Side-effect-free config check (?dry=1): auth + VAPID env verified above;
+  // now probe the tables the pipeline needs (read-only head queries). Exits
+  // BEFORE any drain/archive/housekeeping/party-reminder/push side effects.
+  if (new URL(request.url).searchParams.get("dry") === "1") {
+    const admin = createAdminClient();
+    const [subs, notifs] = await Promise.all([
+      admin.from("push_subscriptions").select("id").limit(1),
+      admin.from("notifications").select("id").limit(1),
+    ]);
+    const db = {
+      push_subscriptions: subs.error ? "missing" : "ok",
+      notifications: notifs.error ? "missing" : "ok",
+    };
+    const ok = db.push_subscriptions === "ok" && db.notifications === "ok";
+    return NextResponse.json({
+      ok,
+      mode: "dry",
+      auth: "ok",
+      vapid: { configured: true, subject: vapid.subject, publicKey: vapid.publicKey },
+      db,
+    });
+  }
+
   webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
 
   const admin = createAdminClient();

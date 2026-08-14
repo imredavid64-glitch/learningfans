@@ -1,0 +1,30 @@
+name: Check migration batch
+
+on:
+  push:
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/check-migration-batch.mjs"
+      - ".github/workflows/migration-batch.yml"
+      - "package.json"
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/check-migration-batch.mjs"
+      - ".github/workflows/migration-batch.yml"
+      - "package.json"
+
+jobs:
+  sync-check:
+    name: pending_apply.sql in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Dependency-free by design: the check only uses node:fs / node:path.
+      - name: Verify every migration is folded into pending_apply.sql
+        run: node scripts/check-migration-batch.mjs
