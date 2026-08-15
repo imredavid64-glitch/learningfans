@@ -19,6 +19,13 @@ import { loadDotEnv } from "./apply-migrations.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 
+// "push_subscriptions=ok, notifications=missing, …" — keys are dynamic so the
+// script renders whatever the deployed route reports (push + bell/XP surface).
+function renderDb(db) {
+  if (!db || typeof db !== "object") return "(no db report)";
+  return Object.entries(db).map(([k, v]) => `${k}=${v}`).join(", ");
+}
+
 function parseArgs(argv) {
   const args = { json: false, url: undefined };
   for (let i = 0; i < argv.length; i++) {
@@ -88,7 +95,7 @@ async function main() {
       console.log("✗ VAPID not configured: VAPID_SUBJECT / NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY missing in Vercel.");
     } else if (res.status === 200 && body.ok) {
       console.log(`✓ Fully configured. VAPID subject: ${body.vapid?.subject}`);
-      console.log(`  DB: push_subscriptions=${body.db?.push_subscriptions}, notifications=${body.db?.notifications}`);
+      console.log(`  DB: ${renderDb(body.db)}`);
     } else {
       console.log(JSON.stringify(body, null, 2));
     }

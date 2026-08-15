@@ -63,6 +63,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   process.env.CRON_SECRET = "test-secret";
   mocks.from.mockReturnValue(okChain());
+  mocks.rpc.mockResolvedValue({ error: null, data: [] });
   mocks.getVapidConfig.mockReturnValue(VAPID);
 });
 
@@ -97,24 +98,30 @@ describe("GET /api/push/send", () => {
     expect(body.db).toEqual({
       push_subscriptions: "ok",
       notifications: "ok",
+      user_stats: "ok",
+      get_leaderboard: "ok",
     });
     // The whole point of dry mode: nothing drains, archives, sends, or reminds.
+    // The only rpc allowed is the read-only get_leaderboard probe.
     expect(mocks.drainChatModerationQueue).not.toHaveBeenCalled();
     expect(mocks.checkAndArchive).not.toHaveBeenCalled();
     expect(mocks.sendPartyReminders).not.toHaveBeenCalled();
-    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledWith("get_leaderboard", { p_limit: 1 });
+    expect(mocks.rpc).not.toHaveBeenCalledWith("run_housekeeping");
   });
 
   it("dry mode flags missing tables instead of failing silently", async () => {
     mocks.from.mockReturnValue(
       okChain() as ReturnType<typeof okChain> & { limit: unknown },
     );
-    // Force every terminal .limit() to report an error (missing table).
+    // Force every terminal .limit() to report an error (missing table), and
+    // the leaderboard RPC to fail too.
     mocks.from.mockImplementation(() => {
       const chain = okChain();
       chain.limit = vi.fn(async () => ({ error: { message: "not found" }, data: null }));
       return chain;
     });
+    mocks.rpc.mockResolvedValue({ error: { message: "not found" }, data: null });
     const res = await GET(dryRequest("Bearer test-secret"));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -122,6 +129,8 @@ describe("GET /api/push/send", () => {
     expect(body.db).toEqual({
       push_subscriptions: "missing",
       notifications: "missing",
+      user_stats: "missing",
+      get_leaderboard: "missing",
     });
   });
 

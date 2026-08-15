@@ -34,15 +34,22 @@ export async function GET(request: Request) {
   // BEFORE any drain/archive/housekeeping/party-reminder/push side effects.
   if (new URL(request.url).searchParams.get("dry") === "1") {
     const admin = createAdminClient();
-    const [subs, notifs] = await Promise.all([
+    // Read-only probes of the full push + bell/XP surface the pipeline needs:
+    // the two push tables, the bell's user_stats table, and the leaderboard RPC
+    // (read-only, p_limit=1 so it only fetches one row).
+    const [subs, notifs, stats, leaderboard] = await Promise.all([
       admin.from("push_subscriptions").select("id").limit(1),
       admin.from("notifications").select("id").limit(1),
+      admin.from("user_stats").select("user_id").limit(1),
+      admin.rpc("get_leaderboard", { p_limit: 1 }),
     ]);
     const db = {
       push_subscriptions: subs.error ? "missing" : "ok",
       notifications: notifs.error ? "missing" : "ok",
+      user_stats: stats.error ? "missing" : "ok",
+      get_leaderboard: leaderboard.error ? "missing" : "ok",
     };
-    const ok = db.push_subscriptions === "ok" && db.notifications === "ok";
+    const ok = Object.values(db).every((v) => v === "ok");
     return NextResponse.json({
       ok,
       mode: "dry",
