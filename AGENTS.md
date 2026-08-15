@@ -193,6 +193,9 @@ Append a dated entry after every meaningful change. Keep each entry short (what 
 - **Files**: `src/lib/file-types.ts` (MIME allowlist, categories, icons, `FILE_ACCEPT_ATTR`, `fileExtension`, `formatFileSize`); `uploadFileMaterial` skips sharp compression for GIFs; `material-list` links author → profile.
 - Quality: `tsc` clean, lint clean, 135/135 tests. `.env.vercel.prod` (with the working POSTGRES_URL used by `scripts/run-sql.cjs`) was **removed mid-session** — direct DB apply not possible; use the SQL editor one-paste.
 
+## 2026-08-15 — Pre-deploy gate (env + migrations + push + digest)
+- **`scripts/pre-deploy-gate.mjs`** (`npm run gate:predeploy`): chains the four config checks — `check:env` (drift), `check:migrations` (batch sync), `check:push` (4 dry probes), `check:digest` (4 dry probes) — in order, fail-fast on the first red, prints a final "READY TO DEPLOY / NOT READY" verdict. `--json` emits per-step results; `--skip env,digest` skips steps. Exit 0 only when every step passes. Added to LAUNCH_CHECKLIST Gate section as the step to run before every `vercel --prod`. Live run: env ✓, migrations ✓, push ✗ (schema not applied — correctly gating). Lint clean.
+
 ## 2026-08-12 — Database management (free-tier 500 MB cap)
 - **Migration** `20260812000017_database_housekeeping.sql` (manual apply ⚠️): `get_table_sizes()` (per-table size + row count) and `run_housekeeping(p_queue_days=7, p_notification_days=30, p_reminder_days=30)` retention pruning (consumed queue rows, read notifications, sent meeting reminders).
 - **`src/lib/archive.ts`**: per-table retention days — moderation_actions/audit_log/reports 30d, **`study_room_messages` 90d** (chat history was the biggest unmanaged growth source) — archived to the archive project before deletion; `getDbUsageReport()` exported for the dashboard.

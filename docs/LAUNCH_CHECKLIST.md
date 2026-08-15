@@ -63,6 +63,9 @@ public launch. Companion docs: [README](../README.md) (setup/deploy),
 - [ ] `npx tsc --noEmit` → clean
 - [ ] `npm run lint` → clean
 - [ ] `npm run build` → compiles, no route errors
+- [ ] `npm run gate:predeploy` → **exit 0 / "READY TO DEPLOY"**: chains env drift
+      (`check:env`), migration-batch sync (`check:migrations`), push dry (4 probes) and
+      digest dry (4 probes) — run this right before every `vercel --prod`
 - [ ] `npm run smoke:launch -- --json` → **exit 0 / `"ok": true`**: site HTTP 200,
       all routes ok, **17/17 base tables live** + **27/27 migrations live** (every batch
       feature flips on), required env present — if migrations aren't 27/27, apply the
