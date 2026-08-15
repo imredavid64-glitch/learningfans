@@ -3,7 +3,7 @@
 -- Mirrors the meeting_reminders table: rows are generated when an event is
 -- created (owner + RSVP'd attendees) and delivered by the in-app notifier.
 
-create table public.schedule_event_reminders (
+create table if not exists public.schedule_event_reminders (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.schedule_events (id) on delete cascade,
   recipient_id uuid not null references public.profiles (id) on delete cascade,
@@ -13,20 +13,23 @@ create table public.schedule_event_reminders (
   created_at timestamptz not null default now()
 );
 
-create index idx_schedule_event_reminders_pending
+create index if not exists idx_schedule_event_reminders_pending
   on public.schedule_event_reminders (scheduled_for)
   where sent_at is null;
 
 alter table public.schedule_event_reminders enable row level security;
 
+drop policy if exists "Recipients view own event reminders" on public.schedule_event_reminders;
 create policy "Recipients view own event reminders"
   on public.schedule_event_reminders for select to authenticated
   using (recipient_id = auth.uid());
 
+drop policy if exists "Server can insert event reminders" on public.schedule_event_reminders;
 create policy "Server can insert event reminders"
   on public.schedule_event_reminders for insert to authenticated
   with check (true);
 
+drop policy if exists "Server can update event reminders" on public.schedule_event_reminders;
 create policy "Server can update event reminders"
   on public.schedule_event_reminders for update to authenticated
   using (true);

@@ -11,7 +11,7 @@ add column if not exists school_name text,
 add column if not exists last_profanity_at timestamptz;
 
 -- Table to track each profanity incident
-create table public.profanity_incidents (
+create table if not exists public.profanity_incidents (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles (id) on delete cascade,
   content_text text not null,
@@ -23,17 +23,20 @@ create table public.profanity_incidents (
   created_at timestamptz not null default now()
 );
 
-create index idx_profanity_incidents_user on public.profanity_incidents (user_id, created_at desc);
-create index idx_profanity_incidents_context on public.profanity_incidents (context_type, context_id);
+create index if not exists idx_profanity_incidents_user on public.profanity_incidents (user_id, created_at desc);
+create index if not exists idx_profanity_incidents_context on public.profanity_incidents (context_type, context_id);
 
 alter table public.profanity_incidents enable row level security;
 
+drop policy if exists "Users can view own profanity incidents" on public.profanity_incidents;
 create policy "Users can view own profanity incidents" on public.profanity_incidents for select to authenticated using (auth.uid() = user_id);
+drop policy if exists "Moderators can view all profanity incidents" on public.profanity_incidents;
 create policy "Moderators can view all profanity incidents" on public.profanity_incidents for select to authenticated using (exists (select 1 from public.profiles where id = auth.uid() and role in ('moderator', 'admin')));
+drop policy if exists "Server can insert profanity incidents" on public.profanity_incidents;
 create policy "Server can insert profanity incidents" on public.profanity_incidents for insert to authenticated with check (true);
 
 -- Table for email notifications sent
-create table public.profanity_notifications (
+create table if not exists public.profanity_notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles (id) on delete cascade,
   incident_id uuid not null references public.profanity_incidents (id) on delete cascade,
@@ -47,13 +50,16 @@ create table public.profanity_notifications (
   created_at timestamptz not null default now()
 );
 
-create index idx_profanity_notifications_user on public.profanity_notifications (user_id, created_at desc);
-create index idx_profanity_notifications_status on public.profanity_notifications (status, created_at);
+create index if not exists idx_profanity_notifications_user on public.profanity_notifications (user_id, created_at desc);
+create index if not exists idx_profanity_notifications_status on public.profanity_notifications (status, created_at);
 
 alter table public.profanity_notifications enable row level security;
 
+drop policy if exists "Moderators can view profanity notifications" on public.profanity_notifications;
 create policy "Moderators can view profanity notifications" on public.profanity_notifications for select to authenticated using (exists (select 1 from public.profiles where id = auth.uid() and role in ('moderator', 'admin')));
+drop policy if exists "Server can insert profanity notifications" on public.profanity_notifications;
 create policy "Server can insert profanity notifications" on public.profanity_notifications for insert to authenticated with check (true);
+drop policy if exists "Server can update profanity notifications" on public.profanity_notifications;
 create policy "Server can update profanity notifications" on public.profanity_notifications for update to authenticated with check (true);
 
 -- Function to handle profanity escalation

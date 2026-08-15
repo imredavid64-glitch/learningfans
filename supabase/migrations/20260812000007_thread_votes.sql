@@ -8,7 +8,7 @@ alter table public.threads
   add column if not exists ups int not null default 0,
   add column if not exists downs int not null default 0;
 
-create table public.post_votes (
+create table if not exists public.post_votes (
   post_id uuid not null references public.threads (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
   vote smallint not null check (vote in (1, -1)),
@@ -17,10 +17,11 @@ create table public.post_votes (
   primary key (post_id, user_id)
 );
 
-create index idx_post_votes_user on public.post_votes (user_id);
+create index if not exists idx_post_votes_user on public.post_votes (user_id);
 
 alter table public.post_votes enable row level security;
 
+drop policy if exists "Votes visible to thread readers" on public.post_votes;
 create policy "Votes visible to thread readers"
   on public.post_votes for select to authenticated
   using (
@@ -32,6 +33,7 @@ create policy "Votes visible to thread readers"
     )
   );
 
+drop policy if exists "Readers can vote on threads" on public.post_votes;
 create policy "Readers can vote on threads"
   on public.post_votes for insert to authenticated
   with check (
@@ -45,10 +47,12 @@ create policy "Readers can vote on threads"
     )
   );
 
+drop policy if exists "Users update own votes" on public.post_votes;
 create policy "Users update own votes"
   on public.post_votes for update to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Users delete own votes" on public.post_votes;
 create policy "Users delete own votes"
   on public.post_votes for delete to authenticated
   using (auth.uid() = user_id);
@@ -80,6 +84,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_post_vote_changed on public.post_votes;
 create trigger on_post_vote_changed
   after insert or update or delete on public.post_votes
   for each row execute function public.update_thread_score();

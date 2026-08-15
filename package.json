@@ -35,7 +35,8 @@
     "smoke:launch": "node scripts/launch-smoke-test.mjs",
     "check:push": "node scripts/check-push-health.mjs",
     "check:env": "node scripts/check-env-drift.mjs",
-    "verify:realtime": "node scripts/verify-realtime.mjs"
+    "verify:realtime": "node scripts/verify-realtime.mjs",
+    "audit:excluded": "node scripts/audit-excluded-migrations.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

@@ -1,5 +1,5 @@
 -- Audit log table
-create table public.audit_log (
+create table if not exists public.audit_log (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles (id) on delete cascade,
   action text not null,
@@ -8,12 +8,13 @@ create table public.audit_log (
   created_at timestamptz not null default now()
 );
 
-create index idx_audit_log_user on public.audit_log (user_id, created_at desc);
-create index idx_audit_log_action on public.audit_log (action, created_at desc);
+create index if not exists idx_audit_log_user on public.audit_log (user_id, created_at desc);
+create index if not exists idx_audit_log_action on public.audit_log (action, created_at desc);
 
 alter table public.audit_log enable row level security;
 
 -- Only app moderators/admins can view audit logs
+drop policy if exists "Mods can view audit logs" on public.audit_log;
 create policy "Mods can view audit logs"
   on public.audit_log for select to authenticated
   using (
@@ -24,6 +25,7 @@ create policy "Mods can view audit logs"
   );
 
 -- Service role (server-side) can insert audit logs
+drop policy if exists "Server can insert audit logs" on public.audit_log;
 create policy "Server can insert audit logs"
   on public.audit_log for insert to authenticated
   with check (true);
@@ -46,6 +48,7 @@ $$;
 -- Add updated_at to profiles if not present
 alter table public.profiles add column if not exists updated_at timestamptz;
 
+drop trigger if exists on_profile_update_rate on public.profiles;
 create trigger on_profile_update_rate
   before update on public.profiles
   for each row execute function public.check_update_rate();
@@ -63,6 +66,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_profile_sanitize_name on public.profiles;
 create trigger on_profile_sanitize_name
   before insert or update on public.profiles
   for each row execute function public.sanitize_display_name();

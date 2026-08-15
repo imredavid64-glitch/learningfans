@@ -171,6 +171,98 @@ const MIGRATIONS = [
       { kind: "rpc", rpc: "run_housekeeping", name: "run_housekeeping RPC" },
     ],
   },
+  // Folded-in excluded migrations (audit 2026-08-15 — previously NOT on live).
+  {
+    id: "security_hardening",
+    name: "Security hardening (audit_log + rate limit)",
+    checks: [
+      { kind: "table", table: "audit_log", name: "audit_log table" },
+      { kind: "column", table: "profiles", column: "updated_at", name: "profiles.updated_at" },
+      { kind: "rpc", rpc: "check_update_rate", name: "check_update_rate RPC" },
+    ],
+  },
+  {
+    id: "profanity_escalation",
+    name: "Profanity escalation",
+    checks: [
+      { kind: "table", table: "profanity_incidents", name: "profanity_incidents table" },
+      { kind: "table", table: "profanity_notifications", name: "profanity_notifications table" },
+      { kind: "rpc", rpc: "get_profanity_status", name: "get_profanity_status RPC" },
+    ],
+  },
+  {
+    id: "notifications_xp",
+    name: "Notifications + XP/stats",
+    checks: [
+      { kind: "table", table: "notifications", name: "notifications table" },
+      { kind: "table", table: "user_stats", name: "user_stats table" },
+      { kind: "rpc", rpc: "get_leaderboard", name: "get_leaderboard RPC" },
+    ],
+  },
+  {
+    id: "reply_notifications",
+    name: "Reply notifications",
+    checks: [{ kind: "rpc", rpc: "notify_new_post", name: "notify_new_post RPC" }],
+  },
+  {
+    id: "web_push",
+    name: "Web push subscriptions",
+    checks: [
+      { kind: "table", table: "push_subscriptions", name: "push_subscriptions table" },
+      { kind: "column", table: "notifications", column: "push_sent_at", name: "notifications.push_sent_at" },
+    ],
+  },
+  {
+    id: "event_reminders",
+    name: "Schedule event reminders",
+    checks: [{ kind: "table", table: "schedule_event_reminders", name: "schedule_event_reminders table" }],
+  },
+  {
+    id: "emoji_reactions",
+    name: "Emoji reactions",
+    checks: [{ kind: "table", table: "study_room_message_reactions", name: "study_room_message_reactions table" }],
+  },
+  {
+    id: "community_rules",
+    name: "Community rules + announcements",
+    checks: [
+      { kind: "column", table: "spaces", column: "rules", name: "spaces.rules" },
+      { kind: "column", table: "spaces", column: "announcements", name: "spaces.announcements" },
+    ],
+  },
+  {
+    id: "thread_votes",
+    name: "Thread upvotes/downvotes",
+    checks: [
+      { kind: "table", table: "post_votes", name: "post_votes table" },
+      { kind: "column", table: "threads", column: "score", name: "threads.score" },
+      { kind: "rpc", rpc: "update_thread_score", name: "update_thread_score RPC" },
+    ],
+  },
+];
+
+// Base-critical schema surface that the app needs REGARDLESS of the batch —
+// the class of gap where check:push found notifications/user_stats/etc. were
+// silently missing on live despite being "known applied". These are audited
+// against live (scripts/audit-excluded-migrations.mjs) and are NOT in the batch.
+const BASE_TABLES = [
+  { kind: "table", table: "profiles", name: "profiles" },
+  { kind: "table", table: "spaces", name: "spaces" },
+  { kind: "table", table: "threads", name: "threads" },
+  { kind: "table", table: "posts", name: "posts" },
+  { kind: "table", table: "study_materials", name: "study_materials" },
+  { kind: "table", table: "schedule_events", name: "schedule_events" },
+  { kind: "table", table: "reports", name: "reports" },
+  { kind: "table", table: "moderation_actions", name: "moderation_actions" },
+  { kind: "table", table: "meetings", name: "meetings" },
+  { kind: "table", table: "meeting_participants", name: "meeting_participants" },
+  { kind: "table", table: "meeting_reminders", name: "meeting_reminders" },
+  { kind: "table", table: "schools", name: "schools" },
+  { kind: "table", table: "audit_log", name: "audit_log" },
+  { kind: "table", table: "study_rooms", name: "study_rooms" },
+  { kind: "table", table: "study_room_messages", name: "study_room_messages" },
+  { kind: "column", table: "spaces", column: "join_password_hash", name: "spaces.join_password_hash" },
+  { kind: "rpc", rpc: "get_db_size", name: "get_db_size RPC" },
 ];
 
 const ROUTES = ["/", "/login", "/signup", "/app/feed", "/app/communities", "/app/study-rooms", "/app/schedule"];
@@ -230,7 +322,8 @@ async function mapLimit(items, limit, fn) {
 function restPath(check) {
   switch (check.kind) {
     case "table":
-      return `${check.table}?select=id&limit=1`;
+      // select=* — composite-PK tables (meeting_participants) have no `id`.
+      return `${check.table}?select=*&limit=1`;
     case "column":
       return `${check.table}?select=${check.column}&limit=1`;
     case "enum":
@@ -292,6 +385,14 @@ async function main() {
     };
   }
 
+  // 1b) Base tables (assumed-applied schema, independent of the batch)
+  const baseResults = await mapLimit(BASE_TABLES, 6, async (check) => {
+    const status = await probeCheck(check, restBase, storageBase, headers);
+    const ok = okFor(check.kind, status);
+    return { name: check.name, kind: check.kind, status, ok };
+  });
+  const baseOkCount = baseResults.filter((r) => r.ok).length;
+
   // 2) Site + routes
   const siteRes = await fetchWithTimeout(appUrl, { redirect: "follow" }).catch(() => null);
   const site = siteRes
@@ -345,6 +446,7 @@ async function main() {
   };
 
   const migrationsOk = Object.values(migrationResults).filter((m) => m.ok).length;
+  const baseOk = baseOkCount === BASE_TABLES.length;
   const checksTotal = MIGRATIONS.reduce((n, m) => n + m.checks.length, 0);
   const checksFailed = MIGRATIONS.reduce(
     (n, m) => n + m.checks.filter((c) => !c.ok).length,
@@ -362,6 +464,7 @@ async function main() {
       site.ok &&
       routesOk === ROUTES.length &&
       migrationsOk === MIGRATIONS.length &&
+      baseOk &&
       requiredEnvOk === REQUIRED_ENV.length &&
       pushOk,
     checkedAt: new Date().toISOString(),
@@ -369,9 +472,11 @@ async function main() {
     routes: routeResults,
     push,
     migrations: migrationResults,
+    base: baseResults,
     env,
     summary: {
       migrations: { total: MIGRATIONS.length, ok: migrationsOk, missing: MIGRATIONS.length - migrationsOk },
+      base: { total: BASE_TABLES.length, ok: baseOkCount, missing: BASE_TABLES.length - baseOkCount },
       checks: { total: checksTotal, failed: checksFailed },
       routes: { total: ROUTES.length, ok: routesOk },
       push: { verified: push.checked, ok: pushOk },
@@ -386,10 +491,14 @@ async function main() {
     console.log(`Site: ${appUrl} → HTTP ${site.status} ${site.ok ? "✓" : "✗"}`);
     console.log(`Routes: ${routesOk}/${ROUTES.length} ok`);
     if (push.checked) {
-      const db = push.db ? `db: push_subscriptions=${push.db.push_subscriptions}, notifications=${push.db.notifications}` : "";
+      const db = push.db ? `db: ${Object.entries(push.db).map(([k, v]) => `${k}=${v}`).join(", ")}` : "";
       console.log(`Push: ${push.ok ? "✓" : "✗"} auth=${push.auth}${push.vapid ? ", VAPID configured" : ""} ${db}`);
     } else {
       console.log(`Push: ? unverified (${push.error || "no CRON_SECRET locally"})`);
+    }
+    console.log(`Base tables: ${baseOkCount}/${BASE_TABLES.length} ok`);
+    for (const b of baseResults) {
+      if (!b.ok) console.log(`  ✗ ${b.name} (HTTP ${b.status})`);
     }
     console.log(`Migrations: ${report.summary.migrations.ok}/${MIGRATIONS.length} live (${checksFailed} failing checks)`);
     for (const m of Object.values(migrationResults)) {

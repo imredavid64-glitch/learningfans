@@ -41,6 +41,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_new_post_notify on public.posts;
 create trigger on_new_post_notify
   after insert on public.posts
   for each row execute function public.notify_new_post();

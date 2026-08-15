@@ -1,7 +1,7 @@
 -- LearningFans: Emoji reactions on study room chat messages
 -- Apply this in the Supabase SQL editor: https://supabase.com/dashboard/project/xhximqrchwwwwwsysgdo/sql/new
 
-create table public.study_room_message_reactions (
+create table if not exists public.study_room_message_reactions (
   message_id uuid not null references public.study_room_messages (id) on delete cascade,
   -- Denormalized so realtime can filter per-room (postgres_changes supports
   -- simple column filters only).
@@ -12,10 +12,11 @@ create table public.study_room_message_reactions (
   primary key (message_id, user_id, emoji)
 );
 
-create index idx_study_room_reactions_room on public.study_room_message_reactions (room_id, created_at);
+create index if not exists idx_study_room_reactions_room on public.study_room_message_reactions (room_id, created_at);
 
 alter table public.study_room_message_reactions enable row level security;
 
+drop policy if exists "Reactions visible to room participants" on public.study_room_message_reactions;
 create policy "Reactions visible to room participants"
   on public.study_room_message_reactions for select to authenticated
   using (
@@ -33,6 +34,7 @@ create policy "Reactions visible to room participants"
     )
   );
 
+drop policy if exists "Users react in visible rooms" on public.study_room_message_reactions;
 create policy "Users react in visible rooms"
   on public.study_room_message_reactions for insert to authenticated
   with check (
@@ -53,9 +55,18 @@ create policy "Users react in visible rooms"
     )
   );
 
+drop policy if exists "Users remove own reactions" on public.study_room_message_reactions;
 create policy "Users remove own reactions"
   on public.study_room_message_reactions for delete to authenticated
   using (auth.uid() = user_id);
 
 -- Live reactions via realtime
-alter publication supabase_realtime add table public.study_room_message_reactions;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'study_room_message_reactions'
+  ) then
+    alter publication supabase_realtime add table public.study_room_message_reactions;
+  end if;
+end $$;

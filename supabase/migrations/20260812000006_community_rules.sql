@@ -9,6 +9,7 @@ alter table public.spaces
   add column if not exists announcements jsonb not null default '[]'::jsonb;
 
 -- App moderators (global role) can also manage any community's rules/announcements.
+drop policy if exists "App moderators can update spaces" on public.spaces;
 create policy "App moderators can update spaces"
   on public.spaces for update to authenticated
   using (public.is_app_moderator());

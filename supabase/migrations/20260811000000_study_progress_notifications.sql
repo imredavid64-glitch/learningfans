@@ -4,7 +4,7 @@
 -- ------------------------------------------------------------------
 -- Gamification: user stats (XP, streaks, level)
 -- ------------------------------------------------------------------
-create table public.user_stats (
+create table if not exists public.user_stats (
   user_id uuid primary key references public.profiles (id) on delete cascade,
   total_xp bigint not null default 0,
   current_streak int not null default 0,
@@ -15,7 +15,7 @@ create table public.user_stats (
   updated_at timestamptz not null default now()
 );
 
-create index idx_user_stats_xp on public.user_stats (total_xp desc);
+create index if not exists idx_user_stats_xp on public.user_stats (total_xp desc);
 
 -- Level is derived from XP: 100 XP per level (level 1 = 0-99, level 2 = 100-199, ...)
 create or replace function public.xp_to_level(p_xp bigint)
@@ -175,15 +175,18 @@ $$;
 
 alter table public.user_stats enable row level security;
 
+drop policy if exists "Users view own stats" on public.user_stats;
 create policy "Users view own stats"
   on public.user_stats for select to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Users update own stats" on public.user_stats;
 create policy "Users update own stats"
   on public.user_stats for update to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users insert own stats" on public.user_stats;
 create policy "Users insert own stats"
   on public.user_stats for insert to authenticated
   with check (auth.uid() = user_id);
@@ -191,7 +194,7 @@ create policy "Users insert own stats"
 -- ------------------------------------------------------------------
 -- Notifications
 -- ------------------------------------------------------------------
-create table public.notifications (
+create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles (id) on delete cascade,
   actor_id uuid references public.profiles (id) on delete set null,
@@ -203,7 +206,7 @@ create table public.notifications (
   created_at timestamptz not null default now()
 );
 
-create index idx_notifications_user on public.notifications (user_id, created_at desc);
+create index if not exists idx_notifications_user on public.notifications (user_id, created_at desc);
 
 create or replace function public.create_notification(
   p_user_id uuid,
@@ -226,15 +229,18 @@ $$;
 
 alter table public.notifications enable row level security;
 
+drop policy if exists "Users view own notifications" on public.notifications;
 create policy "Users view own notifications"
   on public.notifications for select to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Users mark own notifications read" on public.notifications;
 create policy "Users mark own notifications read"
   on public.notifications for update to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users delete own notifications" on public.notifications;
 create policy "Users delete own notifications"
   on public.notifications for delete to authenticated
   using (auth.uid() = user_id);
@@ -268,6 +274,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_new_material_notify on public.study_materials;
 create trigger on_new_material_notify
   after insert on public.study_materials
   for each row execute function public.notify_new_material();
@@ -295,6 +302,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_new_thread_notify on public.threads;
 create trigger on_new_thread_notify
   after insert on public.threads
   for each row execute function public.notify_new_thread();
@@ -322,9 +330,18 @@ begin
 end;
 $$;
 
+drop trigger if exists on_new_meeting_notify on public.meetings;
 create trigger on_new_meeting_notify
   after insert on public.meetings
   for each row execute function public.notify_new_meeting();
 
 -- Realtime for the notification bell
-alter publication supabase_realtime add table public.notifications;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end $$;

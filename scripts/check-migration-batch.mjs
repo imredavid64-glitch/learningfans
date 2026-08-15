@@ -27,24 +27,20 @@ const MIGRATIONS_DIR = join(root, "supabase", "migrations");
 const BATCH_FILE = "pending_apply.sql";
 
 // Migrations intentionally NOT folded into pending_apply.sql, with a reason.
+// Migrations audited against live on 2026-08-15 (scripts/audit-excluded-migrations.mjs):
+// the 9 that were NOT applied (security hardening, profanity escalation,
+// notifications/XP, reply notifications, push, reminders, reactions, community
+// rules, thread votes) were made idempotent and folded into the batch — do NOT
+// move them back here. Only genuinely-applied migrations stay excluded.
 const KNOWN_EXCLUDED = new Map([
   ["20260520100000_initial_schema.sql", "base schema, applied at project creation"],
   ["20260524100000_profile_insert_policy.sql", "legacy, superseded by the _only variant"],
   ["20260528100000_profile_insert_policy_only.sql", "legacy, applied long ago"],
-  ["20260715000000_security.sql", "legacy, applied long ago"],
   ["20260720000000_archive_security.sql", "runs in the ARCHIVE project, not the main DB"],
-  ["20260727000000_meetings.sql", "legacy, applied long ago"],
-  ["20260727000001_space_passwords.sql", "legacy, applied long ago"],
-  ["20260728000000_multi_tenant_schools.sql", "legacy, applied long ago"],
-  ["20260807000000_profanity_escalation.sql", "legacy, applied long ago"],
-  ["20260811000000_study_progress_notifications.sql", "legacy, applied long ago"],
-  ["20260812000001_reply_notifications.sql", "legacy, applied long ago"],
-  ["20260812000002_schedule_event_reminders.sql", "legacy, applied long ago"],
-  ["20260812000003_push_subscriptions.sql", "legacy, applied long ago"],
-  ["20260812000004_study_rooms.sql", "legacy, applied long ago"],
-  ["20260812000005_study_room_reactions.sql", "legacy, applied long ago"],
-  ["20260812000006_community_rules.sql", "legacy, applied long ago"],
-  ["20260812000007_thread_votes.sql", "legacy, applied long ago"],
+  ["20260727000000_meetings.sql", "applied (audit 2026-08-15)"],
+  ["20260727000001_space_passwords.sql", "applied (audit 2026-08-15)"],
+  ["20260728000000_multi_tenant_schools.sql", "applied (audit 2026-08-15)"],
+  ["20260812000004_study_rooms.sql", "applied (audit 2026-08-15)"],
 ]);
 
 // Filename convention: YYYYMMDDHHMMSS_name.sql (Supabase-style timestamp prefix).

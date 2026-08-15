@@ -21,11 +21,13 @@ public launch. Companion docs: [README](../README.md) (setup/deploy),
       `supabase/migrations/pending_apply.sql` via the Supabase Management API (needs
       `SUPABASE_ACCESS_TOKEN=sbp_…` in `.env.local`, from
       supabase.com/dashboard/account/tokens), then re-probes live and reports what flipped
-      on. Expect **`Migrations live: X/18 → 18/18`**, a **Flipped on** list, and **Still
+      on. Expect **`Migrations live: X/27 → 27/27`**, a **Flipped on** list, and **Still
       missing: none**. No token? Fall back to pasting `pending_apply.sql` into the SQL
       editor of `xhximqrchwwwwwsysgdo` → Run (idempotent — safe to re-run on error).
-- [ ] Missing feature migrations applied manually (see README table) — the ones NOT in
-  the batch: `20260812000001…0004`, `20260811000000`, `20260807000000`, `20260728000000`
+- [ ] Every required migration is in the batch — the excluded set was audited against
+      live on 2026-08-15 (`npm run audit:excluded`); the 9 that were NOT applied were
+      made idempotent and folded in. Only genuinely-applied base schema stays excluded,
+      and the smoke test's **base tables** section verifies that surface every run.
 - [ ] First admin promoted: `update public.profiles set role = 'admin' where display_name = '<name>';`
 
 ### Vercel environment variables
@@ -62,9 +64,10 @@ public launch. Companion docs: [README](../README.md) (setup/deploy),
 - [ ] `npm run lint` → clean
 - [ ] `npm run build` → compiles, no route errors
 - [ ] `npm run smoke:launch -- --json` → **exit 0 / `"ok": true`**: site HTTP 200,
-      all routes ok, **18/18 migrations live** (every batch feature flips on), required
-      env present — if migrations aren't 18/18, apply the batch with
-      `npm run db:apply -- --verify` (or paste `pending_apply.sql` into the SQL editor)
+      all routes ok, **17/17 base tables live** + **27/27 migrations live** (every batch
+      feature flips on), required env present — if migrations aren't 27/27, apply the
+      batch with `npm run db:apply -- --verify` (or paste `pending_apply.sql` into the
+      SQL editor)
 - [ ] `npm run verify:realtime` → **exit 0 / `"✅ Realtime + RLS backbone is live"`**: proves
       `postgres_changes` actually delivers (room chat + community feed), RLS blocks anonymous
       reads/writes/realtime, and whiteboard presence + broadcast work cross-client. Any
