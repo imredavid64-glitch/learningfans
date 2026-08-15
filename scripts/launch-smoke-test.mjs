@@ -5,7 +5,9 @@
 //   1. every pending migration's schema is live (tables, columns, enum values,
 //      RPCs, storage buckets) via PostgREST with the service-role key,
 //   2. the deployed site answers HTTP 200 and key routes aren't 404,
-//   3. required env vars are present in the local environment.
+//   3. push readiness — the deployed /api/push/send?dry=1 (auth + VAPID +
+//      pipeline tables; side-effect-free by design), when CRON_SECRET is set,
+//   4. required env vars are present in the local environment.
 //
 // Emits a JSON health report (--json) and exits 0 when everything is live,
 // 1 when any required check fails, 2 on configuration errors.
@@ -303,6 +305,39 @@ async function main() {
     routeResults[route] = { status, ok: status !== 0 && status !== 404 && status < 500 };
   }
 
+  // 2b) Push readiness — verify the DEPLOYED /api/push/send route via its
+  //     side-effect-free dry mode (auth + VAPID + pipeline tables). Only runs
+  //     when CRON_SECRET is available locally (it's the caller's credential).
+  let push = { ok: false, checked: false };
+  const cronSecret = process.env.CRON_SECRET || "";
+  if (cronSecret) {
+    const res = await fetchWithTimeout(`${appUrl}/api/push/send?dry=1`, {
+      headers: { Authorization: `Bearer ${cronSecret}` },
+    }).catch(() => null);
+    if (res) {
+      const body = await res.json().catch(() => null);
+      const healthy = res.status === 200 && body?.ok === true;
+      push = {
+        ok: healthy,
+        checked: true,
+        httpStatus: res.status,
+        auth: res.status === 401 ? "mismatch" : res.status === 200 ? "ok" : "failed",
+        vapid: body?.vapid
+          ? { configured: true, subject: body.vapid.subject, publicKey: body.vapid.publicKey }
+          : null,
+        db: body?.db ?? null,
+      };
+    } else {
+      push = { ok: false, checked: false, error: "network error reaching the dry endpoint" };
+    }
+  } else {
+    push = {
+      ok: false,
+      checked: false,
+      error: "CRON_SECRET not set locally — cannot verify the deployed push route (see env.optional)",
+    };
+  }
+
   // 3) Env vars (local snapshot — informational for the optional set)
   const env = {
     required: Object.fromEntries(REQUIRED_ENV.map((k) => [k, Boolean(process.env[k])])),
@@ -318,21 +353,28 @@ async function main() {
   const routesOk = Object.values(routeResults).filter((r) => r.ok).length;
   const requiredEnvOk = Object.values(env.required).filter(Boolean).length;
 
+  // Fail only when the push route was verified and is unhealthy; an unverified
+  // check (no local CRON_SECRET) is reported but doesn't gate the exit code.
+  const pushOk = !push.checked || push.ok;
+
   const report = {
     ok:
       site.ok &&
       routesOk === ROUTES.length &&
       migrationsOk === MIGRATIONS.length &&
-      requiredEnvOk === REQUIRED_ENV.length,
+      requiredEnvOk === REQUIRED_ENV.length &&
+      pushOk,
     checkedAt: new Date().toISOString(),
     site,
     routes: routeResults,
+    push,
     migrations: migrationResults,
     env,
     summary: {
       migrations: { total: MIGRATIONS.length, ok: migrationsOk, missing: MIGRATIONS.length - migrationsOk },
       checks: { total: checksTotal, failed: checksFailed },
       routes: { total: ROUTES.length, ok: routesOk },
+      push: { verified: push.checked, ok: pushOk },
       requiredEnv: { total: REQUIRED_ENV.length, ok: requiredEnvOk },
     },
   };
@@ -343,6 +385,12 @@ async function main() {
     console.log(`Launch smoke test — ${report.checkedAt}`);
     console.log(`Site: ${appUrl} → HTTP ${site.status} ${site.ok ? "✓" : "✗"}`);
     console.log(`Routes: ${routesOk}/${ROUTES.length} ok`);
+    if (push.checked) {
+      const db = push.db ? `db: push_subscriptions=${push.db.push_subscriptions}, notifications=${push.db.notifications}` : "";
+      console.log(`Push: ${push.ok ? "✓" : "✗"} auth=${push.auth}${push.vapid ? ", VAPID configured" : ""} ${db}`);
+    } else {
+      console.log(`Push: ? unverified (${push.error || "no CRON_SECRET locally"})`);
+    }
     console.log(`Migrations: ${report.summary.migrations.ok}/${MIGRATIONS.length} live (${checksFailed} failing checks)`);
     for (const m of Object.values(migrationResults)) {
       console.log(`  ${m.ok ? "✓" : "✗"} ${m.id}`);

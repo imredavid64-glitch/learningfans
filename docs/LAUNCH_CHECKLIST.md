@@ -17,8 +17,15 @@ public launch. Companion docs: [README](../README.md) (setup/deploy),
 - [ ] Schema applied end-to-end — run [`supabase/verify_schema.sql`](../supabase/verify_schema.sql)
   in the SQL editor; **all 16 tables show `exists = true`** (includes `study_rooms`,
   `study_room_messages`, `push_subscriptions`, `notifications`, `user_stats`, …)
-- [ ] Missing feature migrations applied manually (see README table):
-  `20260812000001…0004`, `20260811000000`, `20260807000000`, `20260728000000`
+- [ ] **Apply the pending batch (canonical):** `npm run db:apply -- --verify` — applies
+      `supabase/migrations/pending_apply.sql` via the Supabase Management API (needs
+      `SUPABASE_ACCESS_TOKEN=sbp_…` in `.env.local`, from
+      supabase.com/dashboard/account/tokens), then re-probes live and reports what flipped
+      on. Expect **`Migrations live: X/18 → 18/18`**, a **Flipped on** list, and **Still
+      missing: none**. No token? Fall back to pasting `pending_apply.sql` into the SQL
+      editor of `xhximqrchwwwwwsysgdo` → Run (idempotent — safe to re-run on error).
+- [ ] Missing feature migrations applied manually (see README table) — the ones NOT in
+  the batch: `20260812000001…0004`, `20260811000000`, `20260807000000`, `20260728000000`
 - [ ] First admin promoted: `update public.profiles set role = 'admin' where display_name = '<name>';`
 
 ### Vercel environment variables
@@ -56,7 +63,12 @@ public launch. Companion docs: [README](../README.md) (setup/deploy),
 - [ ] `npm run build` → compiles, no route errors
 - [ ] `npm run smoke:launch -- --json` → **exit 0 / `"ok": true`**: site HTTP 200,
       all routes ok, **18/18 migrations live** (every batch feature flips on), required
-      env present — see the failing-migration list if not (fix by applying `pending_apply.sql`)
+      env present — if migrations aren't 18/18, apply the batch with
+      `npm run db:apply -- --verify` (or paste `pending_apply.sql` into the SQL editor)
+- [ ] `npm run verify:realtime` → **exit 0 / `"✅ Realtime + RLS backbone is live"`**: proves
+      `postgres_changes` actually delivers (room chat + community feed), RLS blocks anonymous
+      reads/writes/realtime, and whiteboard presence + broadcast work cross-client. Any
+      `blocked` line means a realtime dependency's migration isn't applied (bell/reactions).
 - [ ] `https://learningfans.vercel.app` loads (HTTP 200) and `/login` renders
 - [ ] Unauthenticated `/app/*` redirects to login (307 with `?redirect=`)
 
