@@ -8,6 +8,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-15 — check:digest script (one-command digest dry check)
+- **`scripts/check-digest-health.mjs`** (`npm run check:digest`): mirrors check:push — calls `GET {APP_URL}/api/cron/digest?dry=1` with `Bearer $CRON_SECRET`, renders the four-probe db line via the shared `renderDb` (now exported from check-push-health.mjs, whose `main()` is import-guarded so it can be imported without running), exit 0 = fully configured, 1 = problem, 2 = local config. No VAPID branch — the digest route has no push component.
+- Verified live: HTTP 200 with all four `missing` (exit 1 — schema not applied yet); wrong secret → 401 branch renders correctly. Lint + syntax clean. Doc: DEPLOYMENT (Cron section).
+
 ## 2026-08-15 — Digest route gets a side-effect-free dry mode
 - `src/app/api/cron/digest/route.ts` now answers `?dry=1` (same `CRON_SECRET` auth): probes the digest pipeline's surface — `notifications` + `parent_digests` tables, `user_stats`, and the read-only `get_leaderboard` RPC — then short-circuits BEFORE `send_weekly_digests` / `send_parent_digests` / party reminders (those are the side effects dry mode exists to avoid, so they're never called). Returns `{ ok, mode: "dry", auth, db }`; `ok` = all four `ok`. Swap vs check:push: `push_subscriptions` → `parent_digests` (the digest's own table).
 - New `route.test.ts` (+4): 401 without secret; dry reports full config and asserts `rpc` called ONLY with `get_leaderboard` (never the digest RPCs) and no reminders; missing tables → all four `missing`; non-dry still sends weekly + parent digests + reminders.

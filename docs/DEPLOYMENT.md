@@ -68,6 +68,7 @@ party reminders, push sends), so don't curl it to test. Instead use its dry mode
 ```bash
 npm run check:push            # -> exit 0 = fully configured
 npm run check:push -- --json  # machine-readable report
+npm run check:digest          # same contract for /api/cron/digest (no VAPID)
 ```
 
 It calls `GET /api/push/send?dry=1` with `Authorization: Bearer $CRON_SECRET`.
