@@ -344,7 +344,7 @@ Your student ' || v_profile.display_name || ' has been SUSPENDED from LearningFa
 This is the final escalation tier. The account is now suspended and cannot access LearningFans features.
 
 Violation count: ' || v_violation_count || '
-Detected language: ' || array_to_string(p_detected_words, ', ')
+Detected language: ' || array_to_string(p_detected_words, ', ') || '
 Context: ' || p_context_type || '
 
 Please contact LearningFans support if you believe this is in error or to discuss reinstatement.
@@ -736,7 +736,7 @@ declare
   v_author_name text;
 begin
   select t.id, t.title, t.author_id, t.space_id, s.slug
-    into v_thread.id, v_thread.title, v_thread.author_id, v_thread.space_id, v_thread.slug
+    into v_thread
   from public.threads t
   join public.spaces s on s.id = t.space_id
   where t.id = new.thread_id;
@@ -1182,7 +1182,7 @@ declare
   v_parent_author uuid;
 begin
   select t.id, t.title, t.author_id, t.space_id, s.slug
-    into v_thread.id, v_thread.title, v_thread.author_id, v_thread.space_id, v_thread.slug
+    into v_thread
   from public.threads t
   join public.spaces s on s.id = t.space_id
   where t.id = new.thread_id;

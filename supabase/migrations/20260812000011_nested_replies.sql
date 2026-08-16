@@ -20,7 +20,7 @@ declare
   v_parent_author uuid;
 begin
   select t.id, t.title, t.author_id, t.space_id, s.slug
-    into v_thread.id, v_thread.title, v_thread.author_id, v_thread.space_id, v_thread.slug
+    into v_thread
   from public.threads t
   join public.spaces s on s.id = t.space_id
   where t.id = new.thread_id;

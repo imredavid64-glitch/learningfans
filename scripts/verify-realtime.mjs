@@ -211,7 +211,8 @@ async function main() {
   // A3. notifications (the bell) — table lives in 20260811000000, which is in
   //     the CI KNOWN_EXCLUDED list but NOT applied to live.
   {
-    const { error } = await service.from("notifications").select("id").limit(1);
+    // select(*) — table existence only; composite-PK tables have no `id` column.
+    const { error } = await service.from("notifications").select("*").limit(1);
     if (isMissingTable(error)) {
       check("realtime: notifications (bell)", false, "blocked",
         "table not on live — apply 20260811000000_study_progress_notifications.sql (bell realtime is broken until then)");
@@ -229,22 +230,34 @@ async function main() {
 
   // A4. study_room_message_reactions (emoji reactions) — 20260812000005.
   {
-    const { error } = await service.from("study_room_message_reactions").select("id").limit(1);
+    // select(*) — this table's PK is (room_id, message_id, user_id); there is
+    // no `id` column, and a column-not-found error (PGRST204) must not be
+    // misread as a missing table (which isMissingTable() would do).
+    const { error } = await service.from("study_room_message_reactions").select("*").limit(1);
     if (isMissingTable(error)) {
       check("realtime: study_room_message_reactions (reactions)", false, "blocked",
         "table not on live — apply 20260812000005_study_room_reactions.sql (reaction realtime is broken until then)");
     } else if (roomId) {
+      // Reactions FK to study_room_messages, so create a real message first.
       const r = await probeChange({
         client: userClient,
         table: "study_room_message_reactions",
         filter: `room_id=eq.${roomId}`,
-        fire: () =>
-          userClient.from("study_room_message_reactions").insert({
+        fire: async () => {
+          const { data: msg, error: msgErr } = await userClient
+            .from("study_room_messages")
+            .insert({ room_id: roomId, user_id: testUserId, body: `rt-probe-msg-${tag}` })
+            .select("id")
+            .single();
+          if (msgErr || !msg?.id) throw new Error(msgErr?.message ?? "no message id");
+          const { error: reactErr } = await userClient.from("study_room_message_reactions").insert({
             room_id: roomId,
-            message_id: "00000000-0000-0000-0000-000000000000",
+            message_id: msg.id,
             user_id: testUserId,
             emoji: "👍",
-          }),
+          });
+          if (reactErr) throw new Error(reactErr?.message ?? "reaction insert failed");
+        },
         ms: POSITIVE_MS,
       });
       check("realtime: study_room_message_reactions (reactions)", r.ok, r.ok ? "ok" : "error", r.reason);

@@ -3,10 +3,15 @@
 //
 // Verifies, against the DEPLOYED Supabase project:
 //   1. every pending migration's schema is live (tables, columns, enum values,
-//      RPCs, storage buckets) via PostgREST with the service-role key,
+//      RPCs, storage buckets) via PostgREST with the service-role key. RPCs
+//      are checked against the PostgREST OpenAPI spec (the definitive
+//      schema-cache truth — a bare rpc() call lies for functions with named
+//      params, and trigger functions are never exposed via REST),
 //   2. the deployed site answers HTTP 200 and key routes aren't 404,
-//   3. push readiness — the deployed /api/push/send?dry=1 (auth + VAPID +
-//      pipeline tables; side-effect-free by design), when CRON_SECRET is set,
+//   3. cron readiness — the deployed /api/push/send?dry=1 (auth + VAPID +
+//      push pipeline tables) and /api/cron/digest?dry=1 (digest pipeline
+//      tables), both side-effect-free by design, when CRON_SECRET is set.
+//      Together they report the full 8-probe cron surface,
 //   4. required env vars are present in the local environment.
 //
 // Emits a JSON health report (--json) and exits 0 when everything is live,
@@ -178,7 +183,6 @@ const MIGRATIONS = [
     checks: [
       { kind: "table", table: "audit_log", name: "audit_log table" },
       { kind: "column", table: "profiles", column: "updated_at", name: "profiles.updated_at" },
-      { kind: "rpc", rpc: "check_update_rate", name: "check_update_rate RPC" },
     ],
   },
   {
@@ -202,7 +206,10 @@ const MIGRATIONS = [
   {
     id: "reply_notifications",
     name: "Reply notifications",
-    checks: [{ kind: "rpc", rpc: "notify_new_post", name: "notify_new_post RPC" }],
+    // Trigger-only migration: notify_new_post (returns trigger) is never
+    // exposed via PostgREST, so it's verified via the table its trigger
+    // writes into (same dependsOn logic as scripts/audit-excluded-migrations.mjs).
+    checks: [{ kind: "table", table: "notifications", name: "notifications table (reply-trigger dependency)" }],
   },
   {
     id: "web_push",
@@ -236,7 +243,6 @@ const MIGRATIONS = [
     checks: [
       { kind: "table", table: "post_votes", name: "post_votes table" },
       { kind: "column", table: "threads", column: "score", name: "threads.score" },
-      { kind: "rpc", rpc: "update_thread_score", name: "update_thread_score RPC" },
     ],
   },
 ];
@@ -335,10 +341,19 @@ function restPath(check) {
   }
 }
 
-async function probeCheck(check, restBase, storageBase, headers) {
+async function probeCheck(check, restBase, storageBase, headers, specPaths) {
   if (check.kind === "bucket") {
     const res = await fetchWithTimeout(`${storageBase}/bucket/${check.bucket}`, { headers, redirect: "manual" }).catch(() => null);
     return res ? res.status : 0;
+  }
+  // RPCs are verified against the PostgREST OpenAPI spec — the definitive
+  // schema-cache truth. A bare no-arg rpc() call returns PGRST202 for ANY
+  // function with named params, and trigger functions (returns trigger) are
+  // never exposed via PostgREST at all, so REST status codes can't serve as
+  // an existence check (see scripts/audit-excluded-migrations.mjs).
+  if (check.kind === "rpc") {
+    if (!specPaths) return 0; // spec fetch failed → treat as network error
+    return specPaths.has(`/rpc/${check.rpc}`) ? 200 : 404;
   }
   const path = restPath(check);
   if (!path) return 0;
@@ -369,11 +384,24 @@ async function main() {
     Authorization: `Bearer ${serviceKey}`,
   };
 
+  // Fetch the PostgREST OpenAPI spec once — the definitive schema-cache truth
+  // for tables and callable RPCs (see probeCheck).
+  let specPaths = null;
+  {
+    const res = await fetchWithTimeout(`${restBase}/`, {
+      headers: { ...headers, Accept: "application/openapi+json" },
+    }).catch(() => null);
+    if (res && res.ok) {
+      const spec = await res.json().catch(() => null);
+      if (spec && spec.paths) specPaths = new Set(Object.keys(spec.paths));
+    }
+  }
+
   // 1) Migration checks
   const migrationResults = {};
   for (const migration of MIGRATIONS) {
     const checks = await mapLimit(migration.checks, 4, async (check) => {
-      const status = await probeCheck(check, restBase, storageBase, headers);
+      const status = await probeCheck(check, restBase, storageBase, headers, specPaths);
       const ok = okFor(check.kind, status);
       return { name: check.name, kind: check.kind, status, ok };
     });
@@ -387,7 +415,7 @@ async function main() {
 
   // 1b) Base tables (assumed-applied schema, independent of the batch)
   const baseResults = await mapLimit(BASE_TABLES, 6, async (check) => {
-    const status = await probeCheck(check, restBase, storageBase, headers);
+    const status = await probeCheck(check, restBase, storageBase, headers, specPaths);
     const ok = okFor(check.kind, status);
     return { name: check.name, kind: check.kind, status, ok };
   });
@@ -406,37 +434,43 @@ async function main() {
     routeResults[route] = { status, ok: status !== 0 && status !== 404 && status < 500 };
   }
 
-  // 2b) Push readiness — verify the DEPLOYED /api/push/send route via its
-  //     side-effect-free dry mode (auth + VAPID + pipeline tables). Only runs
-  //     when CRON_SECRET is available locally (it's the caller's credential).
-  let push = { ok: false, checked: false };
+  // 2b) Cron-route readiness — verify the DEPLOYED dry modes via their
+  //     side-effect-free endpoints (auth + pipeline tables; nothing is sent).
+  //     Both run only when CRON_SECRET is available locally (the caller's
+  //     credential). Together they report the full 8-probe cron surface:
+  //     push (push_subscriptions, notifications, user_stats, get_leaderboard)
+  //     + digest (notifications, parent_digests, user_stats, get_leaderboard).
   const cronSecret = process.env.CRON_SECRET || "";
-  if (cronSecret) {
-    const res = await fetchWithTimeout(`${appUrl}/api/push/send?dry=1`, {
+  async function checkDryRoute(path) {
+    const res = await fetchWithTimeout(`${appUrl}${path}`, {
       headers: { Authorization: `Bearer ${cronSecret}` },
     }).catch(() => null);
-    if (res) {
-      const body = await res.json().catch(() => null);
-      const healthy = res.status === 200 && body?.ok === true;
-      push = {
-        ok: healthy,
-        checked: true,
-        httpStatus: res.status,
-        auth: res.status === 401 ? "mismatch" : res.status === 200 ? "ok" : "failed",
-        vapid: body?.vapid
-          ? { configured: true, subject: body.vapid.subject, publicKey: body.vapid.publicKey }
-          : null,
-        db: body?.db ?? null,
-      };
-    } else {
-      push = { ok: false, checked: false, error: "network error reaching the dry endpoint" };
-    }
-  } else {
-    push = {
-      ok: false,
-      checked: false,
-      error: "CRON_SECRET not set locally — cannot verify the deployed push route (see env.optional)",
+    if (!res) return { ok: false, checked: false, error: "network error reaching the dry endpoint" };
+    const body = await res.json().catch(() => null);
+    const healthy = res.status === 200 && body?.ok === true;
+    return {
+      ok: healthy,
+      checked: true,
+      httpStatus: res.status,
+      auth: res.status === 401 ? "mismatch" : res.status === 200 ? "ok" : "failed",
+      body: body ?? null,
+      db: body?.db ?? null,
     };
+  }
+
+  let push = { ok: false, checked: false };
+  let digest = { ok: false, checked: false };
+  if (cronSecret) {
+    push = await checkDryRoute("/api/push/send?dry=1");
+    digest = await checkDryRoute("/api/cron/digest?dry=1");
+    // VAPID lives only on the push route's dry response.
+    push.vapid = push.body?.vapid
+      ? { configured: true, subject: push.body.vapid.subject, publicKey: push.body.vapid.publicKey }
+      : null;
+  } else {
+    const err = "CRON_SECRET not set locally — cannot verify the deployed cron routes (see env.optional)";
+    push = { ok: false, checked: false, error: err };
+    digest = { ok: false, checked: false, error: err };
   }
 
   // 3) Env vars (local snapshot — informational for the optional set)
@@ -448,16 +482,23 @@ async function main() {
   const migrationsOk = Object.values(migrationResults).filter((m) => m.ok).length;
   const baseOk = baseOkCount === BASE_TABLES.length;
   const checksTotal = MIGRATIONS.reduce((n, m) => n + m.checks.length, 0);
-  const checksFailed = MIGRATIONS.reduce(
+  // Count from the LIVE results — the static MIGRATIONS config has no `ok`.
+  const checksFailed = Object.values(migrationResults).reduce(
     (n, m) => n + m.checks.filter((c) => !c.ok).length,
     0,
   );
   const routesOk = Object.values(routeResults).filter((r) => r.ok).length;
   const requiredEnvOk = Object.values(env.required).filter(Boolean).length;
 
-  // Fail only when the push route was verified and is unhealthy; an unverified
+  // Fail only when a cron route was verified and is unhealthy; an unverified
   // check (no local CRON_SECRET) is reported but doesn't gate the exit code.
   const pushOk = !push.checked || push.ok;
+  const digestOk = !digest.checked || digest.ok;
+  const cronProbes = [
+    ...(push.db ? Object.entries(push.db).map(([k, v]) => ({ probe: `push.${k}`, status: v })) : []),
+    ...(digest.db ? Object.entries(digest.db).map(([k, v]) => ({ probe: `digest.${k}`, status: v })) : []),
+  ];
+  const cronProbesOk = cronProbes.filter((p) => p.status === "ok").length;
 
   const report = {
     ok:
@@ -466,11 +507,12 @@ async function main() {
       migrationsOk === MIGRATIONS.length &&
       baseOk &&
       requiredEnvOk === REQUIRED_ENV.length &&
-      pushOk,
+      pushOk &&
+      digestOk,
     checkedAt: new Date().toISOString(),
     site,
     routes: routeResults,
-    push,
+    cron: { push, digest, probes: cronProbes },
     migrations: migrationResults,
     base: baseResults,
     env,
@@ -480,6 +522,8 @@ async function main() {
       checks: { total: checksTotal, failed: checksFailed },
       routes: { total: ROUTES.length, ok: routesOk },
       push: { verified: push.checked, ok: pushOk },
+      digest: { verified: digest.checked, ok: digestOk },
+      cronProbes: { total: cronProbes.length, ok: cronProbesOk, missing: cronProbes.length - cronProbesOk },
       requiredEnv: { total: REQUIRED_ENV.length, ok: requiredEnvOk },
     },
   };
@@ -495,6 +539,16 @@ async function main() {
       console.log(`Push: ${push.ok ? "✓" : "✗"} auth=${push.auth}${push.vapid ? ", VAPID configured" : ""} ${db}`);
     } else {
       console.log(`Push: ? unverified (${push.error || "no CRON_SECRET locally"})`);
+    }
+    if (digest.checked) {
+      const db = digest.db ? `db: ${Object.entries(digest.db).map(([k, v]) => `${k}=${v}`).join(", ")}` : "";
+      console.log(`Digest: ${digest.ok ? "✓" : "✗"} auth=${digest.auth} ${db}`);
+    } else {
+      console.log(`Digest: ? unverified (${digest.error || "no CRON_SECRET locally"})`);
+    }
+    if (cronProbes.length) {
+      const ok = cronProbes.filter((p) => p.status === "ok").length;
+      console.log(`Cron probes: ${ok}/${cronProbes.length} ok`);
     }
     console.log(`Base tables: ${baseOkCount}/${BASE_TABLES.length} ok`);
     for (const b of baseResults) {

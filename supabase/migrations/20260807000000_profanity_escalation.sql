@@ -196,7 +196,7 @@ Your student ' || v_profile.display_name || ' has been SUSPENDED from LearningFa
 This is the final escalation tier. The account is now suspended and cannot access LearningFans features.
 
 Violation count: ' || v_violation_count || '
-Detected language: ' || array_to_string(p_detected_words, ', ')
+Detected language: ' || array_to_string(p_detected_words, ', ') || '
 Context: ' || p_context_type || '
 
 Please contact LearningFans support if you believe this is in error or to discuss reinstatement.
