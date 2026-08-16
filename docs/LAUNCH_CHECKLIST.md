@@ -77,6 +77,17 @@ public launch. Companion docs: [README](../README.md) (setup/deploy),
       `postgres_changes` actually delivers (room chat + community feed), RLS blocks anonymous
       reads/writes/realtime, and whiteboard presence + broadcast work cross-client. Any
       `blocked` line means a realtime dependency's migration isn't applied (bell/reactions).
+- [ ] `npm run walk:launch` → **exit 0 / `"✅ Launch walk passed"`**: automates the server-side
+      half of Section 2–3 below against live — creates two fresh users via the Auth admin API,
+      signs them in with real JWTs (so RLS is exercised for real), and walks community (space →
+      join → thread → nested reply → upvote), quiz (create → take → leaderboard), study party
+      (scheduled room → RSVP → future-only RLS gate), whiteboard sync (stroke snapshot + chat
+      round-trip), **file materials** (PDF + image upload to the materials bucket, signed-URL
+      preview round-trips the exact bytes, non-uploader blocked by RLS), **review queue** (missed
+      quiz question → SM-2 flashcard deck, idempotent re-find) and **saved folders** (create
+      folder → save thread + material → delete folder returns items to Uncategorized).
+      Self-cleaning — test users, storage files, and data are deleted on exit unless `--keep-data`
+      is passed (use that flag to inspect the data mid-walk).
 - [ ] `https://learningfans.vercel.app` loads (HTTP 200) and `/login` renders
 - [ ] Unauthenticated `/app/*` redirects to login (307 with `?redirect=`)
 

@@ -39,6 +39,7 @@
     "check:env": "node scripts/check-env-drift.mjs",
     "gate:predeploy": "node scripts/pre-deploy-gate.mjs",
     "verify:realtime": "node scripts/verify-realtime.mjs",
+    "walk:launch": "node scripts/launch-walk.mjs",
     "audit:excluded": "node scripts/audit-excluded-migrations.mjs"
   },
   "dependencies": {
