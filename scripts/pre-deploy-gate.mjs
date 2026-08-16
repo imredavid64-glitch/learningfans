@@ -1,12 +1,15 @@
 #!/usr/bin/env node
-// Pre-deploy gate — run before `vercel --prod`.
+// Pre-deploy gate — the single command to run before `vercel --prod`.
 //
-// Chains the four config checks that must all pass before a deploy is worth
-// shipping:
-//   1. check:env         — .env.local / .env.example vs Vercel production drift
-//   2. check:migrations  — pending_apply.sql batch is in sync with the CI list
-//   3. check:push        — deployed /api/push/send?dry=1 (auth + VAPID + 4 probes)
-//   4. check:digest      — deployed /api/cron/digest?dry=1 (auth + 4 probes)
+// Chains the code-quality checks (fast, fail first) and then the config checks
+// that must all pass before a deploy is worth shipping:
+//   1. lint             — eslint
+//   2. tsc              — typecheck (tsc --noEmit)
+//   3. test             — vitest suite
+//   4. env              — .env.local / .env.example vs Vercel production drift
+//   5. migrations       — pending_apply.sql batch is in sync with the CI list
+//   6. push             — deployed /api/push/send?dry=1 (auth + VAPID + 4 probes)
+//   7. digest           — deployed /api/cron/digest?dry=1 (auth + 4 probes)
 //
 // Each step runs in order and fails fast on the first red check; the JSON mode
 // (--json) emits the per-step results for CI ingestion. Exit codes: 0 = gate
@@ -24,8 +27,12 @@ import { spawnSync } from "node:child_process";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const NODE = process.execPath;
+const NPM = process.platform === "win32" ? "npm.cmd" : "npm";
 
 const STEPS = [
+  { id: "lint", label: "Lint", npm: "lint" },
+  { id: "tsc", label: "Typecheck", npm: "tsc" },
+  { id: "test", label: "Test suite", npm: "test" },
   { id: "env", label: "Env drift", script: "scripts/check-env-drift.mjs" },
   { id: "migrations", label: "Migration batch sync", script: "scripts/check-migration-batch.mjs" },
   { id: "push", label: "Push dry check (4 probes)", script: "scripts/check-push-health.mjs" },
@@ -45,8 +52,10 @@ function parseArgs(argv) {
           "Steps: env → migrations → push → digest (each fails fast on red)\n\n" +
           "Options:\n" +
           "  --json             emit only the JSON results\n" +
-          "  --skip <ids>       comma-separated step ids to skip (env,migrations,push,digest)\n" +
+          "  --skip <ids>       comma-separated step ids to skip\n" +
+          "                     (lint,tsc,test,env,migrations,push,digest)\n" +
           "  -h, --help         show this help\n\n" +
+          "Steps run in order: lint → tsc → test → env → migrations → push → digest.\n" +
           "Env: check:push / check:digest need NEXT_PUBLIC_APP_URL + CRON_SECRET\n" +
           "     (from process.env or .env.local) to verify the deployed routes.\n",
       );
@@ -60,7 +69,10 @@ function parseArgs(argv) {
 }
 
 function runStep(step) {
-  const res = spawnSync(NODE, [join(root, step.script)], {
+  const cmd = step.npm
+    ? { file: NPM, args: ["run", step.npm, "--silent"] }
+    : { file: NODE, args: [join(root, step.script)] };
+  const res = spawnSync(cmd.file, cmd.args, {
     cwd: root,
     encoding: "utf8",
     env: process.env,

@@ -1,0 +1,68 @@
+name: Pre-deploy gate
+
+# Runs the four-check pre-deploy gate (env drift, migration batch sync, push
+# dry check, digest dry check) on every push and PR, then builds. The build
+# step only runs when the gate passes.
+#
+# Required repo secrets (without them the matching gate step is skipped, but
+# the gate still runs the checks it can and the build is still gated):
+#   VERCEL_TOKEN            -> enables the env-drift check (vercel env ls)
+#   CRON_SECRET             -> enables the push + digest dry checks
+#   NEXT_PUBLIC_APP_URL     -> deployed site URL (push/digest dry checks)
+#   NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY -> build inlining
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: predeploy-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: gate:predeploy → build
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # check:env needs a linked project, not just a token. Link non-fatally so
+      # the gate decides which steps to run based on what's actually available.
+      - name: Link Vercel project (for check:env)
+        if: env.VERCEL_TOKEN != ''
+        run: npx vercel link --yes --project learningfans >/dev/null 2>&1 || echo "link failed — env-drift check will be skipped"
+
+      - name: Compute gate args from configured secrets
+        id: gate-args
+        run: |
+          ARGS=""
+          if [ -z "$VERCEL_TOKEN" ] || [ ! -f .vercel/project.json ]; then
+            ARGS="$ARGS --skip env"
+          fi
+          if [ -z "$CRON_SECRET" ]; then
+            ARGS="$ARGS --skip push,digest"
+          fi
+          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+
+      - name: Run pre-deploy gate
+        run: npm run gate:predeploy -- ${{ steps.gate-args.outputs.args }}
+
+      - name: Build
+        run: npm run build

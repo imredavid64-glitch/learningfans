@@ -107,6 +107,17 @@ npm run desktop:start          # run the Electron shell (loads live site)
 npm run desktop:build          # electron-builder for the current platform
 ```
 
+### CI gate (every push)
+
+The **Pre-deploy gate** workflow (`.github/workflows/pre-deploy-gate.yml`) runs
+on every push/PR: lint, `tsc --noEmit`, the test suite, env drift, migration
+batch sync, push dry, digest dry — then `npm run build` only if the gate
+passed. Steps whose repo secrets aren't configured are skipped automatically;
+set `VERCEL_TOKEN`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`,
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the repo's
+Settings → Secrets → Actions to unlock the full gate. Locally, `npm run
+gate:predeploy` is the one command to run before any `vercel --prod`.
+
 ### Binary releases (all platforms)
 
 1. Bump the version in `package.json` (and `desktop/electron-builder.yml` uses it).

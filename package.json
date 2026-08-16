@@ -14,6 +14,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "tsc": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "mobile:sync": "next build && npx cap copy",

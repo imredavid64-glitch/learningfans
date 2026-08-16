@@ -59,13 +59,15 @@ public launch. Companion docs: [README](../README.md) (setup/deploy),
 
 ## 1. Gate — must pass before launch
 
-- [ ] `npm test` → **86/86 passing**
-- [ ] `npx tsc --noEmit` → clean
-- [ ] `npm run lint` → clean
-- [ ] `npm run build` → compiles, no route errors
-- [ ] `npm run gate:predeploy` → **exit 0 / "READY TO DEPLOY"**: chains env drift
+- [ ] `npm run gate:predeploy` → **exit 0 / "READY TO DEPLOY"**: the single
+      pre-deploy command — chains lint, `tsc --noEmit`, the full test suite, env drift
       (`check:env`), migration-batch sync (`check:migrations`), push dry (4 probes) and
-      digest dry (4 probes) — run this right before every `vercel --prod`
+      digest dry (4 probes), fail-fast. Run this right before every `vercel --prod`.
+      Also enforced on every push/PR by the `.github/workflows/pre-deploy-gate.yml` CI
+      job (skips a step whose secrets aren't configured; the build only runs when the
+      gate passes). Required repo secrets: `VERCEL_TOKEN`, `CRON_SECRET`,
+      `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- [ ] `npm run build` → compiles, no route errors
 - [ ] `npm run smoke:launch -- --json` → **exit 0 / `"ok": true`**: site HTTP 200,
       all routes ok, **17/17 base tables live** + **27/27 migrations live** (every batch
       feature flips on), required env present — if migrations aren't 27/27, apply the
