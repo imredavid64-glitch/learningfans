@@ -8,6 +8,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-17 — Vercel CLI 56+ format option support in check-env-drift
+- **`scripts/check-env-drift.mjs`**: Updated `getVercelProdEnv()` to use `--format json` with automatic fallback to `--json` for compatibility with Vercel CLI 56.x (which replaced `--json` with `--format json` on `env ls`). Unblocked `check:env` and `gate:predeploy` (both now exit 0, READY TO DEPLOY).
+- **Automated tests & gate verification**: tsc, eslint, 195/195 vitest tests, migration sync (27/27), smoke test (27/27 live), realtime/RLS probes (10/10), and launch walk (36/36) all pass clean.
+
 ## 2026-08-16 — Live launch walk (signup → community → quiz → party → whiteboard) automates checklist Section 2
 - **`scripts/launch-walk.mjs`** (`npm run walk:launch`): walks the primary launch journeys end-to-end against live with behavioral probes — two fresh users via the Auth admin API (email_confirm: true, profiles auto-created by handle_new_user), password sign-in, then RLS-honest writes (real user JWTs, no SQL): community (space → creator auto-moderator → join → thread kind=question → nested reply → upvote via post_votes trigger, score=1), quiz (create → submit attempt via quiz_attempts upsert → leaderboard read), study party (scheduled room starts_at +3h → RSVP → future-only RLS gate rejects past-party RSVP 42501), whiteboard (stroke snapshot update → round-trips to the other user → chat message round-trip). Self-cleaning (deletes test users/data unless `--keep-data`); `--json` for machine output. First run exposed that a space creator must be added as a moderator member (mirrors app's createSpace) before posting.
 - **Result: 20/20 checks pass, exit 0** against live; verified zero leftover test rows afterwards. Wired into package.json (`walk:launch`) and docs/LAUNCH_CHECKLIST.md (Gate section, next to verify:realtime).

@@ -59,14 +59,34 @@ function parseEnvFile(path) {
 }
 
 // Fetch the Vercel production env via the CLI (authenticated locally).
+// VERCEL_CLI can point at a specific CLI binary (e.g. one run under a healthy
+// node) when `npx vercel` isn't usable in the environment.
 function getVercelProdEnv() {
-  const raw = execFileSync(
-    "npx",
-    ["vercel", "env", "ls", "production", "--json"],
-    { encoding: "utf8", cwd: root, stdio: ["ignore", "pipe", "pipe"] },
-  );
+  const cli = process.env.VERCEL_CLI;
+  const baseCmd = cli ? cli : "npx";
+  const baseArgs = cli ? ["env", "ls", "production"] : ["vercel", "env", "ls", "production"];
+
+  let raw;
+  try {
+    raw = execFileSync(baseCmd, [...baseArgs, "--format", "json"], {
+      encoding: "utf8",
+      cwd: root,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch {
+    raw = execFileSync(baseCmd, [...baseArgs, "--json"], {
+      encoding: "utf8",
+      cwd: root,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  }
+
   // The CLI prints a "Retrieving project…" progress line before the JSON.
-  const data = JSON.parse(raw.slice(raw.indexOf("{")));
+  const jsonStart = raw.indexOf("{");
+  if (jsonStart === -1) {
+    throw new Error(`Unexpected CLI output (no JSON found): ${raw.slice(0, 200)}`);
+  }
+  const data = JSON.parse(raw.slice(jsonStart));
   const map = new Map();
   for (const e of data.envs || []) {
     if (!e.key) continue;
