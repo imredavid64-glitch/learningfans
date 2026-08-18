@@ -76,8 +76,10 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
 - ✅ **Community leaderboard** — shipped 2026-08-12: per-community rankings by
   XP (level + streak) or contributions (threads/materials/replies), medals +
   mod badges, caller highlighted. Next: karma/trophies.
-- **Threaded replies in room chat** (`M`): hover a message → "reply", replies nest
-  under it. Chat gets long in live rooms; threading keeps it scannable.
+- ✅ **Threaded replies in room chat** — shipped 2026-08-18: replies nest up to 3
+  levels (`buildMessageTree`, deeper replies flatten onto depth 2); per-message
+  Reply button + "Replying to…" composer chip; `study_room_messages.parent_id`
+  (migration `20260818000001`); offline queue carries `parentId`.
 - **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or
   Jitsi's audio-only mode, so people can hang out and talk while studying without
   booking a "meeting".
@@ -92,9 +94,10 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   entry point, and flashcard presence links into a room for that deck.
 - **Personal quick actions** (`S`): replace the static nav with a "recently used"
   row (recent rooms, recent spaces) on the dashboard.
-- **Onboarding checklist** (`M`): first-run card walks users through join a space →
-  set a priority → do a check-in → join a study room. We know every step's XP hook
-  already exists.
+- ✅ **Onboarding checklist** — shipped 2026-08-18: first-run card walks users
+  through 6 steps (complete profile → join a space → first material → first
+  discussion → take a quiz → check in) with a progress bar; hides itself once
+  complete (`src/lib/onboarding.ts` + dashboard card).
 - **Command palette (⌘K)** (`M`): one search box for spaces, rooms, materials,
   people, and actions ("start a room", "schedule a meeting"). Search exists; wrap it.
 - **Declutter the demo/creator/fan mode** (`M`): it was a hackathon showcase; if it
@@ -128,8 +131,10 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   bonus for joining a room 3 days straight. Wires into the existing leaderboard.
 - **Study parties** (`M`): scheduled public rooms with a countdown; leaderboard shows
   "most minutes studied together this week" per space.
-- **Wall of fame** (`S`): weekly spotlight card on the dashboard for top XP earners
-  in your spaces.
+- ✅ **Wall of fame** — shipped 2026-08-18: weekly spotlight card on the dashboard
+  for this week's top XP earners (`user_stats.weekly_xp` + `get_weekly_leaderboard`
+  RPC, migration `20260818000000`; `award_xp`/`check_in` rewritten with ISO-week
+  accumulation + auto-reset).
 
 ## 5. Native & platform
 
@@ -199,14 +204,16 @@ Fresh territory on top of the shipped Reddit-for-learners core. Tagged by effort
 
 ### Cheap wins (existing infra, one feature each)
 
-- **Live quiz battles in study rooms** (`M` 🔥) — quizzes *and* realtime rooms both
-  exist. Add a "host quiz" mode: everyone in the room answers simultaneously with a
-  live scoreboard and first-to-answer bonus. The Kahoot moment — the single most
-  shareable feature for a study app.
-- **Karma / trophies** (`S`) — the last blueprint item. Trophies for "First 100 XP",
-  "Answered 10 questions", "Hosted 5 study rooms"; karma = net upvotes on your
-  threads/posts shown next to usernames. Data already lives in `user_stats` +
-  `post_votes`.
+- ✅ **Live quiz battles in study rooms** — shipped 2026-08-18: host picks a quiz
+  (public-space or room-space only — no private-content leak), questions broadcast
+  with answers stripped; everyone answers locally, the host grades and broadcasts
+  live standings (🥇🥈🥉); participants auto-record their attempt via the existing
+  `submitQuizResult` (server-authoritative regrade + XP + integrity guard). The
+  Kahoot moment — the single most shareable feature for a study app.
+- ✅ **Karma / trophies** — shipped 2026-08-18: trophy badges for "First 100 XP" up
+  through 10k XP, 7/30-day streaks, plus identity/joiner/community-builder badges,
+  with a "next trophy" nudge on the profile page (`src/lib/trophies.ts`). (Net-upvote
+  karma next to usernames remains future work — data lives in `post_votes`.)
 - **AI "Explain this" on any post/material** (`S`) — Groq is already wired into
   moderation; reuse it student-facing: "Explain this PDF/note/answer like I'm 12"
   with a citation of the source. Turns every resource into a tutor.
@@ -292,8 +299,12 @@ Fresh territory on top of the shipped Reddit-for-learners core. Tagged by effort
 
 ### Suggested build order
 
-1. **Karma/trophies + AI explain** (both tiny, both visible everywhere)
-2. **Live quiz battles** (the feature people will actually tell friends about)
-3. **"Ask the community" + official answers** (community depth)
-4. **Whiteboard export + room XP** (closes the loop on study rooms)
+1. ✅ **Karma/trophies + AI explain** — trophies shipped 2026-08-18; "AI explain"
+   (`S`) still open.
+2. ✅ **Live quiz battles** — shipped 2026-08-18 (the feature people will actually
+   tell friends about).
+3. ✅ **"Ask the community" + official answers** — shipped 2026-08-13 (community
+   depth).
+4. **Whiteboard export + room XP** — whiteboard export/pin shipped 2026-08-13;
+   room XP (`S`) still open.
 5. Then pick a moonshot based on how rooms get used.

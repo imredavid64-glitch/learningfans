@@ -224,17 +224,29 @@ superpower of the Reddit-for-learners vision (see
     renders a 2x PNG, server validates, downscales via sharp ≤1920px, stores in
     the `materials` bucket + a `file` material with `metadata.mime`, so the feed
     shows it with the image thumbnail/lightbox — the board outlives the room).
-  - **Room chat** — persisted, realtime via `postgres_changes`; **@mentions**
+  - **Room chat** — persisted, realtime via `postgres_changes`; **threaded
+    replies** (Reply button per message, replies nest up to 3 levels via
+    `buildMessageTree` — deeper replies flatten onto depth 2; "Replying to…"
+    composer chip, Escape cancels; `study_room_messages.parent_id`, migration
+    `20260818000001`; the offline queue carries `parentId`); **@mentions**
     (autocomplete against space members or app profiles; pings via
     `create_notification`, type `mention`); **emoji reactions**
-    (`study_room_message_reactions`, realtime); instant local profanity check on
-    send, then **batched AI moderation** hides non-educational/promotional
-    messages after the fact (removal placeholder in the feed); **per-message
-    report button** (flag icon in the hover row → standard report flow → mod
-    queue with the message body).
+    (`study_room_message_reactions`, realtime, hover tooltips list who reacted);
+    instant local profanity check on send, then **batched AI moderation** hides
+    non-educational/promotional messages after the fact (removal placeholder in
+    the feed); **per-message report button** (flag icon in the hover row →
+    standard report flow → mod queue with the message body).
   - **Focus timer** — 25/5 pomodoro synced by broadcast (`endsAt`-based so
     everyone counts down together; pause/resume/skip/reset; auto focus→break;
     localStorage persistence).
+  - **Quiz battles** — host picks a quiz (public-space or room-space only, so no
+    private content ever ships), questions are broadcast with answers stripped,
+    everyone answers locally (one at a time, progress bar), the host grades with
+    `gradeQuiz` and broadcasts live standings with 🥇🥈🥉 medals and "(you)"
+    highlighting; participants auto-record their attempt through the existing
+    `submitQuizResult` pipeline (server-authoritative regrade + XP + the
+    answer-time integrity guard). All over the same broadcast channel
+    (`study-room-{id}`, namespaced `quiz:*` events) — no new tables.
   - **Presence avatars**, **one-click Jitsi video call**, **copy invite link**,
     host **End room** (read-only board + disabled chat afterwards).
   - **Host moderation** — hosts (creator, app mod, or space mod) get a
@@ -276,9 +288,12 @@ superpower of the Reddit-for-learners vision (see
   XP, level, current/longest streak, 30-day thread/material/reply counts, and XP
   delta vs the previous digest. Students get a `parent_digest` bell notification
   and can view the latest report as a card in Settings.
-- **Delivery gap:** rows carry a `status` (pending/sent/failed) like
-  `profanity_notifications`; actual email sending awaits an email provider.
-  "Minutes studied" isn't tracked yet — the report covers XP/streaks/contributions.
+- **Delivery:** the cron then flushes pending rows by email via **Resend**
+  (`src/lib/parent-digest-email.ts` — plain `fetch`, no SDK). 4xx rejections mark
+  the row `failed` (no infinite retry); transport errors / 5xx leave it `pending`
+  so the next Monday retries. Without `RESEND_API_KEY`/`RESEND_FROM_EMAIL` the
+  flush is a no-op and the bell notification remains the fallback. "Minutes
+  studied" isn't tracked yet — the report covers XP/streaks/contributions.
 
 ## "Ask the community" question posts
 
@@ -417,6 +432,18 @@ superpower of the Reddit-for-learners vision (see
 - XP hooks: flashcard mastered (+10), material upload (+15), new thread (+5),
   post reply (+3), daily check-in (+5), consecutive-day streak bonus.
 - Level = `xp_to_level(total_xp)` (100 XP/level). Leaderboard on dashboard.
+- **Wall of Fame** — weekly spotlight card on the dashboard: top 5 by XP earned
+  *this ISO week* (`user_stats.weekly_xp`, auto-reset inside `award_xp`/
+  `check_in`), 🥇🥈🥉 medals and "(you)" marker. RPC `get_weekly_leaderboard`,
+  migration `20260818000000`.
+- **Trophies** — profile card with earned badges: XP milestones (100 / 1k / 5k /
+  10k), streaks (7-day current, 30-day longest), identity (profile filled),
+  joiner (1 space), community-builder (3 spaces); plus a "next trophy" nudge.
+  Pure lib `src/lib/trophies.ts` (+ tests), rendered on `/app/profile/[id]`.
+- **Onboarding checklist** — first-run card on the dashboard: 6 steps (profile →
+  join a space → first material → first discussion → take a quiz → check in) with
+  a progress bar; hides itself at 100%. Pure lib `src/lib/onboarding.ts`,
+  dashboard gathers cheap head-counts (guarded pre-migration).
 - **Actions:** `src/actions/gamification.ts`; **Files:**
   `src/lib/gamification.ts`, `src/components/gamification/*`.
 
