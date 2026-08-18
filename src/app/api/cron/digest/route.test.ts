@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   rpc: vi.fn(),
   sendPartyReminders: vi.fn(),
+  flushParentDigestEmails: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -13,6 +14,9 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 vi.mock("@/lib/party-reminders", () => ({
   sendPartyReminders: mocks.sendPartyReminders,
+}));
+vi.mock("@/lib/parent-digest-email", () => ({
+  flushParentDigestEmails: mocks.flushParentDigestEmails,
 }));
 
 import { GET } from "./route";
@@ -37,6 +41,7 @@ beforeEach(() => {
   mocks.from.mockReturnValue(okChain());
   mocks.rpc.mockResolvedValue({ error: null, data: 0 });
   mocks.sendPartyReminders.mockResolvedValue({ reminded: 0 });
+  mocks.flushParentDigestEmails.mockResolvedValue({ emailed: 0, failed: 0, skipped: true });
 });
 
 describe("GET /api/cron/digest", () => {
@@ -88,6 +93,7 @@ describe("GET /api/cron/digest", () => {
   it("non-dry requests still send digests + reminders (dry is the short-circuit)", async () => {
     mocks.rpc.mockResolvedValueOnce({ data: 3, error: null }); // send_weekly_digests
     mocks.rpc.mockResolvedValueOnce({ data: 1, error: null }); // send_parent_digests
+    mocks.flushParentDigestEmails.mockResolvedValue({ emailed: 2, failed: 1, skipped: false });
     const res = await GET(
       new Request("http://localhost/api/cron/digest", {
         headers: { authorization: "Bearer test-secret" },
@@ -97,8 +103,11 @@ describe("GET /api/cron/digest", () => {
     const body = await res.json();
     expect(body.sent).toBe(3);
     expect(body.parentDigests).toBe(1);
+    expect(body.emailed).toBe(2);
+    expect(body.emailFailed).toBe(1);
     expect(mocks.rpc).toHaveBeenCalledWith("send_weekly_digests");
     expect(mocks.rpc).toHaveBeenCalledWith("send_parent_digests");
+    expect(mocks.flushParentDigestEmails).toHaveBeenCalled();
     expect(mocks.sendPartyReminders).toHaveBeenCalled();
   });
 });

@@ -6,7 +6,8 @@ import { notFound, redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
-import { GraduationCap, Mail, Award, Users, Flame, Star, PencilLine } from "lucide-react";
+import { trophiesFor, nextTrophy } from "@/lib/trophies";
+import { GraduationCap, Mail, Award, Users, Flame, Star, PencilLine, Trophy } from "lucide-react";
 import { format } from "date-fns";
 
 interface ProfilePageProps {
@@ -45,6 +46,21 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
   const isMe = me.id === id;
   const statsRow = Array.isArray(stats.data) ? stats.data[0] : null;
+
+  const earned = trophiesFor({
+    total_xp: Number(statsRow?.total_xp ?? 0),
+    current_streak: Number(statsRow?.current_streak ?? 0),
+    longest_streak: Number(statsRow?.longest_streak ?? 0),
+    profileComplete: Boolean(profile.bio || profile.major || profile.avatar_url || (profile.interests?.length ?? 0) > 0),
+    spaceCount: spaces?.data?.length ?? 0,
+  });
+  const nudge = nextTrophy({
+    total_xp: Number(statsRow?.total_xp ?? 0),
+    current_streak: Number(statsRow?.current_streak ?? 0),
+    longest_streak: Number(statsRow?.longest_streak ?? 0),
+    profileComplete: false,
+    spaceCount: spaces?.data?.length ?? 0,
+  });
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
@@ -111,6 +127,37 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             <p className="text-xs text-muted-foreground">day streak</p>
           </div>
         </div>
+      )}
+
+      {earned.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-amber-500" />
+              Karma Trophies
+              <Badge variant="secondary" className="ml-auto">{earned.length} earned</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {earned.map((t) => (
+                <span
+                  key={t.id}
+                  title={t.description}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm"
+                >
+                  <span>{t.emoji}</span>
+                  <span className="font-medium">{t.label}</span>
+                </span>
+              ))}
+            </div>
+            {nudge && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Next up: {nudge.emoji} {nudge.label} — {nudge.description}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <Card>

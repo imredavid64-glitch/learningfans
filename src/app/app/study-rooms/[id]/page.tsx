@@ -6,6 +6,7 @@ import { PartyCountdown } from "@/components/study-rooms/party-countdown";
 import { PartyRsvp } from "@/components/study-rooms/party-rsvp";
 import { sendPartyReminders } from "@/lib/party-reminders";
 import type { RoomMessage } from "@/components/study-rooms/room-chat";
+import type { BattleQuizMeta } from "@/components/study-rooms/quiz-battle";
 
 export default async function StudyRoomPage({
   params,
@@ -133,9 +134,37 @@ export default async function StudyRoomPage({
     user_id: m.user_id,
     body: m.body,
     hidden: (m as { hidden?: boolean }).hidden ?? false,
+    parent_id: (m as { parent_id?: string | null }).parent_id ?? null,
     created_at: m.created_at,
     profiles: (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) ?? null,
   }));
+
+  // Quizzes a battle may use: only ones whose content the room's viewers can
+  // already see — quizzes in the room's own space, or in public communities.
+  let battleQuizzes: BattleQuizMeta[] = [];
+  try {
+    const quizQuery = supabase
+      .from("study_materials")
+      .select("id, title, space_id, spaces(is_public)")
+      .eq("type", "quiz")
+      .eq("is_hidden", false)
+      .limit(100);
+    const { data: quizRows } = await quizQuery;
+    battleQuizzes = ((quizRows ?? []) as {
+      id: string;
+      title: string;
+      space_id: string | null;
+      spaces: { is_public: boolean } | { is_public: boolean }[] | null;
+    }[])
+      .filter((q) => {
+        const space = Array.isArray(q.spaces) ? q.spaces[0] : q.spaces;
+        return Boolean(space?.is_public) || (Boolean(room.space_id) && q.space_id === room.space_id);
+      })
+      .map((q) => ({ id: q.id, title: q.title }))
+      .slice(0, 20);
+  } catch {
+    battleQuizzes = [];
+  }
 
   // Scheduled party banner: RSVP + countdown, plus the lazy reminder sweep.
   const partyStartsAtMs = room.starts_at ? new Date(room.starts_at).getTime() : 0;
@@ -202,6 +231,7 @@ export default async function StudyRoomPage({
         moderationRows={moderationRows}
         myMuted={myMuted}
         myBanned={myBanned}
+        battleQuizzes={battleQuizzes}
       />
     </div>
   );

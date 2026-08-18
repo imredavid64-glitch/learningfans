@@ -386,6 +386,7 @@ export async function sendRoomMessage(
   roomId: string,
   body: string,
   mentionIds: string[] = [],
+  parentId?: string | null,
 ): Promise<{ ok: boolean; error?: string }> {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -403,6 +404,20 @@ export async function sendRoomMessage(
     .single();
   if (!room) return { ok: false, error: "Room not found." };
   if (room.status !== "active") return { ok: false, error: "This room has ended." };
+
+  // Threaded replies: the parent must exist and belong to this room. Depth is
+  // capped client-side; here we only sanity-check the parent row.
+  let resolvedParentId: string | null = null;
+  if (parentId) {
+    const { data: parent } = await supabase
+      .from("study_room_messages")
+      .select("id")
+      .eq("id", parentId)
+      .eq("room_id", roomId)
+      .maybeSingle();
+    if (!parent) return { ok: false, error: "The message you're replying to no longer exists." };
+    resolvedParentId = parentId;
+  }
 
   // Host moderation — muted/banned participants can't post.
   const restriction = await getRoomRestriction(supabase, roomId, profile.id);
@@ -432,7 +447,7 @@ export async function sendRoomMessage(
   const messageText = text.slice(0, ROOM_MESSAGE_MAX_LENGTH);
   const { data: inserted, error } = await supabase
     .from("study_room_messages")
-    .insert({ room_id: roomId, user_id: profile.id, body: messageText })
+    .insert({ room_id: roomId, user_id: profile.id, body: messageText, parent_id: resolvedParentId })
     .select("id")
     .single();
 

@@ -14,6 +14,8 @@ import {
   Play,
   CheckCircle,
   Users,
+  Copy,
+  Check,
 } from "lucide-react";
 
 interface LiveCallRoomProps {
@@ -35,12 +37,29 @@ export function LiveCallRoom({
 }: LiveCallRoomProps) {
   const [inCall, setInCall] = useState(status === "live");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  // Construct iframe embed URL for Jitsi or default web call
+  // Construct iframe embed URL for Jitsi with seamless join parameters
   const isJitsi = callUrl.includes("meet.jit.si");
   const embedUrl = isJitsi
-    ? `${callUrl}#userInfo.displayName="${encodeURIComponent(userDisplayName)}"`
+    ? `${callUrl}#userInfo.displayName="${encodeURIComponent(userDisplayName)}"&config.prejoinPageEnabled=false&config.disableDeepLinking=true`
     : callUrl;
+
+  const copyCallLink = async () => {
+    try {
+      await navigator.clipboard.writeText(callUrl);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = callUrl;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    void hapticLight();
+    window.setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleStartCall = async () => {
     setInCall(true);
@@ -82,13 +101,22 @@ export function LiveCallRoom({
               <CheckCircle className="h-3 w-3" /> Completed
             </Badge>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={copyCallLink}
+            className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+            {copied ? "Copied" : "Copy Link"}
+          </Button>
           <a
             href={callUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
           >
-            Open in new tab <ExternalLink className="h-3 w-3" />
+            New Tab <ExternalLink className="h-3 w-3" />
           </a>
         </div>
       </div>
@@ -121,12 +149,12 @@ export function LiveCallRoom({
         <div className="space-y-3">
           <div
             className={`relative overflow-hidden rounded-lg bg-black border shadow-inner transition-all ${
-              isFullscreen ? "fixed inset-0 z-50 rounded-none border-none" : "aspect-video w-full"
+              isFullscreen ? "fixed inset-0 z-50 rounded-none border-none" : "aspect-video w-full min-h-[360px]"
             }`}
           >
             <iframe
               src={embedUrl}
-              allow="camera; microphone; display-capture; autoplay; clipboard-write; encrypted-media; fullscreen"
+              allow="camera; microphone; display-capture; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
               className="h-full w-full border-0"
               title={`Live call: ${title}`}
             />

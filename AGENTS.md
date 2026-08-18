@@ -8,6 +8,27 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
+## 2026-08-18 — Feature batch: wall of fame, quiz battles, threaded chat, trophies, onboarding + cron ops (all live + deployed)
+- **Wall of Fame** (migration `20260818000000_weekly_wall_of_fame.sql`, folded + applied): `user_stats.weekly_xp` + `weekly_xp_week`; `award_xp`/`check_in` rewritten with ISO-week accumulation + auto-reset; `get_weekly_leaderboard` RPC. `getWeeklyLeaderboard` action + `WallOfFame` card on the dashboard (🥇🥈🥉, "(you)" marker).
+- **Quiz battles in study rooms** (`src/components/study-rooms/quiz-battle.tsx`): host picks a quiz (public-space or room-space only — no private-content leak), broadcast `quiz:start` ships questions with answers stripped; everyone answers locally; host grades (`gradeQuiz`) and broadcasts `quiz:result` standings; participants auto-record their attempt via the existing `submitQuizResult` (server-authoritative regrade + XP + integrity guard). No migration.
+- **Threaded room chat** (migration `20260818000001_threaded_room_chat.sql`): `study_room_messages.parent_id` (self-ref cascade) + index; `buildMessageTree`/`MAX_CHAT_DEPTH=3` (deeper replies flatten onto depth 2 — tested); reply composer chip in room chat; `sendRoomMessage` validates parent in-room; offline queue carries `parentId`.
+- **Karma trophies** (`src/lib/trophies.ts`): XP milestones (100/1k/5k/10k), streaks (7/30), identity/joiner/community-builder badges + next-trophy nudge on the profile page.
+- **Onboarding checklist** (`src/lib/onboarding.ts` + card on dashboard): 6 steps (profile, join space, first material, first discussion, take a quiz, check in) with progress bar; guards render pre-migration.
+- **Question cards show "Tried:"** snippet from `what_tried` in the thread feed.
+- **Parent-digest emails** (`src/lib/parent-digest-email.ts`): digest cron now flushes `parent_digests` rows via Resend (plain fetch, no SDK); 4xx → `failed`, transport/5xx → stays `pending` for retry; no-op without `RESEND_API_KEY`/`RESEND_FROM_EMAIL`.
+- **`end_stale_study_parties`** RPC (migration `20260818000002_end_stale_study_parties.sql`) — push cron auto-ends parties 3h past start.
+- **DB storage alert**: push cron pings admins via `create_notification` (`db_usage`, once/day) when usage ≥80% of the 500 MB cap.
+- **Env hygiene**: re-added `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY`/`APP_URL` to Vercel with `--no-sensitive` (were Sensitive — blocked browser inlining); `GEMINI_API_KEY` pulled into `.env.local`. `check:env` now zero warnings.
+- **Infra**: `apply-migrations.mjs` gained 429 backoff (2s/4s retries) + 500 ms base delay — the Management API rate-limits ~120 req/min and the old 60 ms pace 429'd everything. Smoke test migration probes grew 27 → 30; batch 27 → 30 sections (261 statements, all applied live, 0 failures).
+- **QA (all green)**: tsc ✓, lint ✓, **215/215 tests** (was 195; +onboarding, +parent-digest-email, +trophies, +mention/tooltip/thread-tree), build ✓, `check:migrations` ✓, `check:env` ✓ zero warnings, `smoke:launch` **30/30 migrations · 17/17 base · 8/8 cron ALL SYSTEMS LIVE**, `verify:realtime` 10/10, `walk:launch` 36/36, `gate:predeploy` **7/7 READY TO DEPLOY**.
+- ✅ Deployed to Vercel production after the gate.
+
+## 2026-08-18 — Full QA pass + realtime probe hardening
+- Ran the whole verification stack against live: tsc ✓, lint ✓, **195/195 tests** ✓, `check:migrations` ✓ (27 folded / 8 excluded), `check:env` ✓ READY TO DEPLOY (4 known warnings), `smoke:launch` **ALL SYSTEMS LIVE** (27/27 migrations, 17/17 base, 8/8 cron), `walk:launch` **36/36**, `verify:realtime` 10/10, `gate:predeploy` **7/7 READY TO DEPLOY**, `next build` compiles.
+- **Fixed flaky realtime probe** (`scripts/verify-realtime.mjs`): `probeChange` once timed out on the very first channel of a run (`study_room_messages` — false red; a standalone debug client proved inserts + delivery work). Root cause: the first websocket on a fresh client can lag the SUBSCRIBED ack. Hardened: on timeout it retries once with a fresh channel (real outage fails twice), and it waits 300 ms after SUBSCRIBED before firing the insert. Verified stable — two consecutive 10/10 runs.
+- ⚠️ Uncommitted WIP (pre-QA): nav consolidation ("More" dropdown on desktop, 5-tab + More menu on mobile), in-room video call panel for study rooms (join/minimize/fullscreen/leave + embed flags), Copy Link on live calls, meetings pages tweaks — all green but **not yet deployed**.
+- ⚠️ Env warnings (non-blocking): 3 NEXT_PUBLIC vars stored Sensitive in Vercel (re-add plain), `GEMINI_API_KEY` missing from `.env.local`.
+
 ## 2026-08-17 — Vercel CLI 56+ format option support in check-env-drift
 - **`scripts/check-env-drift.mjs`**: Updated `getVercelProdEnv()` to use `--format json` with automatic fallback to `--json` for compatibility with Vercel CLI 56.x (which replaced `--json` with `--format json` on `env ls`). Unblocked `check:env` and `gate:predeploy` (both now exit 0, READY TO DEPLOY).
 - **Automated tests & gate verification**: tsc, eslint, 195/195 vitest tests, migration sync (27/27), smoke test (27/27 live), realtime/RLS probes (10/10), and launch walk (36/36) all pass clean.

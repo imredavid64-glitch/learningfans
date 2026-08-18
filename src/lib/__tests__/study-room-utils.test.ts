@@ -24,6 +24,10 @@ import {
   cursorColor,
   CURSOR_COLORS,
   strokeRenderColor,
+  extractMentionsFromBody,
+  reactionTooltip,
+  buildMessageTree,
+  MAX_CHAT_DEPTH,
   type WhiteboardStroke,
   type PomodoroState,
 } from "@/lib/study-room-utils";
@@ -262,6 +266,96 @@ describe("mentions & reactions", () => {
     }
     expect(isAllowedReaction("🚀")).toBe(false);
     expect(isAllowedReaction("not an emoji")).toBe(false);
+  });
+
+  it("finds plain @Name mentions by display name (no picker needed)", () => {
+    const users = [
+      { id: "1", display_name: "Ada Lovelace" },
+      { id: "2", display_name: "Alan" },
+      { id: "3", display_name: "Lin" },
+    ];
+    expect(extractMentionsFromBody("hey @Ada Lovelace, look", users)).toEqual(["1"]);
+    expect(extractMentionsFromBody("@Alan can you help?", users)).toEqual(["2"]);
+    expect(extractMentionsFromBody("ask @lin, she knows", users)).toEqual(["3"]);
+    // Punctuation after the name still matches.
+    expect(extractMentionsFromBody("thanks @Ada Lovelace!", users)).toEqual(["1"]);
+    // Not a mention: partial names, mid-word @, or unknown people.
+    expect(extractMentionsFromBody("@Ad check this", users)).toEqual([]);
+    expect(extractMentionsFromBody("mail me at foo@ada", users)).toEqual([]);
+    expect(extractMentionsFromBody("hi @Grace", users)).toEqual([]);
+    // No body / no users → nothing.
+    expect(extractMentionsFromBody("", users)).toEqual([]);
+    expect(extractMentionsFromBody("@Alan", [])).toEqual([]);
+  });
+
+  it("builds reaction tooltips from reactor names", () => {
+    expect(reactionTooltip(["Ada", "Lin"], false)).toBe("Ada, Lin");
+    expect(reactionTooltip(["Ada"], true)).toBe("You");
+    expect(reactionTooltip(["Ada", "Lin"], true)).toBe("Ada, Lin and you");
+    expect(reactionTooltip([], false)).toBe("No reactions");
+    expect(reactionTooltip(["Ada", "Ada"], false)).toBe("Ada");
+  });
+});
+
+describe("threaded room chat", () => {
+  const msg = (id: string, created_at: string, parent_id?: string | null) => ({
+    id,
+    room_id: "r1",
+    user_id: "u1",
+    body: `msg ${id}`,
+    created_at,
+    parent_id: parent_id ?? null,
+    profiles: null,
+  });
+
+  it("lists roots in chronological order with replies nested", () => {
+    const tree = buildMessageTree([
+      msg("a", "2026-08-18T10:00:00Z"),
+      msg("b", "2026-08-18T10:01:00Z", "a"),
+      msg("c", "2026-08-18T10:02:00Z", "b"),
+      msg("d", "2026-08-18T10:03:00Z"),
+    ]);
+    expect(tree.map((n) => n.message.id)).toEqual(["a", "d"]);
+    expect(tree[0].children.map((n) => n.message.id)).toEqual(["b"]);
+    expect(tree[0].children[0].children.map((n) => n.message.id)).toEqual(["c"]);
+    expect(tree[1].children).toHaveLength(0);
+  });
+
+  it("caps nesting at MAX_CHAT_DEPTH by re-parenting deep replies", () => {
+    const deep = [
+      msg("root", "2026-08-18T10:00:00Z"),
+      msg("l2", "2026-08-18T10:01:00Z", "root"),
+      msg("l3", "2026-08-18T10:02:00Z", "l2"),
+      msg("l4", "2026-08-18T10:03:00Z", "l3"),
+      msg("l5", "2026-08-18T10:04:00Z", "l4"),
+    ];
+    const tree = buildMessageTree(deep);
+    expect(tree).toHaveLength(1);
+    expect(tree[0].children.map((n) => n.message.id)).toEqual(["l2"]);
+    const l2 = tree[0].children[0];
+    // l3 sits at depth 3; l4/l5 exceed the cap and flatten onto l2's level
+    // (each re-parented to the depth-cap ancestor), keeping chronological order.
+    expect(l2.children.map((n) => n.message.id)).toEqual(["l3", "l4", "l5"]);
+    for (const child of l2.children) {
+      expect(child.message.parent_id).toBe("l2");
+      expect(child.children).toHaveLength(0);
+    }
+    expect(MAX_CHAT_DEPTH).toBe(3);
+  });
+
+  it("treats messages whose parent isn't in the batch as roots", () => {
+    const tree = buildMessageTree([msg("orphan", "2026-08-18T10:00:00Z", "missing-parent")]);
+    expect(tree.map((n) => n.message.id)).toEqual(["orphan"]);
+  });
+
+  it("orders children chronologically regardless of insert order", () => {
+    const tree = buildMessageTree([
+      msg("b", "2026-08-18T10:02:00Z", "root"),
+      msg("root", "2026-08-18T10:00:00Z"),
+      msg("a", "2026-08-18T10:01:00Z", "root"),
+    ]);
+    expect(tree[0].message.id).toBe("root");
+    expect(tree[0].children.map((n) => n.message.id)).toEqual(["a", "b"]);
   });
 });
 

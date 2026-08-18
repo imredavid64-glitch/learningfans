@@ -67,12 +67,14 @@ const waitFor = (ms) => new Promise((r) => setTimeout(r, ms));
 // Subscribe with `client` to postgres_changes INSERTs on `table` (filtered by
 // `filter`), call `fire()` once subscribed, and resolve when the event arrives
 // or the timeout elapses. No event => { ok: false, reason: "timeout" }.
+// The FIRST attempt on a fresh client can race the websocket handshake, so on
+// timeout the probe retries once with a fresh channel (a real outage fails
+// twice; a cold-connect blip passes on the retry).
 function probeChange({ client, table, filter, fire, ms }) {
   return new Promise((resolve) => {
-    const id = `probe-${table}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const channel = client.channel(id);
     let settled = false;
-    const timer = setTimeout(() => finish({ ok: false, reason: "timeout — no realtime event delivered" }), ms);
+    let attempt = 0;
+    let channel, timer;
     function finish(r) {
       if (settled) return;
       settled = true;
@@ -80,17 +82,37 @@ function probeChange({ client, table, filter, fire, ms }) {
       client.removeChannel(channel);
       resolve(r);
     }
-    channel
-      .on("postgres_changes", { event: "INSERT", schema: "public", table, filter }, () => finish({ ok: true }))
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          Promise.resolve()
-            .then(fire)
-            .catch((e) => finish({ ok: false, reason: `fire error: ${e?.message ?? e}` }));
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          finish({ ok: false, reason: `subscribe status ${status}` });
+    function tryAttempt() {
+      attempt++;
+      channel = client.channel(`probe-${table}-${Date.now()}-${attempt}-${Math.random().toString(36).slice(2, 8)}`);
+      timer = setTimeout(() => {
+        if (!settled) {
+          if (attempt < 2) {
+            client.removeChannel(channel);
+            tryAttempt();
+          } else {
+            finish({ ok: false, reason: "timeout — no realtime event delivered (after 2 attempts)" });
+          }
         }
-      });
+      }, ms);
+      channel
+        .on("postgres_changes", { event: "INSERT", schema: "public", table, filter }, () => finish({ ok: true }))
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            // Give the server-side subscription a beat to fully attach before
+            // firing the insert (the first channel on a fresh client connects
+            // the websocket, which can lag the SUBSCRIBED ack).
+            setTimeout(() => {
+              Promise.resolve()
+                .then(fire)
+                .catch((e) => finish({ ok: false, reason: `fire error: ${e?.message ?? e}` }));
+            }, 300);
+          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            finish({ ok: false, reason: `subscribe status ${status}` });
+          }
+        });
+    }
+    tryAttempt();
   });
 }
 

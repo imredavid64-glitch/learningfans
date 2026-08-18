@@ -39,6 +39,7 @@ export interface FeedThread {
   flair_id?: string | null;
   kind?: string;
   accepted_answer_id?: string | null;
+  what_tried?: string | null;
   is_pinned: boolean;
   is_locked: boolean;
   score: number;
@@ -271,27 +272,37 @@ export function ThreadFeed({
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>
-                    {t.profiles?.display_name} ·{" "}
-                    {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}
-                  </span>
-                  <div className="flex gap-2">
-                    <ReportButton targetType="thread" targetId={t.id} />
-                    {isMod && (
-                      <>
-                        <form action={toggleThreadPin.bind(null, t.id, !t.is_pinned)}>
-                          <Button type="submit" variant="ghost" size="sm">
-                            {t.is_pinned ? "Unpin" : "Pin"}
-                          </Button>
-                        </form>
-                        <form action={toggleThreadLock.bind(null, t.id, !t.is_locked)}>
-                          <Button type="submit" variant="ghost" size="sm">
-                            {t.is_locked ? "Unlock" : "Lock"}
-                          </Button>
-                        </form>
-                      </>
-                    )}
+                <CardContent className="space-y-1.5 text-sm text-muted-foreground">
+                  {t.kind === "question" && t.what_tried && (
+                    <p className="line-clamp-2 rounded-md bg-purple-500/5 px-2.5 py-1.5 text-xs border border-purple-500/10">
+                      <span className="font-medium text-purple-600 dark:text-purple-400">
+                        Tried:
+                      </span>{" "}
+                      {t.what_tried}
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span>
+                      {t.profiles?.display_name} ·{" "}
+                      {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}
+                    </span>
+                    <div className="flex gap-2">
+                      <ReportButton targetType="thread" targetId={t.id} />
+                      {isMod && (
+                        <>
+                          <form action={toggleThreadPin.bind(null, t.id, !t.is_pinned)}>
+                            <Button type="submit" variant="ghost" size="sm">
+                              {t.is_pinned ? "Unpin" : "Pin"}
+                            </Button>
+                          </form>
+                          <form action={toggleThreadLock.bind(null, t.id, !t.is_locked)}>
+                            <Button type="submit" variant="ghost" size="sm">
+                              {t.is_locked ? "Unlock" : "Lock"}
+                            </Button>
+                          </form>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </div>

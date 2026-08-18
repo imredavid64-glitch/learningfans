@@ -1,23 +1,52 @@
 import Link from "next/link";
-import { Bookmark, BookOpen, Calendar, Compass, Flag, Home, Layers, ListOrdered, Newspaper, Settings, Shield, Video, GraduationCap, Search, Presentation, Users } from "lucide-react";
+import {
+  Bookmark,
+  BookOpen,
+  Calendar,
+  Compass,
+  Flag,
+  Home,
+  Layers,
+  ListOrdered,
+  Newspaper,
+  Settings,
+  Shield,
+  Video,
+  GraduationCap,
+  Search,
+  Presentation,
+  Users,
+  ChevronDown,
+} from "lucide-react";
 import { isModerator, isAdmin } from "@/lib/auth";
 import type { Profile } from "@/types/database";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { DemoModeToggle } from "@/components/layout/demo-mode-toggle";
 import { NotificationBell } from "@/components/layout/notification-bell";
 
-const links = [
+const primaryLinks = [
   { href: "/app", label: "Dashboard", icon: Home },
   { href: "/app/spaces", label: "Spaces", icon: Layers },
   { href: "/app/feed", label: "Feed", icon: Newspaper },
-  { href: "/app/communities", label: "Communities", icon: Compass },
   { href: "/app/study-rooms", label: "Study Rooms", icon: Presentation },
-  { href: "/app/groups", label: "Groups", icon: Users },
   { href: "/app/meetings", label: "Meetings", icon: Video },
   { href: "/app/schedule", label: "Schedule", icon: Calendar },
-  { href: "/app/priorities", label: "Priorities", icon: ListOrdered },
-  { href: "/app/saved", label: "Saved", icon: Bookmark },
+];
+
+const secondaryLinks = [
+  { href: "/app/groups", label: "Study Groups", icon: Users },
+  { href: "/app/communities", label: "Browse Communities", icon: Compass },
+  { href: "/app/priorities", label: "Study Priorities", icon: ListOrdered },
+  { href: "/app/saved", label: "Saved Items", icon: Bookmark },
+  { href: "/app/study-hub", label: "Study Hub AI", icon: GraduationCap },
 ];
 
 export function AppNav({ profile }: { profile: Profile }) {
@@ -25,48 +54,61 @@ export function AppNav({ profile }: { profile: Profile }) {
     <header className="border-b border-border bg-card/50 backdrop-blur sticky top-0 z-50">
       <DemoModeToggle />
       
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
-        <Link href="/app" className="flex items-center gap-2 font-semibold">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
+        <Link href="/app" className="flex items-center gap-2 font-semibold shrink-0">
           <BookOpen className="h-5 w-5 text-primary" />
-          LearningFans
+          <span className="hidden sm:inline font-bold">LearningFans</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {links.map(({ href, label, icon: Icon }) => (
+          {primaryLinks.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Icon className="h-4 w-4" />
               {label}
             </Link>
           ))}
-          {isModerator(profile.role) && (
-            <Link
-              href="/app/mod"
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              <Flag className="h-4 w-4" />
-              Moderation
-            </Link>
-          )}
-          <Link
-            href="/app/study-hub"
-            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <GraduationCap className="h-4 w-4" />
-            Study Hub
-          </Link>
-          {isAdmin(profile.role) && (
-            <Link
-              href="/app/admin"
-              className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              <Shield className="h-4 w-4" />
-              Admin
-            </Link>
-          )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground outline-none">
+              More <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {secondaryLinks.map(({ href, label, icon: Icon }) => (
+                <Link key={href} href={href} className="block">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </DropdownMenuItem>
+                </Link>
+              ))}
+
+              {(isModerator(profile.role) || isAdmin(profile.role)) && (
+                <DropdownMenuSeparator />
+              )}
+
+              {isModerator(profile.role) && (
+                <Link href="/app/mod" className="block">
+                  <DropdownMenuItem className="cursor-pointer text-amber-600 dark:text-amber-400">
+                    <Flag className="h-4 w-4" />
+                    Moderation
+                  </DropdownMenuItem>
+                </Link>
+              )}
+
+              {isAdmin(profile.role) && (
+                <Link href="/app/admin" className="block">
+                  <DropdownMenuItem className="cursor-pointer text-primary font-medium">
+                    <Shield className="h-4 w-4" />
+                    Admin Panel
+                  </DropdownMenuItem>
+                </Link>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         <div className="flex items-center gap-2">

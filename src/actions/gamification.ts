@@ -86,6 +86,22 @@ export async function getLeaderboard(limit = 10): Promise<LeaderboardEntry[]> {
   return (data as LeaderboardEntry[]) ?? [];
 }
 
+export async function getWeeklyLeaderboard(limit = 5): Promise<WeeklyLeaderboardEntry[]> {
+  await requireProfile();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("get_weekly_leaderboard", {
+    p_limit: limit,
+  });
+
+  if (error || !data) return [];
+  return (data as WeeklyLeaderboardEntry[]) ?? [];
+}
+
+export interface WeeklyLeaderboardEntry extends LeaderboardEntry {
+  weekly_xp: number;
+}
+
 function friendlyRpcError(message: string): string {
   if (message.includes("award_xp") || message.includes("could not find the function")) {
     return "Study stats aren't set up yet — run the study_progress migration in Supabase.";

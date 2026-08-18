@@ -2,7 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { getMyStats, getLeaderboard } from "@/actions/gamification";
+import { getMyStats, getLeaderboard, getWeeklyLeaderboard } from "@/actions/gamification";
 import {
   Card,
   CardContent,
@@ -13,6 +13,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
 import { StudyStatsCard } from "@/components/gamification/study-stats-card";
+import { WallOfFame } from "@/components/gamification/wall-of-fame";
+import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
+import { buildOnboardingChecklist } from "@/lib/onboarding";
 import { DeadlineRadar } from "@/components/schedule/deadline-radar";
 import { Presentation, Video, CalendarDays, Users } from "lucide-react";
 
@@ -43,10 +46,46 @@ export default async function DashboardPage() {
     .order("starts_at", { ascending: true })
     .limit(5);
 
-  const [myStats, leaderboard] = await Promise.all([
+  const [myStats, leaderboard, weeklyLeaderboard] = await Promise.all([
     getMyStats(),
     getLeaderboard(5),
+    getWeeklyLeaderboard(5),
   ]);
+
+  // Onboarding checklist — cheap head counts, each guarded so the dashboard
+  // still renders when a migration hasn't landed yet.
+  let materialCount = 0;
+  let threadCount = 0;
+  let quizTaken = false;
+  try {
+    const { count: materials } = await supabase
+      .from("study_materials")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", profile.id)
+      .eq("is_hidden", false);
+    materialCount = materials ?? 0;
+    const { count: threads } = await supabase
+      .from("threads")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", profile.id);
+    threadCount = threads ?? 0;
+    const { count: attempts } = await supabase
+      .from("quiz_attempts")
+      .select("material_id", { count: "exact", head: true })
+      .eq("user_id", profile.id);
+    quizTaken = (attempts ?? 0) > 0;
+  } catch {
+    // Pre-migration — checklist renders with zeros.
+  }
+
+  const checklist = buildOnboardingChecklist({
+    profileComplete: Boolean(profile.bio || profile.major || profile.avatar_url),
+    spaceCount: memberships?.length ?? 0,
+    materialCount,
+    threadCount,
+    quizTaken,
+    checkedInToday: (myStats?.current_streak ?? 0) > 0,
+  });
 
   return (
     <div className="space-y-8">
@@ -57,11 +96,15 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      <OnboardingChecklist items={checklist} />
+
       <StudyStatsCard
         userId={profile.id}
         initialStats={myStats}
         initialLeaderboard={leaderboard}
       />
+
+      <WallOfFame entries={weeklyLeaderboard} userId={profile.id} />
 
       {/* Study together — quick actions */}
       <Card>

@@ -5,6 +5,7 @@ import { buildPushPayload, getVapidConfig } from "@/lib/push";
 import { drainChatModerationQueue } from "@/lib/chat-moderation";
 import { sendPartyReminders } from "@/lib/party-reminders";
 import { checkAndArchive } from "@/lib/supabase/server";
+import { getDbUsageReport } from "@/lib/archive";
 
 export const runtime = "nodejs";
 
@@ -83,6 +84,51 @@ export async function GET(request: Request) {
   // Study-party reminders (safety net — the hub/room pages are the lazy path).
   const partyReminders = (await sendPartyReminders()).reminded;
 
+  // Auto-end scheduled study parties that never started (started 3+ hours
+  // late with no one in the room). Best-effort — needs migration 0002.
+  let staleEnded = 0;
+  try {
+    const { data } = await admin.rpc("end_stale_study_parties", { p_hours: 3 });
+    staleEnded = typeof data === "number" ? data : 0;
+  } catch {
+    staleEnded = 0;
+  }
+
+  // Free-tier storage alert: when the DB passes 80% of the 500 MB cap, ping
+  // the admins once per day through the existing bell (which then pushes).
+  let storageNotified = false;
+  try {
+    const report = await getDbUsageReport();
+    if (report.needsArchive && report.usagePercent > 0) {
+      const { data: admins } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("role", "admin")
+        .limit(20);
+      const today = new Date().toISOString().slice(0, 10);
+      for (const a of admins ?? []) {
+        const { data: existing } = await admin
+          .from("notifications")
+          .select("id")
+          .eq("user_id", a.id)
+          .eq("type", "db_usage")
+          .gte("created_at", `${today}T00:00:00.000Z`)
+          .maybeSingle();
+        if (existing) continue;
+        await admin.rpc("create_notification", {
+          p_user_id: a.id,
+          p_title: "Database storage alert",
+          p_body: `Your project is at ${Math.round(report.usagePercent * 100)}% of the 500 MB free-tier cap — archive or prune soon.`,
+          p_type: "db_usage",
+          p_link: "/app/admin",
+        });
+        storageNotified = true;
+      }
+    }
+  } catch {
+    storageNotified = false;
+  }
+
   const { data: notifications } = await admin
     .from("notifications")
     .select("id, user_id, title, body, link")
@@ -92,7 +138,7 @@ export async function GET(request: Request) {
     .limit(BATCH_LIMIT);
 
   if (!notifications || notifications.length === 0) {
-    return NextResponse.json({ sent: 0, partyReminders });
+    return NextResponse.json({ sent: 0, partyReminders, staleEnded, storageNotified });
   }
 
   let sent = 0;
@@ -132,7 +178,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ sent, partyReminders });
+  return NextResponse.json({ sent, partyReminders, staleEnded, storageNotified });
 }
 
 export { GET as POST };

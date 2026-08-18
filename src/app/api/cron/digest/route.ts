@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPartyReminders } from "@/lib/party-reminders";
+import { flushParentDigestEmails } from "@/lib/parent-digest-email";
 
 export const runtime = "nodejs";
 
@@ -50,10 +51,21 @@ export async function GET(request: Request) {
     // Non-fatal — the weekly digests already went out.
   }
 
+  // Actually deliver the pending parent digests by email (Resend). No-op when
+  // RESEND_API_KEY isn't configured — the bell notification is the fallback.
+  const emailFlush = await flushParentDigestEmails();
+
   // Study-party reminders (safety net — the hub/room pages are the lazy path).
   const partyReminders = (await sendPartyReminders()).reminded;
 
-  return NextResponse.json({ sent: data ?? 0, parentDigests, partyReminders });
+  return NextResponse.json({
+    sent: data ?? 0,
+    parentDigests,
+    emailed: emailFlush.emailed,
+    emailFailed: emailFlush.failed,
+    emailSkipped: emailFlush.skipped,
+    partyReminders,
+  });
 }
 
 export { GET as POST };

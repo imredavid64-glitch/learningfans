@@ -126,12 +126,15 @@ export default async function MeetingDetailPage(props: { params: Promise<{ id: s
             <p className="text-sm text-muted-foreground">No participants yet.</p>
           ) : (
             <ul className="space-y-2">
-              {participants.map((p) => (
-                <li key={p.user_id} className="flex items-center justify-between text-sm">
-                  <span>{p.profiles?.[0]?.display_name || "Unknown"}</span>
-                  <Badge variant="outline">{p.rsvp_status}</Badge>
-                </li>
-              ))}
+              {participants.map((p) => {
+                const profileObj = Array.isArray(p.profiles) ? p.profiles[0] : (p.profiles as { display_name?: string } | null);
+                return (
+                  <li key={p.user_id} className="flex items-center justify-between text-sm">
+                    <span>{profileObj?.display_name || "Unknown"}</span>
+                    <Badge variant="outline">{p.rsvp_status}</Badge>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>

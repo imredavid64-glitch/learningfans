@@ -20,6 +20,8 @@ export interface QueuedChatMessage {
   roomId: string;
   body: string;
   mentionIds: string[];
+  /** Reply target — the message this queued message replies to (threaded chat). */
+  parentId?: string | null;
   createdAt: string;
 }
 
@@ -79,6 +81,7 @@ export function queueChatMessage(
   roomId: string,
   body: string,
   mentionIds: string[] = [],
+  parentId?: string | null,
 ): QueuedChatMessage {
   const store = readAll();
   const msg: QueuedChatMessage = {
@@ -86,6 +89,7 @@ export function queueChatMessage(
     roomId,
     body,
     mentionIds: mentionIds.filter((id) => typeof id === "string" && id.length > 0),
+    parentId: parentId || null,
     createdAt: new Date().toISOString(),
   };
   const queue = store.chatQueues[roomId] ?? [];

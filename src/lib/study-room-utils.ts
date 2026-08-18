@@ -39,6 +39,103 @@ export const RSVP_REMINDER_HORIZON_MINUTES = 30;
 
 export const ALLOWED_REACTIONS = ["👍", "🎉", "❤️", "🔥", "😄", "🙏"] as const;
 
+/**
+ * Find users whose display name is referenced as a plain `@Name` token in a
+ * message body (no picker needed — typing `@Ada` at a word boundary matches).
+ * Case-insensitive; the token must end at whitespace, end-of-text, or
+ * punctuation so `@Al` never matches "Alice". Returns their user ids.
+ */
+export function extractMentionsFromBody(
+  body: string,
+  users: { id: string; display_name: string }[],
+): string[] {
+  const found: string[] = [];
+  for (const user of users) {
+    if (!user?.display_name || !user.id) continue;
+    const name = user.display_name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(^|\\s)@${name}(?=\\s|$|[.,!?;:])`, "i");
+    if (re.test(body)) found.push(user.id);
+  }
+  return found;
+}
+
+/** Human tooltip listing who reacted, e.g. "Ada, Lin and you". */
+export function reactionTooltip(names: string[], me: boolean): string {
+  const clean = [...new Set(names.filter(Boolean))];
+  if (clean.length === 0) return "No reactions";
+  if (me) {
+    return clean.length === 1
+      ? "You"
+      : `${clean.join(", ")} and you`;
+  }
+  return clean.join(", ");
+}
+
+export interface ChatTreeNode<T> {
+  message: T;
+  children: ChatTreeNode<T>[];
+}
+
+/**
+ * Build a reply tree from room chat messages. Roots are ordered by created_at
+ * (oldest first); replies nest under their parent with depth capped at
+ * `MAX_CHAT_DEPTH` — deeper replies are re-parented onto their ancestor so
+ * the UI stays scannable (the data keeps its real parent_id).
+ */
+export const MAX_CHAT_DEPTH = 3;
+
+export function buildMessageTree<T extends { id: string; parent_id?: string | null; created_at: string }>(
+  messages: T[],
+): ChatTreeNode<T>[] {
+  const byId = new Map<string, T>();
+  for (const m of messages) byId.set(m.id, m);
+
+  const depthMemo = new Map<string, number>();
+  const depthOf = (m: T): number => {
+    const cached = depthMemo.get(m.id);
+    if (cached !== undefined) return cached;
+    if (!m.parent_id || !byId.has(m.parent_id)) {
+      depthMemo.set(m.id, 1);
+      return 1;
+    }
+    const d = depthOf(byId.get(m.parent_id)!) + 1;
+    depthMemo.set(m.id, d);
+    return d;
+  };
+
+  // The ancestor at exactly `targetDepth` (1 = root), or null.
+  const ancestorAtDepth = (m: T, targetDepth: number): T | null => {
+    let cur = m;
+    let curDepth = depthOf(m);
+    while (cur.parent_id && byId.has(cur.parent_id) && curDepth > targetDepth) {
+      cur = byId.get(cur.parent_id)!;
+      curDepth -= 1;
+    }
+    return curDepth === targetDepth ? cur : null;
+  };
+
+  const nodes = new Map<string, ChatTreeNode<T>>();
+  for (const m of messages) nodes.set(m.id, { message: m, children: [] });
+
+  const roots: ChatTreeNode<T>[] = [];
+  const sorted = [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  for (const m of sorted) {
+    const natural = depthOf(m) <= MAX_CHAT_DEPTH;
+    let parentId = natural ? m.parent_id ?? null : null;
+    if (!natural) {
+      parentId = ancestorAtDepth(m, MAX_CHAT_DEPTH - 1)?.id ?? null;
+    }
+    const node = nodes.get(m.id)!;
+    if (parentId && nodes.has(parentId)) {
+      node.message = { ...m, parent_id: parentId };
+      nodes.get(parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}
+
 /** Distinct per-user cursor colors on the whiteboard. */
 export const CURSOR_COLORS = [
   "#ef4444",

@@ -412,7 +412,22 @@ async function main() {
   for (let i = 0; i < statements.length; i++) {
     const s = statements[i];
     const firstLine = s.sql.split("\n")[0].slice(0, 72);
-    const { ok: success, status, text } = await runQuery(token, ref, s.sql);
+
+    // The Management API rate-limits (~120 req/min); a 429 gets a backoff
+    // retry (idempotent batch makes retries safe), then the base delay keeps
+    // the steady-state well under the cap.
+    let attempt = 0;
+    let result = null;
+    while (attempt < 3) {
+      result = await runQuery(token, ref, s.sql);
+      if (result.status !== 429) break;
+      attempt += 1;
+      const waitMs = 1000 * 2 ** attempt; // 2s, 4s
+      console.warn(`  ⏳ HTTP 429 (rate limit) on [${i + 1}] — retrying in ${waitMs}ms…`);
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+    const { ok: success, status, text } = result;
+
     if (success) {
       ok++;
       console.log(`  ✓ [${String(i + 1).padStart(2)}] ${firstLine}`);
@@ -422,7 +437,7 @@ async function main() {
       if (text && text.length > 1) console.error(`      ${text.slice(0, 300)}`);
       if (args.stopOnError) break;
     }
-    await new Promise((r) => setTimeout(r, 60));
+    await new Promise((r) => setTimeout(r, 500));
   }
 
   console.log(`\nDone: ${ok} ok, ${failures.length} failed.`);

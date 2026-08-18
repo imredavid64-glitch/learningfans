@@ -245,6 +245,25 @@ const MIGRATIONS = [
       { kind: "column", table: "threads", column: "score", name: "threads.score" },
     ],
   },
+  // 2026-08-18 batch (appended to pending_apply.sql).
+  {
+    id: "weekly_wall_of_fame",
+    name: "Wall of Fame (weekly XP)",
+    checks: [
+      { kind: "column", table: "user_stats", column: "weekly_xp", name: "user_stats.weekly_xp" },
+      { kind: "rpc", rpc: "get_weekly_leaderboard", name: "get_weekly_leaderboard RPC" },
+    ],
+  },
+  {
+    id: "threaded_room_chat",
+    name: "Threaded room chat",
+    checks: [{ kind: "column", table: "study_room_messages", column: "parent_id", name: "study_room_messages.parent_id" }],
+  },
+  {
+    id: "stale_study_parties",
+    name: "Auto-end stale study parties",
+    checks: [{ kind: "rpc", rpc: "end_stale_study_parties", name: "end_stale_study_parties RPC" }],
+  },
 ];
 
 // Base-critical schema surface that the app needs REGARDLESS of the batch —

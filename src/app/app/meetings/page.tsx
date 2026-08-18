@@ -51,7 +51,7 @@ async function MeetingsContent() {
 
   const { data: organized } = await supabase
     .from("meetings")
-    .select("*", { head: true, count: "exact" })
+    .select("*, spaces(name, slug)")
     .eq("organizer_id", profile.id)
     .gte("starts_at", now)
     .order("starts_at", { ascending: true })
@@ -59,7 +59,7 @@ async function MeetingsContent() {
 
   const { data: rsvps } = await supabase
     .from("meeting_participants")
-    .select("meeting_id, rsvp_status, meetings!inner(*, spaces(name, slug))", { head: true, count: "exact" })
+    .select("meeting_id, rsvp_status, meetings!inner(*, spaces(name, slug))")
     .eq("user_id", profile.id)
     .gte("meetings.starts_at", now);
 
