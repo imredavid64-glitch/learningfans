@@ -80,11 +80,8 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   levels (`buildMessageTree`, deeper replies flatten onto depth 2); per-message
   Reply button + "Replying to…" composer chip; `study_room_messages.parent_id`
   (migration `20260818000001`); offline queue carries `parentId`.
-- **Voice rooms** (`L`): persistent voice channels (like Discord) using LiveKit or
-  Jitsi's audio-only mode, so people can hang out and talk while studying without
-  booking a "meeting".
-- **Push the realtime layer**: rooms today need the app open. Web push already
-  exists for reminders — extend it to "someone drew on your board / @mentioned you".
+- **Voice rooms / Audio Huddles** (`L`): shipped 2026-08-19 — lightweight drop-in audio huddle component (`AudioHuddleRoom`) for study rooms and spaces, featuring microphone mute/unmute, live speaking indicators, and seamless join/leave controls.
+- **Push the realtime layer / Mention sweep** (`M`): shipped 2026-08-19 — extended web push cron pipeline to sweep unread mentions and notifications, keeping offline users engaged.
 
 ## 2. Streamline the app (make the core loop tighter)
 

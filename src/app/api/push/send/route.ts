@@ -131,9 +131,8 @@ export async function GET(request: Request) {
 
   const { data: notifications } = await admin
     .from("notifications")
-    .select("id, user_id, title, body, link")
+    .select("id, user_id, title, body, link, type")
     .is("push_sent_at", null)
-    .is("read_at", null)
     .gte("created_at", dayAgo)
     .limit(BATCH_LIMIT);
 

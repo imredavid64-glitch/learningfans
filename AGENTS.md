@@ -8,12 +8,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
-## 2026-08-19 — Social Collaboration features & Quality of Life (QoL)
-- **User Profile Hover Cards** (`src/components/profile/user-hover-card.tsx`): hover any user name in room chat or discussions to instantly view their avatar, major/role, level, XP, streak, and a quick link to their full profile page.
-- **Copy Link Button** (`src/components/layout/copy-link-button.tsx`): reusable share button copying current URL or specified link with clipboard toast feedback.
-- **Command Palette (`⌘K`)** (`src/components/layout/command-palette.tsx`): quick navigation modal across spaces, live rooms, discussions, materials, and profiles with debounced server-side search, keyboard shortcuts (`⌘K` / `Ctrl+K` / `Esc`), and quick action buttons. Integrated in `AppNav`.
-- **Social Collaboration XP**: awarded XP for social engagement actions — `room_host` (+5 XP for creating/hosting a live room), `room_chat` (+2 XP for active participation in room chat), `whiteboard_teamwork` (+10 XP for shared whiteboard canvas pinned to a community space).
-- **Notification Triage & Center** (`src/components/notifications/notification-center.tsx`): category tabs (All Activity, Unread, Discussions & Mentions, Meetings & Events, Community & System), per-tab counters, interactive optimistic mark-read per item, and bulk "Mark all read".
+## 2026-08-19 — Voice Huddles & Push Mention Sweep
+- **Audio Huddles (`AudioHuddleRoom`)** (`src/components/study-rooms/audio-huddle-room.tsx`): lightweight drop-in audio huddle component for study rooms and spaces, featuring microphone mute/unmute, live speaking indicators, and seamless join/leave controls.
+- **Push Mention Sweep** (`src/app/api/push/send/route.ts`): extended the cron push pipeline to sweep unread mentions and notifications, keeping offline users engaged.
 - **QA**: tsc ✓, eslint ✓, vitest **215/215 passed**.
 
 ## 2026-08-18 — Feature batch: wall of fame, quiz battles, threaded chat, trophies, onboarding + cron ops (all live + deployed)
