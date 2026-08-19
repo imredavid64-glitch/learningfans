@@ -100,6 +100,17 @@ export async function createStudyRoom(
     return { error: error?.message ?? "Could not create the study room." };
   }
 
+  // Social Collaboration XP: Award +5 XP for hosting/creating a study room
+  try {
+    await supabase.rpc("award_xp", {
+      p_user_id: profile.id,
+      p_amount: 5,
+      p_reason: "room_host",
+    });
+  } catch (err) {
+    console.error("Failed to award XP for room hosting:", err);
+  }
+
   revalidatePath("/app/study-rooms");
   return { redirect: `/app/study-rooms/${room.id}` };
 }
@@ -280,6 +291,17 @@ export async function pinWhiteboardToSpace(
     .from("study_materials")
     .update({ storage_path: path, metadata: { mime: "image/png" } })
     .eq("id", material.id);
+
+  // Social Collaboration XP: Award +10 XP for shared whiteboard teamwork pinned to community
+  try {
+    await supabase.rpc("award_xp", {
+      p_user_id: profile.id,
+      p_amount: 10,
+      p_reason: "whiteboard_teamwork",
+    });
+  } catch (err) {
+    console.error("Failed to award XP for whiteboard teamwork:", err);
+  }
 
   revalidatePath(`/app/spaces/${spaceSlugClean}/materials`);
   return { ok: true, materialId: material.id };
@@ -470,6 +492,18 @@ export async function sendRoomMessage(
 
   // Notify @mentioned users through the existing bell.
   await notifyMentions(room, text, mentionIds, profile);
+
+  // Social Collaboration XP: Award +2 XP for active chat participation
+  try {
+    await supabase.rpc("award_xp", {
+      p_user_id: profile.id,
+      p_amount: 2,
+      p_reason: "room_chat",
+    });
+  } catch (err) {
+    console.error("Failed to award XP for room chat:", err);
+  }
+
   return { ok: true };
 }
 

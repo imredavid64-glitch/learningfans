@@ -13,7 +13,6 @@ import {
   Shield,
   Video,
   GraduationCap,
-  Search,
   Presentation,
   Users,
   ChevronDown,
@@ -31,6 +30,7 @@ import {
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { DemoModeToggle } from "@/components/layout/demo-mode-toggle";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { CommandPalette } from "@/components/layout/command-palette";
 
 const primaryLinks = [
   { href: "/app", label: "Dashboard", icon: Home },
@@ -115,11 +115,7 @@ export function AppNav({ profile }: { profile: Profile }) {
           <span className="hidden text-sm text-muted-foreground sm:inline">
             {profile.display_name}
           </span>
-          <Link href="/app/search" aria-label="Search">
-            <Button variant="ghost" size="icon">
-              <Search className="h-4 w-4" />
-            </Button>
-          </Link>
+          <CommandPalette />
           <NotificationBell userId={profile.id} />
           <Link href="/app/settings">
             <Button variant="ghost" size="icon" aria-label="Settings">
