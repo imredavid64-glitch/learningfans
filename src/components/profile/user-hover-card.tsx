@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { User, Award, Flame, ExternalLink } from "lucide-react";
+import { User, Award, Flame } from "lucide-react";
+import { DirectMessageDrawer } from "@/components/profile/direct-message-drawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,12 +85,13 @@ export function UserHoverCard({
           )}
         </div>
 
-        <div className="mt-3 pt-1">
+        <div className="mt-3 pt-1 grid grid-cols-2 gap-2">
           <Link href={`/app/profile/${user.id}`} className="block">
-            <Button variant="secondary" size="sm" className="w-full h-7 text-xs gap-1.5">
-              <User className="h-3.5 w-3.5" /> View Profile <ExternalLink className="h-3 w-3 opacity-60 ml-auto" />
+            <Button variant="secondary" size="sm" className="w-full h-7 text-xs gap-1">
+              <User className="h-3 w-3" /> Profile
             </Button>
           </Link>
+          <DirectMessageDrawer currentUserId="" peerId={user.id} peerName={user.display_name} peerAvatar={user.avatar_url} />
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
