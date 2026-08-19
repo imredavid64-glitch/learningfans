@@ -98,8 +98,11 @@ by effort (`S` = small, `M` = medium, `L` = large) and impact (`🔥` = high).
   through 6 steps (complete profile → join a space → first material → first
   discussion → take a quiz → check in) with a progress bar; hides itself once
   complete (`src/lib/onboarding.ts` + dashboard card).
-- **Command palette (⌘K)** (`M`): one search box for spaces, rooms, materials,
-  people, and actions ("start a room", "schedule a meeting"). Search exists; wrap it.
+- **Command palette (⌘K)** (`M`): shipped 2026-08-19 — one search box for spaces, rooms, materials, people, and quick actions (`⌘K` / `Ctrl+K`), with debounced search and shortcut helper.
+- **User Profile Hover Cards** (`S`): shipped 2026-08-19 — hover any user name in room chat or discussions to inspect their avatar, major/role, level, XP, streak, and quick profile link.
+- **Copy Link Button** (`S`): shipped 2026-08-19 — reusable share button with clipboard toast feedback.
+- **Social Collaboration XP**: shipped 2026-08-19 — awarded XP for social participation (`room_host` +5 XP, `room_chat` +2 XP, `whiteboard_teamwork` +10 XP).
+- **Notification Triage & Center** (`S`): shipped 2026-08-19 — category tabs, unread filters, per-item mark read, and bulk "Mark all read".
 - **Declutter the demo/creator/fan mode** (`M`): it was a hackathon showcase; if it
   isn't driving signups, move it behind a setting or drop it to shrink the nav.
 - **Notifications triage** (`S`): group by type (material / thread / meeting /

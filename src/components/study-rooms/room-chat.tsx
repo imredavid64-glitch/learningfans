@@ -26,6 +26,7 @@ import { hapticLight } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { UserHoverCard } from "@/components/profile/user-hover-card";
 import { ReportButton } from "@/components/moderation/report-button";
 import { CloudOff, CornerUpLeft, MessageSquare, Send, ShieldAlert, SmilePlus, X } from "lucide-react";
 
@@ -38,7 +39,7 @@ export interface RoomMessage {
   hidden?: boolean;
   /** Reply target — threaded chat. */
   parent_id?: string | null;
-  profiles: { display_name: string; avatar_url?: string | null } | null;
+  profiles: { display_name: string; avatar_url?: string | null; major?: string | null; role?: string | null; bio?: string | null } | null;
 }
 
 export interface ReactionRow {
@@ -150,9 +151,9 @@ export function RoomChat({
   const flushInFlightRef = useRef(false);
   const listRef = useRef<HTMLDivElement>(null);
   const mentionIdsRef = useRef<Set<string>>(new Set());
-  const profileCacheRef = useRef<Map<string, { display_name: string; avatar_url?: string | null }>>(
-    new Map(),
-  );
+  const profileCacheRef = useRef<
+    Map<string, { display_name: string; avatar_url?: string | null; major?: string | null; role?: string | null; bio?: string | null }>
+  >(new Map());
 
   async function ensureName(userIdToLookup: string): Promise<string> {
     if (namesRef.current.has(userIdToLookup)) return namesRef.current.get(userIdToLookup)!;
@@ -161,7 +162,7 @@ export function RoomChat({
       const supabase = createClient();
       const { data } = await supabase
         .from("profiles")
-        .select("display_name, avatar_url")
+        .select("display_name, avatar_url, major, role, bio")
         .eq("id", userIdToLookup)
         .maybeSingle();
       profile = data ?? { display_name: "Someone" };
@@ -451,7 +452,18 @@ export function RoomChat({
           <div className={cn("max-w-[80%] rounded-lg px-3 py-2 text-sm", mine ? "bg-primary text-primary-foreground" : "bg-muted")}>
             <div className={cn("mb-0.5 flex items-baseline gap-2 text-xs", mine ? "text-primary-foreground/80" : "text-muted-foreground")}>
               {depth > 0 && <CornerUpLeft className="h-3 w-3 opacity-60" />}
-              <span className="font-semibold">{mine ? "You" : (m.profiles?.display_name ?? "Unknown")}</span>
+              <UserHoverCard
+                user={{
+                  id: m.user_id,
+                  display_name: m.profiles?.display_name ?? (mine ? "You" : "Unknown"),
+                  avatar_url: m.profiles?.avatar_url,
+                  major: m.profiles?.major,
+                  role: m.profiles?.role,
+                  bio: m.profiles?.bio,
+                }}
+              >
+                <span className="font-semibold">{mine ? "You" : (m.profiles?.display_name ?? "Unknown")}</span>
+              </UserHoverCard>
               <time>{formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}</time>
             </div>
             <p className="whitespace-pre-wrap break-words">

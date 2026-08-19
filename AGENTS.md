@@ -8,11 +8,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Append a dated entry after every meaningful change. Keep each entry short (what changed, files touched, anything broken/blocked). Newest at top.
 
-## 2026-08-19 — Social Collaboration features: Command Palette (⌘K), Room XP, Notification Center
+## 2026-08-19 — Social Collaboration features & Quality of Life (QoL)
+- **User Profile Hover Cards** (`src/components/profile/user-hover-card.tsx`): hover any user name in room chat or discussions to instantly view their avatar, major/role, level, XP, streak, and a quick link to their full profile page.
+- **Copy Link Button** (`src/components/layout/copy-link-button.tsx`): reusable share button copying current URL or specified link with clipboard toast feedback.
 - **Command Palette (`⌘K`)** (`src/components/layout/command-palette.tsx`): quick navigation modal across spaces, live rooms, discussions, materials, and profiles with debounced server-side search, keyboard shortcuts (`⌘K` / `Ctrl+K` / `Esc`), and quick action buttons. Integrated in `AppNav`.
 - **Social Collaboration XP**: awarded XP for social engagement actions — `room_host` (+5 XP for creating/hosting a live room), `room_chat` (+2 XP for active participation in room chat), `whiteboard_teamwork` (+10 XP for shared whiteboard canvas pinned to a community space).
 - **Notification Triage & Center** (`src/components/notifications/notification-center.tsx`): category tabs (All Activity, Unread, Discussions & Mentions, Meetings & Events, Community & System), per-tab counters, interactive optimistic mark-read per item, and bulk "Mark all read".
-- **QA**: tsc ✓, eslint ✓, vitest **215/215 passed**, smoke test **30/30 migrations · 17/17 base tables · 8/8 cron dry probes ALL SYSTEMS LIVE**.
+- **QA**: tsc ✓, eslint ✓, vitest **215/215 passed**.
 
 ## 2026-08-18 — Feature batch: wall of fame, quiz battles, threaded chat, trophies, onboarding + cron ops (all live + deployed)
 - **Wall of Fame** (migration `20260818000000_weekly_wall_of_fame.sql`, folded + applied): `user_stats.weekly_xp` + `weekly_xp_week`; `award_xp`/`check_in` rewritten with ISO-week accumulation + auto-reset; `get_weekly_leaderboard` RPC. `getWeeklyLeaderboard` action + `WallOfFame` card on the dashboard (🥇🥈🥉, "(you)" marker).
